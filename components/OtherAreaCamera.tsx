@@ -3,20 +3,18 @@ import React, { useState, useRef } from 'react';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
-interface FacialSkinCameraProps {
+interface OtherAreaCameraProps {
   onCapture?: (imageUri: string) => void;
   onClose: () => void;
-  initialFacing?: 'front' | 'back';
   title?: string;
 }
 
-export default function FacialSkinCamera({ 
+export default function OtherAreaCamera({ 
   onCapture, 
-  onClose, 
-  initialFacing = 'front',
-  title = 'Position your face in the frame'
-}: FacialSkinCameraProps) {
-  const [facing, setFacing] = useState<CameraType>(initialFacing);
+  onClose,
+  title = 'For the best possible image quality and detection accuracy, ensure the camera is held close enough to clearly capture the affected skin area and is well-lit.'
+}: OtherAreaCameraProps) {
+  const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -82,7 +80,7 @@ export default function FacialSkinCamera({
         ref={cameraRef}
       />
       
-      {/* Overlay - positioned absolutely outside CameraView */}
+      {/* Overlay - No face guide for back camera */}
       <View style={styles.overlay}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -91,9 +89,11 @@ export default function FacialSkinCamera({
           <Text style={styles.title}>{title}</Text>
         </View>
 
-        <View style={styles.faceGuide} />
-
         <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
+            <Ionicons name="camera-reverse" size={32} color="#fff" />
+          </TouchableOpacity>
+          
           <TouchableOpacity 
             style={[styles.captureButton, isProcessing && styles.captureButtonDisabled]} 
             onPress={takePicture}
@@ -105,6 +105,8 @@ export default function FacialSkinCamera({
               <View style={styles.captureButtonInner} />
             )}
           </TouchableOpacity>
+          
+          <View style={styles.placeholder} />
         </View>
       </View>
     </View>
@@ -132,12 +134,12 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
   },
   closeButton: {
-    padding: 10,
+    padding: 4,
     pointerEvents: 'auto',
   },
   title: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 20,
     flex: 1,
@@ -145,25 +147,25 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: -1, height: 1 },
     textShadowRadius: 10,
   },
-  faceGuide: {
-    position: 'absolute',
-    top: '20%',
-    left: '10%',
-    width: '80%',
-    height: '50%',
-    borderWidth: 3,
-    borderColor: '#fff',
-    borderRadius: 200,
-    opacity: 0.5,
-  },
   bottomBar: {
     position: 'absolute',
     bottom: 40,
     left: 0,
     right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    pointerEvents: 'box-none',
+  },
+  flipButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'box-none',
+    pointerEvents: 'auto',
   },
   captureButton: {
     width: 80,
@@ -184,6 +186,9 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: '#fff',
+  },
+  placeholder: {
+    width: 60,
   },
   message: {
     textAlign: 'center',
