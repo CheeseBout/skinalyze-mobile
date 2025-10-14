@@ -1,18 +1,17 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
 import { Pressable } from 'react-native';
-
+import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import HeaderComponent from '@/components/HeaderComponent';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <Ionicons size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
 export default function TabLayout() {
@@ -22,29 +21,28 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
+        header: () => <HeaderComponent />
       }}>
       <Tabs.Screen
         name="HomeScreen"
-        options={{title: 'Home', tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />}}
+        options={{title: 'Home', tabBarIcon: ({ color, focused }) => <TabBarIcon name={focused ? "home" : "home-outline"} color={color} />}}
       />
       <Tabs.Screen
         name="ChatbotScreen"
-        options={{title: 'Chatbot', tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />}}
+        options={{title: 'Chatbot', tabBarIcon: ({ color, focused }) => <TabBarIcon name={focused ? "chatbubbles" : "chatbubbles-outline"} color={color} />}}
       />
       <Tabs.Screen
         name="AnalyzeScreen"
-        options={{title: 'Analyze', tabBarIcon: ({ color }) => <TabBarIcon name="line-chart" color={color} />}}
-      />
-      <Tabs.Screen
-        name="CartScreen"
-        options={{title: 'Cart', tabBarIcon: ({ color }) => <TabBarIcon name="shopping-cart" color={color} />}}
+        options={{title: 'Analyze', tabBarIcon: ({ color, focused }) => <TabBarIcon name={focused ? "scan" : "scan-outline"} color={color} />}}
       />
       <Tabs.Screen
         name="ScheduleScreen"
-        options={{title: 'Schedule', tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />}}
+        options={{title: 'Schedule', tabBarIcon: ({ color, focused }) => <TabBarIcon name={focused ? "calendar" : "calendar-outline"} color={color} />}}
+      />
+      <Tabs.Screen
+        name="CartScreen"
+        options={{title: 'Cart', tabBarIcon: ({ color, focused }) => <TabBarIcon name={focused ? "cart" : "cart-outline"} color={color} />}}
       />
     </Tabs>
   );
