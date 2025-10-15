@@ -6,11 +6,15 @@ export default function StackLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        presentation: 'card',
       }}
     >
       <Stack.Screen 
         name="AboutScreen" 
-        options={{ headerShown: false }} 
+        options={{ 
+          headerShown: false,
+          title: ''
+        }} 
       />
       <Stack.Screen 
         name="ProductDetail"
