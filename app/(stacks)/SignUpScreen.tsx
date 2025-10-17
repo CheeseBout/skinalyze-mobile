@@ -15,6 +15,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { register, RegisterPayload } from '@/services/authService'
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SignUpScreen() {
   const router = useRouter()
@@ -34,6 +35,8 @@ export default function SignUpScreen() {
   const [errors, setErrors] = useState<Partial<Record<keyof RegisterPayload, string>>>({})
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const { login: authLogin } = useAuth()
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof RegisterPayload, string>> = {}

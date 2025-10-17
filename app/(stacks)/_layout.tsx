@@ -12,19 +12,19 @@ export default function StackLayout() {
       <Stack.Screen 
         name="AboutScreen" 
         options={{ 
-          headerShown: true,
+          headerShown: false,
         }} 
       />
       <Stack.Screen 
         name="ProductDetailScreen"
         options={{ 
-          headerShown: true 
+          headerShown: false 
         }}
       />
       <Stack.Screen 
         name="ProfileScreen"
         options={{ 
-          headerShown: true 
+          headerShown: false 
         }}
       />
       <Stack.Screen 
@@ -47,6 +47,18 @@ export default function StackLayout() {
       />
       <Stack.Screen
         name="SignUpScreen"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="AddressDetailScreen"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="ChangePasswordScreen"
         options={{
           headerShown: false
         }}

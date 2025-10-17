@@ -78,11 +78,7 @@ class ApiService {
   async put<T>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, 'PUT', body, options)
   }
-
-  async patch<T>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'PATCH', body, options)
-  }
-
+  
   async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, 'DELETE', undefined, options)
   }
