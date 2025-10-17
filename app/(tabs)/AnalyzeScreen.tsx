@@ -104,7 +104,7 @@ export default function AnalyzeScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Skin Analysis</Text>
+            <Text style={styles.headerTitle}>Skin Analysis with AI</Text>
             <Text style={styles.headerSubtitle}>Choose your analysis type</Text>
           </View>
 

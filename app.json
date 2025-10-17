@@ -41,7 +41,8 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for skin analysis."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

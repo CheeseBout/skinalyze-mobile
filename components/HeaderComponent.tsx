@@ -2,17 +2,20 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Pressable }
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth'
+import { Alert } from 'react-native';
 
 export default function HeaderComponent() {
   const [searchText, setSearchText] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const router = useRouter();
+  const { logout } = useAuth();
 
   const menuItems = [
     { name: 'Profile', icon: 'person', url: 'ProfileScreen' },
     { name: 'Settings', icon: 'settings', url: 'SettingsScreen' },
     { name: 'About us', icon: 'information-circle', url: 'AboutScreen' },
-    { name: 'Logout', icon: 'log-out', url: '/' },
+    { name: 'Logout', icon: 'log-out', url: 'WelcomeScreen' },
   ]
 
   const handleClearSearch = () => {
@@ -23,9 +26,28 @@ export default function HeaderComponent() {
     setMenuVisible(!menuVisible)
   }
 
-  const handleNavigate = (path: string) => {
+  const handleNavigate = async (path: string) => {
     setMenuVisible(false);
-    router.push(path as any);
+    
+    if (path === 'WelcomeScreen') {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/WelcomeScreen');
+            }
+          }
+        ]
+      );
+    } else {
+      router.push(path as any);
+    }
   }
 
   return (
