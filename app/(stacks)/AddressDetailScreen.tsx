@@ -119,7 +119,7 @@ export default function AddressDetailScreen() {
 
       if (isEditMode && addressId) {
         // Update existing address
-        await userService.updateAddress(token, addressId as string, formData)
+        await userService.updateAddress(token, addressId as string, formData as any)
         Alert.alert('Success', 'Address updated successfully', [
           {
             text: 'OK',
