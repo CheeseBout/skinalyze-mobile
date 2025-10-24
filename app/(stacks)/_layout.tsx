@@ -1,66 +1,72 @@
-import HeaderComponent from '@/components/HeaderComponent';
-import { Stack } from 'expo-router';
+import HeaderComponent from "@/components/HeaderComponent";
+import { Stack } from "expo-router";
 
 export default function StackLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        presentation: 'card',
+        presentation: "card",
       }}
     >
-      <Stack.Screen 
-        name="AboutScreen" 
-        options={{ 
+      <Stack.Screen
+        name="AboutScreen"
+        options={{
           headerShown: false,
-        }} 
+        }}
       />
-      <Stack.Screen 
+      <Stack.Screen
         name="ProductDetailScreen"
-        options={{ 
-          headerShown: false 
+        options={{
+          headerShown: false,
         }}
       />
-      <Stack.Screen 
+      <Stack.Screen
         name="ProfileScreen"
-        options={{ 
-          headerShown: false 
+        options={{
+          headerShown: false,
         }}
       />
-      <Stack.Screen 
+      <Stack.Screen
         name="SettingsScreen"
-        options={{ 
-          headerShown: false 
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="SearchScreen"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="SignInScreen"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="SignUpScreen"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="AddressDetailScreen"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="ChangePasswordScreen"
         options={{
-          headerShown: false
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="NotificationTestScreen"
+        options={{
+          headerShown: false,
         }}
       />
     </Stack>
