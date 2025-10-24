@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { useProducts } from '@/hooks/useProducts'
 import { Ionicons } from '@expo/vector-icons'
 import productService from '@/services/productService'
+import ProductCard from '@/components/ProductCard'
 
 export default function HomeScreen() {
   const router = useRouter()
@@ -55,34 +56,15 @@ export default function HomeScreen() {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {saleProducts.slice(0, 5).map((product) => (
-              <TouchableOpacity
-                key={product.productId}
-                style={styles.productCard}
-                onPress={() => router.push({
-                  pathname: '/(stacks)/ProductDetailScreen',
-                  params: { productId: product.productId }
-                })}
-              >
-                <Image
-                  source={{ uri: product.productImages[0] }}
-                  style={styles.productImage}
+              <View key={product.productId} style={styles.horizontalCardWrapper}>
+                <ProductCard
+                  product={product}
+                  onPress={() => router.push({
+                    pathname: '/(stacks)/ProductDetailScreen',
+                    params: { productId: product.productId }
+                  })}
                 />
-                <View style={styles.saleBadge}>
-                  <Text style={styles.saleBadgeText}>-{product.salePercentage}%</Text>
-                </View>
-                <Text style={styles.productName} numberOfLines={2}>
-                  {product.productName}
-                </Text>
-                <Text style={styles.productBrand}>{product.brand}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.discountedPrice}>
-                    ${productService.calculateDiscountedPrice(product).toFixed(2)}
-                  </Text>
-                  <Text style={styles.originalPrice}>
-                    ${product.sellingPrice.toFixed(2)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -110,52 +92,23 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>All Products</Text>
         <View style={styles.productsGrid}>
-          {products.map((product) => {
-            const stockStatus = productService.getStockStatus(product)
-            const avgRating = productService.calculateAverageRating(product)
-            
-            return (
-              <TouchableOpacity
-                key={product.productId}
-                style={styles.gridProductCard}
+          {products.map((product) => (
+            <View key={product.productId} style={styles.gridCardWrapper}>
+              <ProductCard
+                product={product}
                 onPress={() => router.push({
                   pathname: '/(stacks)/ProductDetailScreen',
                   params: { productId: product.productId }
                 })}
-              >
-                <Image
-                  source={{ uri: product.productImages[0] }}
-                  style={styles.gridProductImage}
-                />
-                {parseFloat(product.salePercentage) > 0 && (
-                  <View style={styles.saleBadge}>
-                    <Text style={styles.saleBadgeText}>-{product.salePercentage}%</Text>
-                  </View>
-                )}
-                <Text style={styles.productName} numberOfLines={2}>
-                  {product.productName}
-                </Text>
-                <Text style={styles.productBrand}>{product.brand}</Text>
-                <View style={styles.ratingContainer}>
-                  <Ionicons name="star" size={14} color="#FFB800" />
-                  <Text style={styles.ratingText}>
-                    {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews'}
-                  </Text>
-                </View>
-                <Text style={styles.price}>${product.sellingPrice.toFixed(2)}</Text>
-                <View style={[styles.stockBadge, { backgroundColor: stockStatus.color }]}>
-                  <Text style={styles.stockBadgeText}>{stockStatus.status}</Text>
-                </View>
-              </TouchableOpacity>
-            )
-          })}
+              />
+            </View>
+          ))}
         </View>
       </View>
     </ScrollView>
   )
 }
 
-// Add all the styles from the previous HomeScreen implementation
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -217,69 +170,9 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
-  productCard: {
+  horizontalCardWrapper: {
     width: 160,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
     marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImage: {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  saleBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  saleBadgeText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  productBrand: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 8,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  discountedPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: '#999',
-    textDecorationLine: 'line-through',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginTop: 4,
   },
   categoryCard: {
     alignItems: 'center',
@@ -304,44 +197,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  gridProductCard: {
+  gridCardWrapper: {
     width: '48%',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  gridProductImage: {
-    width: '100%',
-    height: 140,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginVertical: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  stockBadge: {
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  stockBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '600',
   },
 })

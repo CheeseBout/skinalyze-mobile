@@ -22,6 +22,11 @@ export default function HeaderComponent() {
     setSearchText('');
   };
 
+  const handleSearchFocus = () => {
+    // Navigate to dedicated search screen
+    router.push('/(stacks)/SearchScreen');
+  };
+
   const handleMenuPress = () => {
     setMenuVisible(!menuVisible)
   }
@@ -52,21 +57,14 @@ export default function HeaderComponent() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
+      <TouchableOpacity 
+        style={styles.searchContainer}
+        activeOpacity={0.7}
+        onPress={handleSearchFocus}
+      >
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search..."
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholderTextColor="#999"
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={handleClearSearch} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#666" />
-          </TouchableOpacity>
-        )}
-      </View>
+        <Text style={styles.searchPlaceholder}>Search skincare products...</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.profileButton} onPress={handleMenuPress}>
         <Ionicons name="person-circle-outline" size={32} color="#007AFF" />
       </TouchableOpacity>
@@ -122,18 +120,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     marginRight: 12,
+    height: 40,
   },
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
+  searchPlaceholder: {
     flex: 1,
-    height: 40,
     fontSize: 16,
-    color: '#000',
-  },
-  clearButton: {
-    padding: 4,
+    color: '#999',
   },
   profileButton: {
     padding: 4,

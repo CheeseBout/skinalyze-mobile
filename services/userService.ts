@@ -82,19 +82,6 @@ class UserService {
     }
   }
 
-  async updateAddress(token: string, data: UpdateAddressPayload): Promise<User> {
-    try {
-      const response = await apiService.patch<UserProfileResponse>(
-        `/users/addresses/${data.addressId}`, 
-        data, 
-        { token }
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error('Failed to update user address');
-    }
-  }
-
   async changePassword(
     token: string, 
     oldPassword: string, 

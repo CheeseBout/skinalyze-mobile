@@ -247,7 +247,10 @@ class ProductService {
    * Format price with currency
    */
   formatPrice(price: number): string {
-    return `$${price.toFixed(2)}`;
+    return new Intl.NumberFormat('vn-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(price);
   }
 
   /**
