@@ -27,7 +27,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.baolncse183721.skinalyzemobile"
+      "package": "com.baolncse183721.skinalyzemobile",
+      "notificationPermission": "Allow $(PRODUCT_NAME) to send you notifications."
     },
     "web": {
       "bundler": "metro",
@@ -40,6 +41,13 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for skin analysis."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff"
         }
       ],
       "expo-secure-store"

@@ -1,15 +1,15 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
-const TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
+const TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
 class TokenService {
   async saveToken(token: string): Promise<void> {
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
-      console.log('✅ Token saved securely');
+      console.log("✅ Token saved securely");
     } catch (error) {
-      console.error('Error saving token:', error);
+      console.error("Error saving token:", error);
       throw error;
     }
   }
@@ -17,9 +17,14 @@ class TokenService {
   async getToken(): Promise<string | null> {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (token) {
+        console.log("✅ Token retrieved:", token.substring(0, 30) + "...");
+      } else {
+        console.log("⚠️ No token found in secure store");
+      }
       return token;
     } catch (error) {
-      console.error('Error getting token:', error);
+      console.error("Error getting token:", error);
       return null;
     }
   }
@@ -27,9 +32,9 @@ class TokenService {
   async removeToken(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
-      console.log('✅ Token removed');
+      console.log("✅ Token removed");
     } catch (error) {
-      console.error('Error removing token:', error);
+      console.error("Error removing token:", error);
       throw error;
     }
   }
@@ -38,7 +43,7 @@ class TokenService {
     try {
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
     } catch (error) {
-      console.error('Error saving refresh token:', error);
+      console.error("Error saving refresh token:", error);
       throw error;
     }
   }
@@ -47,7 +52,7 @@ class TokenService {
     try {
       return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     } catch (error) {
-      console.error('Error getting refresh token:', error);
+      console.error("Error getting refresh token:", error);
       return null;
     }
   }
@@ -56,7 +61,7 @@ class TokenService {
     try {
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     } catch (error) {
-      console.error('Error removing refresh token:', error);
+      console.error("Error removing refresh token:", error);
       throw error;
     }
   }
