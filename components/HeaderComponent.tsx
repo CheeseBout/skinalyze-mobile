@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     position: 'absolute',
-    top: 70,
+    top: 50,
     right: 16,
     backgroundColor: '#fff',
     borderRadius: 12,

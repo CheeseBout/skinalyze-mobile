@@ -1,20 +1,23 @@
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import productService, { Product } from '@/services/productService'
+import cartService from '@/services/cartService'
+import tokenService from '@/services/tokenService'
 
 const { width } = Dimensions.get('window')
 
 export default function ProductDetailScreen() {
   const router = useRouter()
   const { productId } = useLocalSearchParams<{ productId: string }>()
-  
+
   const [product, setProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
   useEffect(() => {
     if (productId) {
@@ -44,9 +47,80 @@ export default function ProductDetailScreen() {
     }
   }
 
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart functionality
-    console.log(`Adding ${quantity} of ${product?.productName} to cart`)
+  const handleAddToCart = async () => {
+    if (!product || !productId) return
+
+    try {
+      setIsAddingToCart(true)
+
+      // Get the auth token
+      const token = await tokenService.getToken()
+
+      if (!token) {
+        Alert.alert(
+          'Authentication Required',
+          'Please log in to add items to your cart',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Log In',
+              onPress: () => router.push('/WelcomeScreen')
+            }
+          ]
+        )
+        return
+      }
+
+      // Add to cart
+      await cartService.addToCart(token, {
+        productId: productId,
+        quantity: quantity
+      })
+
+      // Show success message
+      Alert.alert(
+        'Added to Cart',
+        `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${product.productName} added to your cart`,
+        [
+          { text: 'Continue Shopping', style: 'cancel' },
+          {
+            text: 'View Cart',
+            onPress: () => router.push('/(tabs)/CartScreen')
+          }
+        ]
+      )
+
+      // Reset quantity
+      setQuantity(1)
+
+    } catch (err: any) {
+      console.error('Error adding to cart:', err)
+
+      // Parse error message from API
+      let errorMessage = 'Failed to add product to cart. Please try again.'
+
+      if (err.message) {
+        if (err.message.includes('không có sẵn') || err.message.includes('not available')) {
+          errorMessage = 'This product is currently out of stock in all warehouses.'
+        } else if (err.message.includes('quantity') || err.message.includes('số lượng')) {
+          errorMessage = 'The requested quantity is not available.'
+        } else if (err.message.includes('token') || err.message.includes('auth')) {
+          errorMessage = 'Your session has expired. Please log in again.'
+        } else {
+          errorMessage = err.message
+        }
+      }
+
+      Alert.alert(
+        'Cannot Add to Cart',
+        errorMessage,
+        [
+          { text: 'OK' }
+        ]
+      )
+    } finally {
+      setIsAddingToCart(false)
+    }
   }
 
   if (isLoading) {
@@ -82,7 +156,7 @@ export default function ProductDetailScreen() {
         {/* Image Gallery */}
         <View style={styles.imageSection}>
           <Image
-            source={{ uri: product.productImages[selectedImageIndex]+`.jpg` }}
+            source={{ uri: product.productImages[selectedImageIndex] + `.jpg` }}
             style={styles.mainImage}
             resizeMode="cover"
           />
@@ -91,7 +165,7 @@ export default function ProductDetailScreen() {
               <Text style={styles.discountText}>-{product.salePercentage}%</Text>
             </View>
           )}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -101,8 +175,8 @@ export default function ProductDetailScreen() {
 
         {/* Image Thumbnails */}
         {product.productImages.length > 1 && (
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.thumbnailContainer}
           >
@@ -115,7 +189,7 @@ export default function ProductDetailScreen() {
                   selectedImageIndex === index && styles.thumbnailSelected
                 ]}
               >
-                <Image source={{ uri: image }} style={styles.thumbnailImage} />
+                <Image source={{ uri: image + `.jpg` }} style={styles.thumbnailImage} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -139,7 +213,7 @@ export default function ProductDetailScreen() {
               ))}
             </View>
             <Text style={styles.ratingText}>
-              {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews'} 
+              {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews'}
               ({product.reviews?.length || 0} reviews)
             </Text>
           </View>
@@ -244,7 +318,7 @@ export default function ProductDetailScreen() {
           <TouchableOpacity
             style={styles.quantityButton}
             onPress={() => handleQuantityChange(false)}
-            disabled={quantity <= 1}
+            disabled={quantity <= 1 || isAddingToCart}
           >
             <Ionicons name="remove" size={20} color={quantity <= 1 ? '#CCC' : '#1A1A1A'} />
           </TouchableOpacity>
@@ -252,20 +326,32 @@ export default function ProductDetailScreen() {
           <TouchableOpacity
             style={styles.quantityButton}
             onPress={() => handleQuantityChange(true)}
-            disabled={quantity >= product.stock}
+            disabled={quantity >= product.stock || isAddingToCart}
           >
             <Ionicons name="add" size={20} color={quantity >= product.stock ? '#CCC' : '#1A1A1A'} />
           </TouchableOpacity>
         </View>
         <TouchableOpacity
-          style={[styles.addToCartButton, !productService.isInStock(product) && styles.disabledButton]}
+          style={[
+            styles.addToCartButton,
+            (!productService.isInStock(product) || isAddingToCart) && styles.disabledButton
+          ]}
           onPress={handleAddToCart}
-          disabled={!productService.isInStock(product)}
+          disabled={!productService.isInStock(product) || isAddingToCart}
         >
-          <Ionicons name="cart" size={20} color="#FFF" />
-          <Text style={styles.addToCartText}>
-            {productService.isInStock(product) ? 'Add to Cart' : 'Out of Stock'}
-          </Text>
+          {isAddingToCart ? (
+            <>
+              <ActivityIndicator size="small" color="#FFF" />
+              <Text style={styles.addToCartText}>Adding...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="cart" size={20} color="#FFF" />
+              <Text style={styles.addToCartText}>
+                {productService.isInStock(product) ? 'Add to Cart' : 'Out of Stock'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>

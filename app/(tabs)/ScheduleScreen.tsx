@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import React, { useState } from 'react'
 import { Calendar } from 'react-native-calendars'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router';
 
 interface Event {
   id: string;
@@ -22,6 +23,7 @@ interface MarkedDates {
 
 export default function ScheduleScreen() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const router = useRouter()
 
   // Example events data
   const events: { [date: string]: Event[] } = {
@@ -68,6 +70,10 @@ export default function ScheduleScreen() {
   const getEventColor = (type: string) => {
     return type === 'appointment' ? '#E91E63' : '#FF9800';
   };
+
+  const handleNavigation = (path: string) => {
+    router.push(path as any);
+  }
 
   return (
     <View style={styles.container}>
@@ -143,7 +149,7 @@ export default function ScheduleScreen() {
         </View>
 
         {/* Add Event Button */}
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.addButton} activeOpacity={0.8} onPress={() => handleNavigation('/(stacks)/DermatologistListScreen')}>
           <Ionicons name="add-circle" size={24} color="#fff" />
           <Text style={styles.addButtonText}>Book a Consultation</Text>
         </TouchableOpacity>
