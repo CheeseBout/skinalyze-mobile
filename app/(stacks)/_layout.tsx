@@ -64,7 +64,7 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="NotificationTestScreen"
+        name="NotificationScreen"
         options={{
           headerShown: false,
         }}

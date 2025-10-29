@@ -1,15 +1,17 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth'
 import { Alert } from 'react-native';
+import { useNotificationWebSocket } from '@/hooks/useNotificationWebSocket';
 
 export default function HeaderComponent() {
   const [searchText, setSearchText] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const router = useRouter();
   const { logout } = useAuth();
+  const { unreadCount } = useNotificationWebSocket();
 
   const menuItems = [
     { name: 'Profile', icon: 'person', url: 'ProfileScreen' },
@@ -18,17 +20,16 @@ export default function HeaderComponent() {
     { name: 'Logout', icon: 'log-out', url: 'WelcomeScreen' },
   ]
 
-  const handleClearSearch = () => {
-    setSearchText('');
-  };
-
   const handleSearchFocus = () => {
-    // Navigate to dedicated search screen
     router.push('/(stacks)/SearchScreen');
   };
 
   const handleMenuPress = () => {
     setMenuVisible(!menuVisible)
+  }
+
+  const handleNotificationPress = () => {
+    router.push('/(tabs)/NotificationScreen');
   }
 
   const handleNavigate = async (path: string) => {
@@ -65,6 +66,23 @@ export default function HeaderComponent() {
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <Text style={styles.searchPlaceholder}>Search skincare products...</Text>
       </TouchableOpacity>
+      
+      {/* Notification Icon */}
+      <TouchableOpacity 
+        style={styles.notificationButton} 
+        onPress={handleNotificationPress}
+      >
+        <Ionicons name="notifications-outline" size={28} color="#007AFF" />
+        {unreadCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Profile Icon */}
       <TouchableOpacity style={styles.profileButton} onPress={handleMenuPress}>
         <Ionicons name="person-circle-outline" size={32} color="#007AFF" />
       </TouchableOpacity>
@@ -129,6 +147,30 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#999',
+  },
+  notificationButton: {
+    padding: 4,
+    marginRight: 8,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   profileButton: {
     padding: 4,

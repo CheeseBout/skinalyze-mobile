@@ -181,32 +181,6 @@ export default function NotificationScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        {notifications.length > 0 && (
-          <TouchableOpacity
-            onPress={handleMarkAllAsRead}
-            style={styles.markAllButton}
-          >
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
       {/* Connection Status */}
       <View style={styles.statusBar}>
         <View style={styles.statusIndicator}>
@@ -220,12 +194,21 @@ export default function NotificationScreen() {
             {isConnected ? "Connected" : "Disconnected"}
           </Text>
         </View>
-        {unreadCount > 0 && (
-          <Text style={styles.unreadCount}>
-            {unreadCount} unread{" "}
-            {unreadCount === 1 ? "notification" : "notifications"}
-          </Text>
-        )}
+        <View style={styles.statusRight}>
+          {unreadCount > 0 && (
+            <Text style={styles.unreadCount}>
+              {unreadCount} unread
+            </Text>
+          )}
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              onPress={handleMarkAllAsRead}
+              style={styles.markAllButton}
+            >
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Notifications List */}
@@ -253,59 +236,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F5F5",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: -40, // Center the title
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000",
-  },
-  headerBadge: {
-    backgroundColor: "#FF3B30",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-    minWidth: 24,
-    alignItems: "center",
-  },
-  headerBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  markAllButton: {
-    padding: 8,
-  },
-  markAllText: {
-    color: "#007AFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
   statusBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
@@ -324,10 +260,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666666",
   },
+  statusRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   unreadCount: {
     fontSize: 14,
     color: "#666666",
     fontWeight: "500",
+    marginRight: 12,
+  },
+  markAllButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  markAllText: {
+    color: "#007AFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   listContent: {
     padding: 16,

@@ -16,9 +16,15 @@ import cartService, { Cart, CartItem } from '@/services/cartService'
 import productService from '@/services/productService'
 import tokenService from '@/services/tokenService'
 
+// Extended CartItem with product image
+interface CartItemWithImage extends CartItem {
+  productImage?: string;
+}
+
 export default function CartScreen() {
   const router = useRouter()
   const [cart, setCart] = useState<Cart | null>(null)
+  const [cartItemsWithImages, setCartItemsWithImages] = useState<CartItemWithImage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set())
@@ -27,6 +33,42 @@ export default function CartScreen() {
   useEffect(() => {
     loadCart()
   }, [])
+
+  // Fetch product images when cart items change
+  useEffect(() => {
+    if (cart && cart.items.length > 0) {
+      fetchProductImages()
+    }
+  }, [cart?.items])
+
+  const fetchProductImages = async () => {
+    if (!cart) return
+
+    try {
+      // Fetch all product details in parallel
+      const itemsWithImages = await Promise.all(
+        cart.items.map(async (item) => {
+          try {
+            const product = await productService.getProductById(item.productId)
+            return {
+              ...item,
+              productImage: product.productImages?.[0] || undefined
+            }
+          } catch (error) {
+            console.error(`Error fetching image for product ${item.productId}:`, error)
+            return {
+              ...item,
+              productImage: undefined
+            }
+          }
+        })
+      )
+
+      setCartItemsWithImages(itemsWithImages)
+    } catch (error) {
+      console.error('Error fetching product images:', error)
+    }
+  }
 
   const loadCart = async () => {
     try {
@@ -166,7 +208,7 @@ export default function CartScreen() {
     )
   }
 
-  const renderCartItem = ({ item }: { item: CartItem }) => {
+  const renderCartItem = ({ item }: { item: CartItemWithImage }) => {
     const isUpdating = updatingItems.has(item.productId)
 
     return (
@@ -178,9 +220,17 @@ export default function CartScreen() {
             params: { productId: item.productId }
           })}
         >
-          {/* Product Image Placeholder */}
+          {/* Product Image */}
           <View style={styles.itemImageContainer}>
-            <Ionicons name="image-outline" size={40} color="#CCC" />
+            {item.productImage ? (
+              <Image
+                source={{ uri: item.productImage + '.jpg' }}
+                style={styles.itemImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="image-outline" size={40} color="#CCC" />
+            )}
           </View>
 
           <View style={styles.itemDetails}>
@@ -316,7 +366,7 @@ export default function CartScreen() {
 
       {/* Cart Items */}
       <FlatList
-        data={cart.items}
+        data={cartItemsWithImages}
         renderItem={renderCartItem}
         keyExtractor={(item) => item.productId}
         contentContainerStyle={styles.listContent}
@@ -334,10 +384,6 @@ export default function CartScreen() {
             <Text style={styles.summaryValue}>
               {productService.formatPrice(cart.totalPrice)}
             </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Shipping</Text>
-            <Text style={styles.summaryValue}>Free</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -477,6 +523,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   itemDetails: {
     flex: 1,

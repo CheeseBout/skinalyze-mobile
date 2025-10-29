@@ -307,7 +307,7 @@ export default function ProfileScreen() {
               <Text style={styles.noDataText}>No address available</Text>
               <TouchableOpacity 
                 style={styles.addAddressButton}
-                onPress={() => router.push('/(stacks)/AddAddressScreen')}
+                onPress={() => router.push('/(stacks)/AddressDetailScreen')}
               >
                 <Text style={styles.addAddressButtonText}>Add Address</Text>
               </TouchableOpacity>

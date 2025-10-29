@@ -1,4 +1,5 @@
 import apiService from "./apiService";
+import productService from "./productService";
 
 export interface CartItem {
   productId: string;
@@ -157,6 +158,36 @@ class CartService {
   getCartItem(cart: Cart, productId: string): CartItem | undefined {
     return cart.items.find((item) => item.productId === productId);
   }
+
+  async getCartItemsWithImages(cart: Cart): Promise<CartItemWithImage[]> {
+    try {
+      const itemsWithImages = await Promise.all(
+        cart.items.map(async (item) => {
+          try {
+            const product = await productService.getProductById(item.productId)
+            return {
+              ...item,
+              productImage: product.productImages?.[0] || undefined
+            }
+          } catch (error) {
+            console.error(`Error fetching image for product ${item.productId}:`, error)
+            return {
+              ...item,
+              productImage: undefined
+            }
+          }
+        })
+      )
+      return itemsWithImages
+    } catch (error) {
+      console.error('Error fetching cart items with images:', error)
+      throw new Error('Failed to fetch cart items with images')
+    }
+  }
+}
+
+export interface CartItemWithImage extends CartItem {
+  productImage?: string;
 }
 
 export const cartService = new CartService();
