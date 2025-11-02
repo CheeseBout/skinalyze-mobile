@@ -21,21 +21,29 @@ interface DeleteResponse {
   timestamp: string;
 }
 
+interface CustomerData {
+  customerId: string;
+  user: User;
+  aiUsageAmount: number;
+  allergicTo: string[];
+  pastDermatologicalHistory: string[];
+  purchaseHistory: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CustomerResponse {
+  statusCode: number;
+  message: string;
+  data: CustomerData;
+  timestamp: string;
+}
+
 interface UpdateProfilePayload {
   fullName?: string;
   phone?: string;
   dob?: string;
   photoUrl?: string;
-}
-
-interface UpdateAddressPayload {
-  addressId: string;
-  street?: string;
-  streetLine1?: string;
-  streetLine2?: string;
-  wardOrSubDistrict?: string;
-  district?: string;
-  city?: string;
 }
 
 interface CreateAddressPayload {
@@ -65,6 +73,21 @@ class UserService {
     } catch (error) {
       console.error('Error fetching user profile:', error);
       throw new Error('Failed to fetch user profile');
+    }
+  }
+
+  async getCustomerByUserId(userId: string, token: string): Promise<CustomerData> {
+    try {
+      console.log('📋 Fetching customer data for user:', userId);
+      const response = await apiService.get<CustomerResponse>(
+        `/customers/user/${userId}`,
+        { token }
+      );
+      console.log('✅ Customer data retrieved:', response.data.customerId);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+      throw new Error('Failed to fetch customer data');
     }
   }
 

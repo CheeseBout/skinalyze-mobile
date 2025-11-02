@@ -12,9 +12,9 @@ interface OtherAreaCameraProps {
 export default function OtherAreaCamera({ 
   onCapture, 
   onClose,
-  title = 'For the best possible image quality and detection accuracy, ensure the camera is held close enough to clearly capture the affected skin area and is well-lit.'
+  title = 'Hold the camera close for best image quality and detection accuracy'
 }: OtherAreaCameraProps) {
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -38,10 +38,6 @@ export default function OtherAreaCamera({
     );
   }
 
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
-
   const takePicture = async () => {
     if (!cameraRef.current) {
       Alert.alert('Error', 'Camera not ready');
@@ -58,8 +54,6 @@ export default function OtherAreaCamera({
         throw new Error('Failed to capture image');
       }
 
-      Alert.alert('Success', 'Photo captured successfully!');
-      
       if (onCapture) {
         onCapture(photo.uri);
       }
@@ -67,7 +61,6 @@ export default function OtherAreaCamera({
     } catch (error) {
       console.error('Error taking picture:', error);
       Alert.alert('Error', 'Failed to capture image');
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -80,7 +73,6 @@ export default function OtherAreaCamera({
         ref={cameraRef}
       />
       
-      {/* Overlay - No face guide for back camera */}
       <View style={styles.overlay}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -90,10 +82,6 @@ export default function OtherAreaCamera({
         </View>
 
         <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
-            <Ionicons name="camera-reverse" size={32} color="#fff" />
-          </TouchableOpacity>
-          
           <TouchableOpacity 
             style={[styles.captureButton, isProcessing && styles.captureButtonDisabled]} 
             onPress={takePicture}
@@ -105,8 +93,6 @@ export default function OtherAreaCamera({
               <View style={styles.captureButtonInner} />
             )}
           </TouchableOpacity>
-          
-          <View style={styles.placeholder} />
         </View>
       </View>
     </View>
@@ -152,20 +138,9 @@ const styles = StyleSheet.create({
     bottom: 40,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    pointerEvents: 'box-none',
-  },
-  flipButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'auto',
+    pointerEvents: 'box-none',
   },
   captureButton: {
     width: 80,
@@ -186,9 +161,6 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: '#fff',
-  },
-  placeholder: {
-    width: 60,
   },
   message: {
     textAlign: 'center',

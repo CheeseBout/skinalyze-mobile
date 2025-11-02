@@ -63,9 +63,7 @@ interface ProductResponse {
 class ProductService {
   async getAllCategories(): Promise<Category[]> {
     try {
-      console.log('📦 Fetching all categories...');
       const response = await apiService.get<CategoryListResponse>('/categories');
-      console.log('✅ Categories response:', response);
       
       // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {
@@ -101,9 +99,7 @@ class ProductService {
 
   async getAllProducts(): Promise<Product[]> {
     try {
-      console.log('🛍️ Fetching all products...');
       const response = await apiService.get<ProductListResponse>('/products');
-      console.log('✅ Products response:', response);
       
       // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {

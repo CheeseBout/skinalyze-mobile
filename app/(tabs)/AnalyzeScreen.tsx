@@ -1,15 +1,19 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import FacialSkinCamera from '@/components/FacialSkinCamera'
 import OtherAreaCamera from '@/components/OtherAreaCamera'
+import { useAuth } from '@/hooks/useAuth';
+import skinAnalysisService from '@/services/skinAnalysisService';
 
 type ScreenState = 'options' | 'diseaseOptions' | 'camera';
-type DetectionType = 'skinCondition' | 'facialSkin' | 'otherSkin';
+type DetectionType = 'skinCondition' | 'facialDisease' | 'otherDisease';
 
 export default function AnalyzeScreen() {
   const [screenState, setScreenState] = useState<ScreenState>('options');
   const [detectionType, setDetectionType] = useState<DetectionType | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { user } = useAuth();
 
   const handleSkinConditionDetection = () => {
     setDetectionType('skinCondition');
@@ -20,21 +24,19 @@ export default function AnalyzeScreen() {
     setScreenState('diseaseOptions');
   };
 
-  const handleFacialSkin = () => {
-    setDetectionType('facialSkin');
+  const handleFacialDisease = () => {
+    setDetectionType('facialDisease');
     setScreenState('camera');
   };
 
-  const handleOtherSkin = () => {
-    setDetectionType('otherSkin');
+  const handleOtherDisease = () => {
+    setDetectionType('otherDisease');
     setScreenState('camera');
   };
 
   const handleBack = () => {
     if (screenState === 'camera') {
-      if (detectionType === 'facialSkin') {
-        setScreenState('diseaseOptions');
-      } else if (detectionType === 'otherSkin') {
+      if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
         setScreenState('diseaseOptions');
       } else {
         setScreenState('options');
@@ -42,55 +44,119 @@ export default function AnalyzeScreen() {
       setDetectionType(null);
     } else if (screenState === 'diseaseOptions') {
       setScreenState('options');
+    }
+  };
+
+  const handleCapture = async (imageUri: string) => {
+    console.log('📸 Image captured:', imageUri);
+    console.log('🔍 Detection type:', detectionType);
+    
+    if (!user?.userId) {
+      Alert.alert('Authentication Required', 'Please log in to use this feature');
+      setScreenState('options');
       setDetectionType(null);
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      let result;
+      
+      if (detectionType === 'skinCondition') {
+        console.log('🌊 Starting skin condition analysis...');
+        result = await skinAnalysisService.detectCondition(user.userId, imageUri);
+        
+        Alert.alert(
+          '✅ Analysis Complete',
+          `Skin Condition: ${result.aiDetectedCondition || 'Not detected'}\n\nAnalysis ID: ${result.analysisId}`,
+          [
+            { text: 'OK', onPress: () => {
+              setScreenState('options');
+              setDetectionType(null);
+            }}
+          ]
+        );
+      } else if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
+        console.log('🔬 Starting disease detection...');
+        result = await skinAnalysisService.detectDisease(user.userId, imageUri);
+        
+        Alert.alert(
+          '✅ Analysis Complete',
+          `Detected: ${result.aiDetectedDisease || 'No disease detected'}\n\nAnalysis ID: ${result.analysisId}`,
+          [
+            { text: 'OK', onPress: () => {
+              setScreenState('options');
+              setDetectionType(null);
+            }}
+          ]
+        );
+      }
+
+      console.log('📊 Full analysis result:', result);
+      
+    } catch (error: any) {
+      console.error('❌ Analysis error:', error);
+      Alert.alert(
+        'Analysis Failed', 
+        error.message || 'Failed to analyze image. Please try again.',
+        [
+          { text: 'OK', onPress: () => {
+            setScreenState('options');
+            setDetectionType(null);
+          }}
+        ]
+      );
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const handleCapture = (imageUri: string) => {
-    console.log('Image captured:', imageUri);
-    console.log('Detection type:', detectionType);
-    
-    let message = '';
-    switch (detectionType) {
-      case 'skinCondition':
-        message = 'Analyzing skin condition...';
-        break;
-      case 'facialSkin':
-        message = 'Analyzing facial skin for disease detection...';
-        break;
-      case 'otherSkin':
-        message = 'Analyzing skin area for disease detection...';
-        break;
-    }
-    
-    Alert.alert('Image Captured', message);
-    setScreenState('options');
-    setDetectionType(null);
-  };
-
-  // Camera Screen
+  // Camera Screen with Loading Overlay
   if (screenState === 'camera') {
-    // Use FacialSkinCamera ONLY for facial skin (Disease Detection -> Facial Skin)
-    if (detectionType === 'facialSkin') {
+    // Front camera for Skin Condition and Facial Disease
+    if (detectionType === 'skinCondition' || detectionType === 'facialDisease') {
+      const title = detectionType === 'skinCondition' 
+        ? 'Position your face in the frame'
+        : 'Position your face in the frame for disease detection';
+      
       return (
-        <FacialSkinCamera 
-          onCapture={handleCapture}
-          onClose={handleBack}
-          initialFacing="front"
-          title="Position your face in the frame"
-        />
+        <>
+          <FacialSkinCamera 
+            onCapture={handleCapture}
+            onClose={handleBack}
+            initialFacing="front"
+            title={title}
+          />
+          {isAnalyzing && (
+            <View style={styles.loadingOverlay}>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Analyzing image...</Text>
+              </View>
+            </View>
+          )}
+        </>
       );
     }
 
-    // Use OtherAreaCamera for BOTH Skin Condition AND Other Skin Area
-    const cameraTitle = "Hold the camera close for best image quality and detection accuracy."
-    
+    // Back camera for Other Disease Detection
     return (
-      <OtherAreaCamera 
-        onCapture={handleCapture}
-        onClose={handleBack}
-        title={cameraTitle}
-      />
+      <>
+        <OtherAreaCamera 
+          onCapture={handleCapture}
+          onClose={handleBack}
+          title="Hold the camera close for best image quality and detection accuracy"
+        />
+        {isAnalyzing && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Analyzing image...</Text>
+            </View>
+          </View>
+        )}
+      </>
     );
   }
 
@@ -119,7 +185,7 @@ export default function AnalyzeScreen() {
                 <Ionicons name="water" size={32} color="#2196F3" />
               </View>
               <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Skin Condition</Text>
+                <Text style={styles.cardTitle}>Skin Condition Detection</Text>
                 <Text style={styles.cardDescription}>Analyze dryness, oiliness & texture</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#999" />
@@ -168,21 +234,21 @@ export default function AnalyzeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Choose Skin Area</Text>
-          <Text style={styles.headerSubtitle}>Select the area to analyze</Text>
+          <Text style={styles.headerSubtitle}>Select the area to analyze for disease detection</Text>
         </View>
 
         {/* Cards */}
         <View style={styles.cardsContainer}>
           <TouchableOpacity 
             style={styles.card}
-            onPress={handleFacialSkin}
+            onPress={handleFacialDisease}
             activeOpacity={0.8}
           >
             <View style={[styles.iconContainer, { backgroundColor: '#FFF3E0' }]}>
               <Ionicons name="happy" size={32} color="#FF9800" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Facial Skin</Text>
+              <Text style={styles.cardTitle}>Facial Skin Area</Text>
               <Text style={styles.cardDescription}>Use front camera with face guide</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#999" />
@@ -190,7 +256,7 @@ export default function AnalyzeScreen() {
 
           <TouchableOpacity 
             style={styles.card}
-            onPress={handleOtherSkin}
+            onPress={handleOtherDisease}
             activeOpacity={0.8}
           >
             <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
@@ -198,7 +264,7 @@ export default function AnalyzeScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Other Skin Area</Text>
-              <Text style={styles.cardDescription}>Use back camera</Text>
+              <Text style={styles.cardDescription}>Use back camera for body areas</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#999" />
           </TouchableOpacity>
@@ -311,5 +377,29 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
     marginLeft: 12,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });

@@ -16,7 +16,7 @@ export default function FacialSkinCamera({
   initialFacing = 'front',
   title = 'Position your face in the frame'
 }: FacialSkinCameraProps) {
-  const [facing, setFacing] = useState<CameraType>(initialFacing);
+  const [facing] = useState<CameraType>(initialFacing);
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -40,10 +40,6 @@ export default function FacialSkinCamera({
     );
   }
 
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
-
   const takePicture = async () => {
     if (!cameraRef.current) {
       Alert.alert('Error', 'Camera not ready');
@@ -60,8 +56,6 @@ export default function FacialSkinCamera({
         throw new Error('Failed to capture image');
       }
 
-      Alert.alert('Success', 'Photo captured successfully!');
-      
       if (onCapture) {
         onCapture(photo.uri);
       }
@@ -69,7 +63,6 @@ export default function FacialSkinCamera({
     } catch (error) {
       console.error('Error taking picture:', error);
       Alert.alert('Error', 'Failed to capture image');
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -82,7 +75,6 @@ export default function FacialSkinCamera({
         ref={cameraRef}
       />
       
-      {/* Overlay - positioned absolutely outside CameraView */}
       <View style={styles.overlay}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
