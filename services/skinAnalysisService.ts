@@ -58,9 +58,6 @@ class SkinAnalysisService {
     imageUri: string
   ): Promise<SkinAnalysisResult> {
     try {
-      console.log('🔬 Starting disease detection...');
-      console.log('User ID:', userId);
-      console.log('Image URI:', imageUri);
 
       const token = await tokenService.getToken();
       if (!token) {
@@ -68,9 +65,7 @@ class SkinAnalysisService {
       }
 
       // Get customer ID from user ID
-      console.log('📋 Fetching customer ID...');
       const customerId = await this.getCustomerId(userId);
-      console.log('✅ Customer ID retrieved:', customerId);
 
       // Create FormData for multipart/form-data request
       const formData = new FormData();
@@ -86,7 +81,6 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
-      console.log('📤 Uploading image for disease detection...');
 
       // Make API call using fetch directly for multipart/form-data
       const response = await fetch(
@@ -108,14 +102,10 @@ class SkinAnalysisService {
       }
 
       const result = await response.json();
-      console.log('✅ Disease detection completed');
-      console.log('📊 Full response:', JSON.stringify(result, null, 2));
 
       // Check if response has data property or is direct response
       const analysisResult: SkinAnalysisResult = result.data || result;
       
-      console.log('📊 Analysis ID:', analysisResult.analysisId);
-      console.log('🔍 Detected disease:', analysisResult.aiDetectedDisease);
 
       return analysisResult;
     } catch (error) {
@@ -137,9 +127,6 @@ class SkinAnalysisService {
     imageUri: string
   ): Promise<SkinAnalysisResult> {
     try {
-      console.log('🔬 Starting condition detection...');
-      console.log('User ID:', userId);
-      console.log('Image URI:', imageUri);
 
       const token = await tokenService.getToken();
       if (!token) {
@@ -147,9 +134,7 @@ class SkinAnalysisService {
       }
 
       // Get customer ID from user ID
-      console.log('📋 Fetching customer ID...');
       const customerId = await this.getCustomerId(userId);
-      console.log('✅ Customer ID retrieved:', customerId);
 
       // Create FormData for multipart/form-data request
       const formData = new FormData();
@@ -165,7 +150,6 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
-      console.log('📤 Uploading image for condition detection...');
 
       // Make API call using fetch directly for multipart/form-data
       const response = await fetch(
@@ -187,14 +171,10 @@ class SkinAnalysisService {
       }
 
       const result = await response.json();
-      console.log('✅ Condition detection completed');
-      console.log('📊 Full response:', JSON.stringify(result, null, 2));
 
       // Check if response has data property or is direct response
       const analysisResult: SkinAnalysisResult = result.data || result;
       
-      console.log('📊 Analysis ID:', analysisResult.analysisId);
-      console.log('🔍 Detected condition:', analysisResult.aiDetectedCondition);
 
       return analysisResult;
     } catch (error) {
@@ -211,7 +191,6 @@ class SkinAnalysisService {
    */
   async getAnalysisById(analysisId: string): Promise<SkinAnalysisResult> {
     try {
-      console.log('📊 Fetching analysis result...');
       const token = await tokenService.getToken();
       
       if (!token) {
@@ -223,7 +202,6 @@ class SkinAnalysisService {
         { token }
       );
 
-      console.log('✅ Analysis fetched successfully');
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching analysis:', error);

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import FacialSkinCamera from '@/components/FacialSkinCamera'
 import OtherAreaCamera from '@/components/OtherAreaCamera'
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +15,7 @@ export default function AnalyzeScreen() {
   const [detectionType, setDetectionType] = useState<DetectionType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   const handleSkinConditionDetection = () => {
     setDetectionType('skinCondition');
@@ -67,30 +69,33 @@ export default function AnalyzeScreen() {
         console.log('🌊 Starting skin condition analysis...');
         result = await skinAnalysisService.detectCondition(user.userId, imageUri);
         
-        Alert.alert(
-          '✅ Analysis Complete',
-          `Skin Condition: ${result.aiDetectedCondition || 'Not detected'}\n\nAnalysis ID: ${result.analysisId}`,
-          [
-            { text: 'OK', onPress: () => {
-              setScreenState('options');
-              setDetectionType(null);
-            }}
-          ]
-        );
+        // Navigate to detail screen with result
+        setScreenState('options');
+        setDetectionType(null);
+        setIsAnalyzing(false);
+        
+        router.push({
+          pathname: '/(stacks)/AnalysisDetailScreen',
+          params: {
+            result: JSON.stringify(result)
+          }
+        });
+        
       } else if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
         console.log('🔬 Starting disease detection...');
         result = await skinAnalysisService.detectDisease(user.userId, imageUri);
         
-        Alert.alert(
-          '✅ Analysis Complete',
-          `Detected: ${result.aiDetectedDisease || 'No disease detected'}\n\nAnalysis ID: ${result.analysisId}`,
-          [
-            { text: 'OK', onPress: () => {
-              setScreenState('options');
-              setDetectionType(null);
-            }}
-          ]
-        );
+        // Navigate to detail screen with result
+        setScreenState('options');
+        setDetectionType(null);
+        setIsAnalyzing(false);
+        
+        router.push({
+          pathname: '/(stacks)/AnalysisDetailScreen',
+          params: {
+            result: JSON.stringify(result)
+          }
+        });
       }
 
       console.log('📊 Full analysis result:', result);
@@ -107,7 +112,6 @@ export default function AnalyzeScreen() {
           }}
         ]
       );
-    } finally {
       setIsAnalyzing(false);
     }
   };

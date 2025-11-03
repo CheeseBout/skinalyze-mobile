@@ -69,6 +69,12 @@ export default function StackLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="AnalysisDetailScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
