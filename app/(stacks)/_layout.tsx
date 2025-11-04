@@ -64,13 +64,25 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="NotificationScreen"
+        name="AnalysisDetailScreen"
         options={{
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="AnalysisDetailScreen"
+        name="OrderListScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="OrderDetailScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="OrderTrackingScreen"
         options={{
           headerShown: false,
         }}

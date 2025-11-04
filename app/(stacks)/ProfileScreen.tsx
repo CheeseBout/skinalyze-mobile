@@ -357,6 +357,15 @@ export default function ProfileScreen() {
             <>
               <TouchableOpacity 
                 style={styles.actionButton}
+                onPress={() => router.push('/(stacks)/OrderListScreen' as any)}
+              >
+                <Ionicons name="receipt-outline" size={20} color="#007AFF" />
+                <Text style={styles.actionButtonText}>My Orders</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionButton}
                 onPress={() => router.push('/(stacks)/ChangePasswordScreen')}
               >
                 <Ionicons name="lock-closed-outline" size={20} color="#007AFF" />

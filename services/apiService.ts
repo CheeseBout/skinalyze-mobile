@@ -1,4 +1,4 @@
-const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.35:3000/api/v1'
+const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1'
 
 interface RequestOptions {
   headers?: Record<string, string>
