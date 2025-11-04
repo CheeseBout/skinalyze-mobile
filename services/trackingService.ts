@@ -11,6 +11,7 @@ export interface TrackingETA {
   distance: number;  // meters
   duration: number;  // seconds
   text: string;      // Vietnamese text e.g. "5 phút"
+  polyline?: string | null;  // Encoded polyline string from Goong Directions API
 }
 
 export interface ShippingLog {

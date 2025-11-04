@@ -35,6 +35,8 @@ export default function OrderTrackingScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [isInfoExpanded, setIsInfoExpanded] = useState(true);
+  const [isShipperExpanded, setIsShipperExpanded] = useState(false);
 
   const {
     trackingData,
@@ -90,12 +92,12 @@ export default function OrderTrackingScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.headerOverlay}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
           <View style={styles.placeholder} />
@@ -111,12 +113,12 @@ export default function OrderTrackingScreen() {
   if (error) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.headerOverlay}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
           <View style={styles.placeholder} />
@@ -137,12 +139,12 @@ export default function OrderTrackingScreen() {
   if (!trackingData) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.headerOverlay}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
           <View style={styles.placeholder} />
@@ -165,195 +167,156 @@ export default function OrderTrackingScreen() {
     currentLocation,
     customerLocation: customer?.location,
     customerAddress: customer?.address,
+    hasPolyline: !!eta?.polyline,
   });
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Full Screen Map */}
+      <View style={styles.fullScreenMap}>
+        <GoongMap
+          shipperLocation={currentLocation}
+          customerLocation={customer?.location || null}
+          polyline={eta?.polyline || null}
+          style={styles.map}
+        />
+      </View>
+
+      {/* Header Overlay */}
+      <View style={styles.headerOverlay}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
-          <Ionicons name="refresh" size={24} color="#333" />
+          <Ionicons name="refresh" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View
-            style={[
-              styles.statusIconContainer,
-              { backgroundColor: statusColor + '20' },
-            ]}
-          >
-            <Ionicons
-              name={
-                shippingLog.status === 'DELIVERED'
-                  ? 'checkmark-circle'
-                  : shippingLog.status === 'OUT_FOR_DELIVERY'
-                  ? 'bicycle'
-                  : 'time'
-              }
-              size={40}
-              color={statusColor}
+      {/* Floating Status & Info Card */}
+      <View style={styles.floatingCard}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setIsInfoExpanded(!isInfoExpanded)}
+          style={styles.cardHeader}
+        >
+          <View style={styles.cardHeaderLeft}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: statusColor },
+              ]}
             />
-          </View>
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {statusLabel}
-          </Text>
-          {lastUpdate && (
-            <Text style={styles.lastUpdateText}>
-              Cập nhật {formatTimeAgo(lastUpdate)}
-            </Text>
-          )}
-        </View>
-
-        {/* Goong Map */}
-        {isLocationStale && (
-          <View style={styles.staleBanner}>
-            <Text style={styles.staleText}>
-              ⚠️ Vị trí shipper chưa cập nhật trong 5 phút. Vui lòng kiểm tra lại sau hoặc gọi shipper.
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.mapContainer}>
-          <GoongMap
-            shipperLocation={currentLocation}
-            customerLocation={customer?.location || null}
-            style={styles.map}
-          />
-        </View>
-
-        {/* Shipper Info */}
-        {shipper && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="person-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Thông tin shipper</Text>
-            </View>
-            <View style={styles.shipperCard}>
-              <View style={styles.shipperInfo}>
-                <View style={styles.shipperAvatar}>
-                  <Ionicons name="person" size={30} color="#fff" />
-                </View>
-                <View style={styles.shipperDetails}>
-                  <Text style={styles.shipperName}>{shipper.fullName}</Text>
-                  <Text style={styles.shipperPhone}>{shipper.phone}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.callButton}
-                onPress={handleCallShipper}
-              >
-                <Ionicons name="call" size={20} color="#fff" />
-                <Text style={styles.callButtonText}>Gọi</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ETA Info */}
-        {eta && currentLocation && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="time-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Thời gian dự kiến</Text>
-            </View>
-            <View style={styles.etaCard}>
-              <View style={styles.etaRow}>
-                <View style={styles.etaItem}>
-                  <Ionicons name="speedometer-outline" size={24} color="#4CAF50" />
-                  <Text style={styles.etaLabel}>Thời gian</Text>
-                  <Text style={styles.etaValue}>{eta.text}</Text>
-                </View>
-                <View style={styles.etaItem}>
-                  <Ionicons name="navigate-outline" size={24} color="#2196F3" />
-                  <Text style={styles.etaLabel}>Khoảng cách</Text>
-                  <Text style={styles.etaValue}>
-                    {trackingService.formatDistance(eta.distance)}
-                  </Text>
-                </View>
-              </View>
-              {currentLocation.timestamp && (
-                <Text style={styles.locationTimestamp}>
-                  Vị trí cập nhật {formatTimeAgo(new Date(currentLocation.timestamp))}
+            <View>
+              <Text style={styles.cardTitle}>{statusLabel}</Text>
+              {lastUpdate && (
+                <Text style={styles.cardSubtitle}>
+                  {formatTimeAgo(lastUpdate)}
                 </Text>
               )}
             </View>
           </View>
-        )}
+          <Ionicons
+            name={isInfoExpanded ? 'chevron-down' : 'chevron-up'}
+            size={24}
+            color="#666"
+          />
+        </TouchableOpacity>
 
-        {/* No Location Warning */}
-        {shipper && !currentLocation && (
-          <View style={styles.warningCard}>
-            <Ionicons name="information-circle-outline" size={24} color="#FF9800" />
-            <Text style={styles.warningText}>
-              Shipper đang chuẩn bị giao hàng. Thông tin vị trí sẽ được cập nhật sớm.
-            </Text>
+        {isInfoExpanded && (
+          <View style={styles.cardContent}>
+            {isLocationStale && (
+              <View style={styles.staleBanner}>
+                <Ionicons name="warning" size={16} color="#E65100" />
+                <Text style={styles.staleText}>
+                  Vị trí chưa cập nhật trong 5 phút
+                </Text>
+              </View>
+            )}
+
+            {/* ETA Info */}
+            {eta && (
+              <View style={styles.etaContainer}>
+                <Ionicons name="time-outline" size={20} color="#4CAF50" />
+                <Text style={styles.etaText}>
+                  Dự kiến giao trong: <Text style={styles.etaBold}>{eta.text}</Text>
+                </Text>
+              </View>
+            )}
+
+            {/* Customer Address */}
+            {customer && (
+              <View style={styles.addressContainer}>
+                <Ionicons name="location-outline" size={20} color="#666" />
+                <Text style={styles.addressText}>{customer.address}</Text>
+              </View>
+            )}
           </View>
         )}
+      </View>
 
-        {/* Delivery Address */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="location-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Địa chỉ giao hàng</Text>
-          </View>
-          <View style={styles.addressCard}>
-            <Text style={styles.addressText}>{customer.address}</Text>
-            <View style={styles.coordinatesRow}>
-              <Text style={styles.coordinatesText}>
-                📍 {customer.location.lat.toFixed(6)}, {customer.location.lng.toFixed(6)}
-              </Text>
+      {/* Floating Shipper Card */}
+      {shipper && (
+        <View style={styles.floatingShipperCard}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setIsShipperExpanded(!isShipperExpanded)}
+            style={styles.cardHeader}
+          >
+            <View style={styles.cardHeaderLeft}>
+              <View style={styles.shipperAvatarSmall}>
+                <Ionicons name="person" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text style={styles.cardTitle}>{shipper.fullName}</Text>
+                <Text style={styles.cardSubtitle}>Người giao hàng</Text>
+              </View>
             </View>
-          </View>
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                style={styles.callButtonSmall}
+                onPress={handleCallShipper}
+              >
+                <Ionicons name="call" size={20} color="#fff" />
+              </TouchableOpacity>
+              <Ionicons
+                name={isShipperExpanded ? 'chevron-down' : 'chevron-up'}
+                size={24}
+                color="#666"
+                style={{ marginLeft: 8 }}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {isShipperExpanded && (
+            <View style={styles.cardContent}>
+              <View style={styles.shipperDetail}>
+                <Ionicons name="call-outline" size={18} color="#666" />
+                <Text style={styles.shipperDetailText}>{shipper.phone}</Text>
+              </View>
+              {currentLocation && (
+                <View style={styles.shipperDetail}>
+                  <Ionicons name="location-outline" size={18} color="#666" />
+                  <Text style={styles.shipperDetailText}>
+                    {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
+      )}
 
-        {/* Estimated Delivery */}
-        {shippingLog.estimatedDeliveryDate && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="calendar-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Dự kiến giao hàng</Text>
-            </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoText}>
-                {new Date(shippingLog.estimatedDeliveryDate).toLocaleString('vi-VN', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Auto-refresh indicator */}
-        {/* {shouldTrack && (
-          <View style={styles.autoRefreshBanner}>
-            <View style={styles.connectionStatus}>
-              <View style={[styles.connectionDot, isConnected ? styles.connected : styles.disconnected]} />
-              <Text style={styles.autoRefreshText}>
-                {isConnected ? '🔗 Kết nối real-time' : '⏸️ Đang kết nối lại...'}
-              </Text>
-            </View>
-          </View>
-        )} */}
-      </ScrollView>
+      {/* Connection Status Indicator */}
+      {!isConnected && (
+        <View style={styles.connectionBanner}>
+          <Ionicons name="alert-circle" size={16} color="#FF9800" />
+          <Text style={styles.connectionText}>Đang kết nối lại...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -361,61 +324,246 @@ export default function OrderTrackingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#000',
   },
-  header: {
+  fullScreenMap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  map: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  placeholder: {
-    width: 40,
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   refreshButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  content: {
+  floatingCard: {
+    position: 'absolute',
+    top: 110,
+    left: 16,
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingShipperCard: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  cardContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  staleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  staleText: {
+    color: '#E65100',
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+  },
+  etaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  etaText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    marginLeft: 8,
+    flex: 1,
+  },
+  etaBold: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  addressContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
+  },
+  shipperAvatarSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  callButtonSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shipperDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  shipperDetailText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  connectionBanner: {
+    position: 'absolute',
+    top: 90,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  connectionText: {
+    color: '#FF9800',
+    fontSize: 13,
+    marginLeft: 8,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 32,
+    backgroundColor: '#f5f5f5',
   },
   errorTitle: {
-    marginTop: 16,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
   },
   errorText: {
-    marginTop: 8,
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
@@ -424,7 +572,7 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 24,
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#4CAF50',
@@ -432,211 +580,11 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  statusCard: {
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-    marginBottom: 12,
-  },
-  statusIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statusText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  lastUpdateText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  mapContainer: {
-    height: 300,
-    backgroundColor: '#E8F5E9',
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  map: {
-    flex: 1,
-  },
-  staleBanner: {
-    backgroundColor: '#FFF3E0',
-    padding: 10,
-    marginBottom: 8,
-    borderRadius: 8,
-  },
-  staleText: {
-    color: '#E65100',
-    fontSize: 14,
-  },
-  section: {
-    backgroundColor: '#fff',
-    marginBottom: 12,
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8,
-  },
-  shipperCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  shipperInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  shipperAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shipperDetails: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  shipperName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  shipperPhone: {
-    fontSize: 14,
-    color: '#666',
-  },
-  callButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-  },
-  callButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '600',
     color: '#fff',
   },
-  etaCard: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 16,
-  },
-  etaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  etaItem: {
-    alignItems: 'center',
-  },
-  etaLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 8,
-  },
-  etaValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 4,
-  },
-  locationTimestamp: {
-    fontSize: 11,
-    color: '#999',
-    textAlign: 'center',
-  },
-  warningCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF9E6',
-    padding: 16,
-    marginBottom: 12,
-  },
-  warningText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#FF9800',
-  },
-  addressCard: {
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-  },
-  addressText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  coordinatesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  coordinatesText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  infoCard: {
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  autoRefreshBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#E8F5E9',
-    marginTop: 8,
-  },
-  connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  connectionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  connected: {
-    backgroundColor: '#4CAF50',
-  },
-  disconnected: {
-    backgroundColor: '#FF9800',
-  },
-  autoRefreshText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
+  placeholder: {
+    width: 40,
   },
 });

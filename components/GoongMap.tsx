@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import config from '@/config/env';
@@ -22,36 +22,49 @@ export default function GoongMap({
   style,
 }: GoongMapProps) {
   const webViewRef = useRef<WebView>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
-  // Update map when locations change
+  // Update map when locations change (only after map is ready)
   useEffect(() => {
     console.log('🗺️ GoongMap update:', {
       hasShipperLocation: !!shipperLocation,
       shipperLocation,
       hasCustomerLocation: !!customerLocation,
       customerLocation,
+      hasPolyline: !!polyline,
+      polylineLength: polyline?.length || 0,
+      isMapReady,
     });
 
-    if (webViewRef.current && (shipperLocation || customerLocation)) {
-      const updateScript = `
-        if (typeof updateLocations === 'function') {
-          console.log('📍 Updating map with:', {
-            shipper: ${shipperLocation ? JSON.stringify(shipperLocation) : 'null'},
-            customer: ${customerLocation ? JSON.stringify(customerLocation) : 'null'}
-          });
-          updateLocations(
-            ${shipperLocation ? JSON.stringify(shipperLocation) : 'null'},
-            ${customerLocation ? JSON.stringify(customerLocation) : 'null'},
-            ${polyline ? JSON.stringify(polyline) : 'null'}
-          );
-        } else {
-          console.error('❌ updateLocations function not found');
-        }
-        true; // Required for Android
-      `;
-      webViewRef.current.injectJavaScript(updateScript);
+    if (!isMapReady) {
+      console.log('⏳ Map not ready yet, skipping update');
+      return;
     }
-  }, [shipperLocation, customerLocation, polyline]);
+
+    if (webViewRef.current && (shipperLocation || customerLocation)) {
+      // Small delay to ensure map is fully initialized
+      setTimeout(() => {
+        const updateScript = `
+          if (typeof updateLocations === 'function') {
+            console.log('📍 Updating map with:', {
+              shipper: ${shipperLocation ? JSON.stringify(shipperLocation) : 'null'},
+              customer: ${customerLocation ? JSON.stringify(customerLocation) : 'null'},
+              hasPolyline: ${!!polyline}
+            });
+            updateLocations(
+              ${shipperLocation ? JSON.stringify(shipperLocation) : 'null'},
+              ${customerLocation ? JSON.stringify(customerLocation) : 'null'},
+              ${polyline ? JSON.stringify(polyline) : 'null'}
+            );
+          } else {
+            console.error('❌ updateLocations function not found');
+          }
+          true; // Required for Android
+        `;
+        webViewRef.current?.injectJavaScript(updateScript);
+      }, 300);
+    }
+  }, [shipperLocation, customerLocation, polyline, isMapReady]);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -133,7 +146,12 @@ export default function GoongMap({
 
         // Update locations function
         window.updateLocations = function(shipper, customer, polylineStr) {
-          console.log('Updating map:', { shipper, customer, polyline: !!polylineStr });
+          console.log('🗺️ updateLocations called with:', { 
+            shipper, 
+            customer, 
+            hasPolyline: !!polylineStr,
+            polylineLength: polylineStr?.length || 0
+          });
 
           // Remove old markers
           if (shipperMarker) shipperMarker.remove();
@@ -149,6 +167,7 @@ export default function GoongMap({
 
           // Add shipper marker
           if (shipper && shipper.lat && shipper.lng) {
+            console.log('📍 Adding shipper marker at:', shipper.lat, shipper.lng);
             var shipperEl = document.createElement('div');
             shipperEl.className = 'marker shipper-marker';
             
@@ -158,10 +177,12 @@ export default function GoongMap({
               .addTo(map);
 
             bounds = new goongjs.LngLatBounds([shipper.lng, shipper.lat], [shipper.lng, shipper.lat]);
+            console.log('✅ Shipper marker added');
           }
 
           // Add customer marker
           if (customer && customer.lat && customer.lng) {
+            console.log('📍 Adding customer marker at:', customer.lat, customer.lng);
             var customerEl = document.createElement('div');
             customerEl.className = 'marker customer-marker';
             
@@ -175,13 +196,18 @@ export default function GoongMap({
             } else {
               bounds.extend([customer.lng, customer.lat]);
             }
+            console.log('✅ Customer marker added');
           }
 
           // Draw route
           if (polylineStr) {
+            console.log('🛣️ Drawing route, polyline length:', polylineStr.length);
             var coordinates = decodePolyline(polylineStr);
+            console.log('🛣️ Decoded coordinates:', coordinates.length, 'points');
             
             if (coordinates.length > 0) {
+              console.log('🛣️ First point:', coordinates[0], 'Last point:', coordinates[coordinates.length - 1]);
+              
               map.addSource('route', {
                 type: 'geojson',
                 data: {
@@ -213,16 +239,26 @@ export default function GoongMap({
               coordinates.forEach(coord => {
                 if (bounds) bounds.extend(coord);
               });
+              
+              console.log('✅ Route drawn successfully');
+            } else {
+              console.warn('⚠️ No coordinates after decode');
             }
+          } else {
+            console.log('ℹ️ No polyline provided');
           }
 
           // Fit map to bounds
           if (bounds) {
+            console.log('📏 Fitting map to bounds...');
             map.fitBounds(bounds, {
               padding: { top: 50, bottom: 50, left: 50, right: 50 },
               maxZoom: 15,
               duration: 1000
             });
+            console.log('✅ Map fitted to bounds');
+          } else {
+            console.warn('⚠️ No bounds calculated, using default center');
           }
         };
 
@@ -257,7 +293,8 @@ export default function GoongMap({
         )}
         onMessage={(event) => {
           if (event.nativeEvent.data === 'MAP_READY') {
-            console.log('✅ Goong Map ready');
+            console.log('✅ Goong Map ready, enabling updates');
+            setIsMapReady(true);
           }
         }}
         onError={(syntheticEvent) => {
