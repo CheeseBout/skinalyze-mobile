@@ -64,7 +64,7 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="NotificationScreen"
+        name="AnalysisListScreen"
         options={{
           headerShown: false,
         }}
@@ -75,6 +75,7 @@ export default function StackLayout() {
           headerShown: false,
         }}
       />
+      
     </Stack>
   );
 }

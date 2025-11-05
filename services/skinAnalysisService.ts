@@ -14,7 +14,7 @@ export interface SkinAnalysisResult {
   aiDetectedDisease: string | null;
   aiDetectedCondition: string | null;
   aiRecommendedProducts: string[] | null;
-  mask: string[] | null;
+  mask: string | string[] | null; // Can be string or array
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +23,13 @@ interface SkinAnalysisResponse {
   statusCode: number;
   message: string;
   data: SkinAnalysisResult;
+  timestamp: string;
+}
+
+interface SkinAnalysisListResponse {
+  statusCode: number;
+  message: string;
+  data: SkinAnalysisResult[];
   timestamp: string;
 }
 
@@ -58,7 +65,6 @@ class SkinAnalysisService {
     imageUri: string
   ): Promise<SkinAnalysisResult> {
     try {
-
       const token = await tokenService.getToken();
       if (!token) {
         throw new Error('Authentication required. Please log in.');
@@ -81,31 +87,18 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
+      console.log('📤 Uploading disease detection image...');
 
-      // Make API call using fetch directly for multipart/form-data
-      const response = await fetch(
-        `${apiService['baseURL']}/skin-analysis/disease-detection/${customerId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-          body: formData,
-        }
+      // Use apiService.uploadFile instead of fetch
+      const result = await apiService.uploadFile<SkinAnalysisResponse>(
+        `/skin-analysis/disease-detection/${customerId}`,
+        formData,
+        { token }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.message || 'Disease detection failed');
-      }
-
-      const result = await response.json();
-
-      // Check if response has data property or is direct response
+      // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      
+      console.log('✅ Disease detection completed');
 
       return analysisResult;
     } catch (error) {
@@ -127,7 +120,6 @@ class SkinAnalysisService {
     imageUri: string
   ): Promise<SkinAnalysisResult> {
     try {
-
       const token = await tokenService.getToken();
       if (!token) {
         throw new Error('Authentication required. Please log in.');
@@ -150,31 +142,18 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
+      console.log('📤 Uploading condition detection image...');
 
-      // Make API call using fetch directly for multipart/form-data
-      const response = await fetch(
-        `${apiService['baseURL']}/skin-analysis/condition-detection/${customerId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-          body: formData,
-        }
+      // Use apiService.uploadFile instead of fetch
+      const result = await apiService.uploadFile<SkinAnalysisResponse>(
+        `/skin-analysis/condition-detection/${customerId}`,
+        formData,
+        { token }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.message || 'Condition detection failed');
-      }
-
-      const result = await response.json();
-
-      // Check if response has data property or is direct response
+      // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      
+      console.log('✅ Condition detection completed');
 
       return analysisResult;
     } catch (error) {
@@ -182,6 +161,31 @@ class SkinAnalysisService {
       throw new Error(
         error instanceof Error ? error.message : 'Failed to analyze skin condition'
       );
+    }
+  }
+
+  /**
+   * Get all analyses for a customer
+   * @param customerId - Customer UUID
+   * @returns List of analysis results
+   */
+  async getUserAnalyses(customerId: string): Promise<SkinAnalysisResult[]> {
+    try {
+      const token = await tokenService.getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await apiService.get<SkinAnalysisResult[]>(
+        `/skin-analysis/customer/${customerId}`,
+        { token }
+      );
+
+      // The API returns the array directly, not wrapped in { data: [...] }
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('❌ Error fetching user analyses:', error);
+      return []; // Return empty array instead of throwing
     }
   }
 

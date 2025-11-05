@@ -63,6 +63,49 @@ class ApiService {
     }
   }
 
+  /**
+   * Upload file using multipart/form-data
+   */
+  async uploadFile<T>(
+    endpoint: string,
+    formData: FormData,
+    options?: RequestOptions
+  ): Promise<T> {
+    try {
+      const url = `${this.baseURL}${endpoint}`
+      console.log(`📡 POST (multipart) ${url}`)
+
+      const headers: Record<string, string> = {}
+      
+      if (options?.token) {
+        headers['Authorization'] = `Bearer ${options.token}`
+      }
+
+      // Don't set Content-Type for FormData - browser/RN will set it automatically with boundary
+      const config: RequestInit = {
+        method: 'POST',
+        headers,
+        body: formData,
+      }
+
+      const response = await fetch(url, config)
+      console.log(`Response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', errorData)
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('Response data:', data)
+      return data
+    } catch (error) {
+      console.error('API Upload Error:', error)
+      throw error
+    }
+  }
+
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, 'GET', undefined, options)
   }

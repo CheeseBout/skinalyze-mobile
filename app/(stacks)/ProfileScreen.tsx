@@ -254,6 +254,26 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Skin Analysis History */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Skin Analysis History</Text>
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => router.push('/(stacks)/AnalysisListScreen')}
+          >
+            <View style={styles.menuCardContent}>
+              <View style={styles.menuIconContainer}>
+                <Ionicons name="analytics" size={24} color="#007AFF" />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>View Analysis History</Text>
+                <Text style={styles.menuSubtitle}>See all your skin analysis results</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+
         {/* Address Information */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -647,5 +667,46 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: '#FF3B30',
+  },
+  menuCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  menuIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E3F2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuTextContainer: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  menuSubtitle: {
+    fontSize: 13,
+    color: '#666',
   },
 })

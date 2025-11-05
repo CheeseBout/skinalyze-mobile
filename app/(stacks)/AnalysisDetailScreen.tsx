@@ -33,7 +33,18 @@ export default function AnalysisDetailScreen() {
   const isConditionDetection = result.aiDetectedCondition !== null;
   const isDiseaseDetection = result.aiDetectedDisease !== null;
   const imageUrl = result.imageUrls[0];
-  const maskBase64 = result.mask?.[0];
+  
+  // Handle mask data - it can be string, array of strings, or null
+  let maskBase64: string | null = null;
+  if (result.mask) {
+    if (Array.isArray(result.mask)) {
+      // If it's an array, get the first non-empty element
+      maskBase64 = result.mask.find(m => m && m.length > 0) || null;
+    } else if (typeof result.mask === 'string') {
+      // If it's already a string, use it directly
+      maskBase64 = result.mask;
+    }
+  }
 
   return (
     <View style={styles.container}>

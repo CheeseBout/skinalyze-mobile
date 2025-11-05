@@ -20,7 +20,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.settingItem}
-          onPress={() => router.push("/(stacks)/NotificationTestScreen")}
+          onPress={() => router.push("../(tabs)/NotificationScreen")}
         >
           <Text style={styles.settingIcon}>🔔</Text>
           <View style={styles.settingContent}>
