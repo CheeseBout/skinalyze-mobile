@@ -70,12 +70,30 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="AnalysisDetailScreen"
+        name="AnalysisDetailScreen" 
         options={{
           headerShown: false,
         }}
       />
-      
+      <Stack.Screen
+        name="OrderListScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="OrderDetailScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="OrderTrackingScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+
     </Stack>
   );
 }
