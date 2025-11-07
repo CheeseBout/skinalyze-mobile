@@ -1,6 +1,8 @@
 import apiService from "./apiService";
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
+// Change to lowercase to match API requirements
+export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
 
 export interface User {
   userId: string;
@@ -82,7 +84,44 @@ export interface OrderDetailResponse {
   timestamp: string;
 }
 
+export interface CheckoutPayload {
+  shippingAddress: string;
+  paymentMethod: PaymentMethod;
+  useWallet: boolean;
+  notes?: string;
+}
+
+export interface CheckoutResponse {
+  statusCode: number;
+  message: string;
+  data: Order;
+  timestamp: string;
+}
+
 class OrderService {
+
+  /**
+   * Checkout cart and create order
+   */
+  async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
+    try {
+      console.log('🛒 Creating checkout order...');
+      console.log('Payload:', payload);
+      
+      const response = await apiService.post<CheckoutResponse>(
+        '/orders/checkout',
+        payload,
+        { token }
+      );
+      
+      console.log('✅ Order created successfully:', response.data.orderId);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Checkout error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get all orders for the current user
    */
@@ -147,18 +186,34 @@ class OrderService {
   }
 
   /**
-   * Get status label in Vietnamese
+   * Get status label
    */
   getStatusLabel(status: OrderStatus): string {
     const labelMap: Record<OrderStatus, string> = {
-      PENDING: 'Chờ xử lý',
-      PROCESSING: 'Đang xử lý',
-      SHIPPED: 'Đang giao',
-      DELIVERED: 'Đã giao',
-      CANCELLED: 'Đã hủy',
-      REJECTED: 'Từ chối',
+      PENDING: 'Pending',
+      PROCESSING: 'Processing',
+      SHIPPED: 'Shipped',
+      DELIVERED: 'Delivered',
+      CANCELLED: 'Cancelled',
+      REJECTED: 'Rejected',
     };
     return labelMap[status] || status;
+  }
+
+  /**
+   * Get payment method label
+   */
+  getPaymentMethodLabel(method: PaymentMethod): string {
+    const labelMap: Record<PaymentMethod, string> = {
+      wallet: 'Wallet Balance',
+      cod: 'Cash on Delivery',
+      banking: 'Bank Transfer (SePay)',
+      bank_transfer: 'Direct Bank Transfer',
+      momo: 'MoMo',
+      zalopay: 'ZaloPay',
+      vnpay: 'VNPay',
+    };
+    return labelMap[method] || method;
   }
 
   /**
@@ -176,10 +231,10 @@ class OrderService {
    */
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('vi-VN', {
+    return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import productService, { Product } from '@/services/productService'
 import cartService from '@/services/cartService'
 import tokenService from '@/services/tokenService'
+import { useCartCount } from '@/hooks/userCartCount'
 
 const { width } = Dimensions.get('window')
 
@@ -18,6 +19,7 @@ export default function ProductDetailScreen() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const { refreshCount } = useCartCount();
 
   useEffect(() => {
     if (productId) {
@@ -75,7 +77,10 @@ export default function ProductDetailScreen() {
       await cartService.addToCart(token, {
         productId: productId,
         quantity: quantity
-      })
+      });
+      
+      // Refresh cart count badge
+      await refreshCount();
 
       // Show success message
       Alert.alert(

@@ -93,6 +93,12 @@ export default function StackLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="CheckoutScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
 
     </Stack>
   );

@@ -274,6 +274,26 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Order History */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order History</Text>
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => router.push('/(stacks)/OrderListScreen')}
+          >
+            <View style={styles.menuCardContent}>
+              <View style={styles.menuIconContainer}>
+                <Ionicons name="analytics" size={24} color="#007AFF" />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>View Order History</Text>
+                <Text style={styles.menuSubtitle}>See all your past orders</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+
         {/* Address Information */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

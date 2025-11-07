@@ -1,11 +1,33 @@
 import React from "react";
 import { Link, Tabs } from "expo-router";
-import { Pressable } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import HeaderComponent from "@/components/HeaderComponent";
+import { useCartCount } from "@/hooks/userCartCount";
+
+function CartTabBarIcon({ color, focused }: { color: string; focused: boolean }) {
+  const { count } = useCartCount();
+
+  return (
+    <View style={styles.iconContainer}>
+      <Ionicons 
+        name={focused ? 'cart' : 'cart-outline'} 
+        size={24} 
+        color={color} 
+      />
+      {count > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {count > 99 ? '99+' : count}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>["name"];
@@ -84,13 +106,36 @@ export default function TabLayout() {
         options={{
           title: "Cart",
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "cart" : "cart-outline"}
-              color={color}
-            />
+            <CartTabBarIcon color={color} focused={focused} />
           ),
         }}
       />
     </Tabs>
   );
 }
+const styles = StyleSheet.create({
+  iconContainer: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -12,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});
