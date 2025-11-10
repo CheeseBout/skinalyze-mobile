@@ -32,14 +32,16 @@ export default function SignUpScreen() {
     district: '',
     city: '',
   })
-  const [errors, setErrors] = useState<Partial<Record<keyof RegisterPayload, string>>>({})
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [errors, setErrors] = useState<Partial<Record<keyof RegisterPayload | 'confirmPassword', string>>>({})
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const { login: authLogin } = useAuth()
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof RegisterPayload, string>> = {}
+    const newErrors: Partial<Record<keyof RegisterPayload | 'confirmPassword', string>> = {}
 
     // Required field validation
     if (!formData.email.trim()) {
@@ -52,6 +54,12 @@ export default function SignUpScreen() {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password'
+    } else if (confirmPassword !== formData.password) {
+      newErrors.confirmPassword = 'Passwords do not match'
     }
 
     if (!formData.fullName.trim()) {
@@ -104,12 +112,13 @@ export default function SignUpScreen() {
     try {
       const response = await register(formData)
 
+      // Automatically log in with the returned token
       await authLogin(response.data.access_token, response.data.user)
       
-      Alert.alert('Success', 'Registration successful!', [
+      Alert.alert('Success', 'Registration successful! Welcome to Skinalyze!', [
         {
           text: 'OK',
-          onPress: () => router.replace('/SignInScreen')
+          onPress: () => router.replace('/(tabs)/HomeScreen')
         }
       ])
     } catch (error: any) {
@@ -182,6 +191,7 @@ export default function SignUpScreen() {
             error={errors.dob}
           />
 
+          {/* Password */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
@@ -190,7 +200,10 @@ export default function SignUpScreen() {
                 placeholder="Enter your password"
                 placeholderTextColor="#999"
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, password: text })
+                  if (errors.password) setErrors({ ...errors, password: '' })
+                }}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -198,10 +211,61 @@ export default function SignUpScreen() {
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Text style={styles.eyeIconText}>{showPassword ? <Ionicons name="eye" size={24} color="black" /> : <Ionicons name="eye-off" size={24} color="black" />}</Text>
+                <Ionicons 
+                  name={showPassword ? "eye" : "eye-off"} 
+                  size={24} 
+                  color="#666" 
+                />
               </TouchableOpacity>
             </View>
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          </View>
+
+          {/* Confirm Password */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, errors.confirmPassword && styles.inputError]}
+                placeholder="Re-enter your password"
+                placeholderTextColor="#999"
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text)
+                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' })
+                }}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons 
+                  name={showConfirmPassword ? "eye" : "eye-off"} 
+                  size={24} 
+                  color="#666" 
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+            
+            {/* Password Match Indicator */}
+            {confirmPassword && formData.password && (
+              <View style={styles.matchContainer}>
+                <Ionicons 
+                  name={confirmPassword === formData.password ? "checkmark-circle" : "close-circle"} 
+                  size={16} 
+                  color={confirmPassword === formData.password ? "#34C759" : "#FF3B30"} 
+                />
+                <Text style={[
+                  styles.matchText,
+                  { color: confirmPassword === formData.password ? "#34C759" : "#FF3B30" }
+                ]}>
+                  {confirmPassword === formData.password ? 'Passwords match' : 'Passwords do not match'}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Address Information */}
@@ -271,7 +335,7 @@ export default function SignUpScreen() {
           {/* Sign In Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/SignInScreen')}>
+            <TouchableOpacity onPress={() => router.push('/(stacks)/SignInScreen')}>
               <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -392,8 +456,15 @@ const styles = StyleSheet.create({
     right: 16,
     top: 14,
   },
-  eyeIconText: {
-    fontSize: 20,
+  matchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  matchText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   errorText: {
     color: '#FF3B30',
