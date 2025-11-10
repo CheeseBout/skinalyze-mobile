@@ -277,15 +277,13 @@ export default function CartScreen() {
       return
     }
 
-    // Store selected items for checkout screen
-    const selectedCartItems = cart.items.filter(item => 
-      selectedItems.has(item.productId)
-    )
+    // Get selected product IDs as array
+    const selectedProductIds = Array.from(selectedItems);
     
     router.push({
       pathname: '/(stacks)/CheckoutScreen',
       params: { 
-        selectedItems: JSON.stringify(selectedCartItems.map(item => item.productId))
+        selectedProductIds: JSON.stringify(selectedProductIds)
       }
     })
   }, [cart, selectedItems, router])

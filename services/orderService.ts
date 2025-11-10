@@ -1,7 +1,6 @@
 import apiService from "./apiService";
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
-// Change to lowercase to match API requirements
 export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
 
 export interface User {
@@ -86,6 +85,7 @@ export interface OrderDetailResponse {
 
 export interface CheckoutPayload {
   shippingAddress: string;
+  selectedProductIds: string[];
   paymentMethod: PaymentMethod;
   useWallet: boolean;
   notes?: string;

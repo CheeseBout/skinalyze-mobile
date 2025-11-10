@@ -14,6 +14,7 @@ import { useColorScheme } from "@/components/useColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProductProvider } from "@/contexts/ProductContext";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
+import { CartCountProvider } from '@/contexts/CartCountContext';
 
 export { ErrorBoundary } from "expo-router";
 
@@ -46,7 +47,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ProductProvider>
-        <RootLayoutNav />
+        <CartCountProvider>
+          <RootLayoutNav />
+        </CartCountProvider>
       </ProductProvider>
     </AuthProvider>
   );

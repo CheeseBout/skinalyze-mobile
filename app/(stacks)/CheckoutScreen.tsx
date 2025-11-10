@@ -9,12 +9,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import orderService, { PaymentMethod } from '@/services/orderService';
-import cartService, { Cart } from '@/services/cartService';
+import cartService, { Cart, CartItem } from '@/services/cartService';
 import tokenService from '@/services/tokenService';
 import productService from '@/services/productService';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,7 @@ export default function CheckoutScreen() {
   const { user } = useAuth();
   
   const [cart, setCart] = useState<Cart | null>(null);
+  const [selectedItems, setSelectedItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -79,6 +81,25 @@ export default function CheckoutScreen() {
       }
 
       setCart(cartData);
+
+      // Parse selected product IDs from params
+      const selectedProductIds = params.selectedProductIds 
+        ? JSON.parse(params.selectedProductIds as string) 
+        : [];
+
+      // Filter cart items to only include selected ones
+      const selectedCartItems = cartData.items.filter(item => 
+        selectedProductIds.includes(item.productId)
+      );
+
+      if (selectedCartItems.length === 0) {
+        Alert.alert('No Items Selected', 'Please select items to checkout', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+        return;
+      }
+
+      setSelectedItems(selectedCartItems);
     } catch (error) {
       console.error('Error loading cart:', error);
       Alert.alert('Error', 'Failed to load cart data');
@@ -87,22 +108,33 @@ export default function CheckoutScreen() {
     }
   };
 
+  const calculateTotal = () => {
+    return selectedItems.reduce((total, item) => 
+      total + (item.price * item.quantity), 0
+    );
+  };
+
+  const calculateTotalItems = () => {
+    return selectedItems.reduce((total, item) => total + item.quantity, 0);
+  };
+
   const handleCheckout = async () => {
     if (!shippingAddress.trim()) {
       Alert.alert('Required', 'Please enter shipping address');
       return;
     }
 
-    if (!cart || cart.items.length === 0) {
-      Alert.alert('Error', 'Your cart is empty');
+    if (selectedItems.length === 0) {
+      Alert.alert('Error', 'No items selected for checkout');
       return;
     }
 
+    const totalPrice = calculateTotal();
     const paymentLabel = orderService.getPaymentMethodLabel(paymentMethod);
     
     Alert.alert(
       'Confirm Order',
-      `Total: ${productService.formatPrice(cart.totalPrice)}\nPayment: ${paymentLabel}`,
+      `Total: ${productService.formatPrice(totalPrice)}\nPayment: ${paymentLabel}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -116,8 +148,12 @@ export default function CheckoutScreen() {
                 return;
               }
 
+              // Extract selected product IDs
+              const selectedProductIds = selectedItems.map(item => item.productId);
+
               const order = await orderService.checkout(token, {
                 shippingAddress: shippingAddress.trim(),
+                selectedProductIds,
                 paymentMethod,
                 useWallet,
                 notes: notes.trim() || undefined,
@@ -206,9 +242,12 @@ export default function CheckoutScreen() {
     );
   }
 
-  if (!cart) {
+  if (!cart || selectedItems.length === 0) {
     return null;
   }
+
+  const totalPrice = calculateTotal();
+  const totalItems = calculateTotalItems();
 
   return (
     <KeyboardAvoidingView
@@ -228,18 +267,40 @@ export default function CheckoutScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Selected Items Preview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            Selected Items ({selectedItems.length})
+          </Text>
+          <View style={styles.itemsPreview}>
+            {selectedItems.slice(0, 3).map((item, index) => (
+              <View key={item.productId} style={styles.itemPreviewCard}>
+                <Text style={styles.itemPreviewName} numberOfLines={1}>
+                  {item.productName}
+                </Text>
+                <Text style={styles.itemPreviewQuantity}>x{item.quantity}</Text>
+              </View>
+            ))}
+            {selectedItems.length > 3 && (
+              <Text style={styles.moreItems}>
+                +{selectedItems.length - 3} more item{selectedItems.length - 3 > 1 ? 's' : ''}
+              </Text>
+            )}
+          </View>
+        </View>
+
         {/* Order Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Order Summary</Text>
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Items</Text>
-              <Text style={styles.summaryValue}>{cart.totalItems}</Text>
+              <Text style={styles.summaryValue}>{totalItems}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
               <Text style={styles.summaryValue}>
-                {productService.formatPrice(cart.totalPrice)}
+                {productService.formatPrice(totalPrice)}
               </Text>
             </View>
             <View style={styles.summaryRow}>
@@ -249,7 +310,7 @@ export default function CheckoutScreen() {
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>
-                {productService.formatPrice(cart.totalPrice)}
+                {productService.formatPrice(totalPrice)}
               </Text>
             </View>
           </View>
@@ -507,7 +568,7 @@ export default function CheckoutScreen() {
             <>
               <Text style={styles.checkoutButtonText}>Place Order</Text>
               <Text style={styles.checkoutButtonAmount}>
-                {productService.formatPrice(cart.totalPrice)}
+                {productService.formatPrice(totalPrice)}
               </Text>
             </>
           )}
@@ -573,6 +634,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1A1A1A',
+    marginBottom: 12,
   },
   changeAddressText: {
     fontSize: 14,
@@ -581,6 +643,36 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#FF3B30',
+  },
+  itemsPreview: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 12,
+  },
+  itemPreviewCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  itemPreviewName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  itemPreviewQuantity: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  moreItems: {
+    fontSize: 13,
+    color: '#007AFF',
+    marginTop: 8,
+    fontWeight: '600',
   },
   summaryCard: {
     backgroundColor: '#FFF',
