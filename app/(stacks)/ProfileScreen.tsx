@@ -16,10 +16,12 @@ import { useAuth } from '@/hooks/useAuth'
 import tokenService from '@/services/tokenService'
 import userService from '@/services/userService'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function ProfileScreen() {
   const router = useRouter()
   const { user, refreshUser, logout } = useAuth()
+  const { primaryColor } = useThemeColor()
   
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -137,7 +139,7 @@ export default function ProfileScreen() {
           onPress={() => isEditing ? handleCancel() : setIsEditing(true)}
           style={styles.editButton}
         >
-          <Text style={styles.editButtonText}>
+          <Text style={[styles.editButtonText, { color: primaryColor }]}>
             {isEditing ? 'Cancel' : 'Edit'}
           </Text>
         </TouchableOpacity>
@@ -153,7 +155,7 @@ export default function ProfileScreen() {
             {user.photoUrl ? (
               <Image source={{ uri: user.photoUrl }} style={styles.avatar} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
+              <View style={[styles.avatarPlaceholder, { backgroundColor: primaryColor }]}>
                 <Text style={styles.avatarText}>
                   {user.fullName.charAt(0).toUpperCase()}
                 </Text>
@@ -175,8 +177,8 @@ export default function ProfileScreen() {
                 {user.isVerified ? 'Verified' : 'Not Verified'}
               </Text>
             </View>
-            <View style={[styles.badge, styles.badgeRole]}>
-              <Text style={styles.badgeTextRole}>{user.role}</Text>
+            <View style={[styles.badge, styles.badgeRole, { backgroundColor: `${primaryColor}15` }]}>
+              <Text style={[styles.badgeTextRole, { color: primaryColor }]}>{user.role}</Text>
             </View>
           </View>
         </View>
@@ -262,8 +264,8 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(stacks)/AnalysisListScreen')}
           >
             <View style={styles.menuCardContent}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="analytics" size={24} color="#007AFF" />
+              <View style={[styles.menuIconContainer, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="analytics" size={24} color={primaryColor} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>View Analysis History</Text>
@@ -282,8 +284,8 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(stacks)/OrderListScreen')}
           >
             <View style={styles.menuCardContent}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="analytics" size={24} color="#007AFF" />
+              <View style={[styles.menuIconContainer, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="receipt" size={24} color={primaryColor} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>View Order History</Text>
@@ -302,7 +304,7 @@ export default function ProfileScreen() {
               onPress={() => router.push('/(stacks)/AddressDetailScreen')}
               style={styles.addButton}
             >
-              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+              <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
             </TouchableOpacity>
           </View>
           
@@ -331,7 +333,7 @@ export default function ProfileScreen() {
                       params: { addressId: address.addressId }
                     })}
                   >
-                    <Ionicons name="create-outline" size={20} color="#007AFF" />
+                    <Ionicons name="create-outline" size={20} color={primaryColor} />
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.iconButton}
@@ -380,7 +382,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           {isEditing ? (
             <TouchableOpacity 
-              style={[styles.saveButton, loading && styles.buttonDisabled]}
+              style={[styles.saveButton, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]}
               onPress={handleSave}
               disabled={loading}
             >
@@ -399,7 +401,7 @@ export default function ProfileScreen() {
                 style={styles.actionButton}
                 onPress={() => router.push('/(stacks)/OrderListScreen' as any)}
               >
-                <Ionicons name="receipt-outline" size={20} color="#007AFF" />
+                <Ionicons name="receipt-outline" size={20} color={primaryColor} />
                 <Text style={styles.actionButtonText}>My Orders</Text>
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
@@ -408,7 +410,7 @@ export default function ProfileScreen() {
                 style={styles.actionButton}
                 onPress={() => router.push('/(stacks)/ChangePasswordScreen')}
               >
-                <Ionicons name="lock-closed-outline" size={20} color="#007AFF" />
+                <Ionicons name="lock-closed-outline" size={20} color={primaryColor} />
                 <Text style={styles.actionButtonText}>Change Password</Text>
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>

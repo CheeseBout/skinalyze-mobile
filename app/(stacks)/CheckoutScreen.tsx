@@ -19,11 +19,13 @@ import cartService, { Cart, CartItem } from '@/services/cartService';
 import tokenService from '@/services/tokenService';
 import productService from '@/services/productService';
 import { useAuth } from '@/hooks/useAuth';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
+  const { primaryColor } = useThemeColor();
   
   const [cart, setCart] = useState<Cart | null>(null);
   const [selectedItems, setSelectedItems] = useState<CartItem[]>([]);
@@ -324,7 +326,7 @@ export default function CheckoutScreen() {
             </Text>
             {user?.addresses && user.addresses.length > 0 && (
               <TouchableOpacity onPress={handleAddressSelect}>
-                <Text style={styles.changeAddressText}>Change</Text>
+                <Text style={[styles.changeAddressText, { color: primaryColor }]}>Change</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -335,14 +337,14 @@ export default function CheckoutScreen() {
               onPress={() => setAddressEditable(true)}
             >
               <View style={styles.addressCardContent}>
-                <Ionicons name="location" size={24} color="#007AFF" />
+                <Ionicons name="location" size={24} color={primaryColor} />
                 <Text style={styles.addressText}>{shippingAddress}</Text>
               </View>
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => setAddressEditable(true)}
               >
-                <Ionicons name="create-outline" size={20} color="#007AFF" />
+                <Ionicons name="create-outline" size={20} color={primaryColor} />
               </TouchableOpacity>
             </TouchableOpacity>
           ) : (
@@ -359,7 +361,7 @@ export default function CheckoutScreen() {
               />
               {addressEditable && shippingAddress && (
                 <TouchableOpacity
-                  style={styles.doneButton}
+                  style={[styles.doneButton, { backgroundColor: primaryColor }]}
                   onPress={() => setAddressEditable(false)}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
@@ -377,12 +379,12 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'cod' && styles.paymentOptionActive
+              paymentMethod === 'cod' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('cod')}
           >
             <View style={styles.paymentOptionContent}>
-              <Ionicons name="cash-outline" size={24} color="#007AFF" />
+              <Ionicons name="cash-outline" size={24} color={primaryColor} />
               <View style={styles.paymentOptionText}>
                 <Text style={styles.paymentOptionTitle}>Cash on Delivery</Text>
                 <Text style={styles.paymentOptionSubtitle}>
@@ -392,9 +394,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'cod' && styles.radioActive
+              paymentMethod === 'cod' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'cod' && <View style={styles.radioDot} />}
+              {paymentMethod === 'cod' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
 
@@ -402,12 +404,12 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'banking' && styles.paymentOptionActive
+              paymentMethod === 'banking' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('banking')}
           >
             <View style={styles.paymentOptionContent}>
-              <Ionicons name="card-outline" size={24} color="#007AFF" />
+              <Ionicons name="card-outline" size={24} color={primaryColor} />
               <View style={styles.paymentOptionText}>
                 <Text style={styles.paymentOptionTitle}>Bank Transfer</Text>
                 <Text style={styles.paymentOptionSubtitle}>
@@ -417,9 +419,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'banking' && styles.radioActive
+              paymentMethod === 'banking' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'banking' && <View style={styles.radioDot} />}
+              {paymentMethod === 'banking' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
 
@@ -427,7 +429,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'momo' && styles.paymentOptionActive
+              paymentMethod === 'momo' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('momo')}
           >
@@ -442,9 +444,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'momo' && styles.radioActive
+              paymentMethod === 'momo' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'momo' && <View style={styles.radioDot} />}
+              {paymentMethod === 'momo' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
 
@@ -452,7 +454,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'vnpay' && styles.paymentOptionActive
+              paymentMethod === 'vnpay' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('vnpay')}
           >
@@ -467,9 +469,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'vnpay' && styles.radioActive
+              paymentMethod === 'vnpay' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'vnpay' && <View style={styles.radioDot} />}
+              {paymentMethod === 'vnpay' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
 
@@ -477,7 +479,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'zalopay' && styles.paymentOptionActive
+              paymentMethod === 'zalopay' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('zalopay')}
           >
@@ -492,9 +494,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'zalopay' && styles.radioActive
+              paymentMethod === 'zalopay' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'zalopay' && <View style={styles.radioDot} />}
+              {paymentMethod === 'zalopay' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
 
@@ -502,7 +504,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              paymentMethod === 'wallet' && styles.paymentOptionActive
+              paymentMethod === 'wallet' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
             ]}
             onPress={() => setPaymentMethod('wallet')}
           >
@@ -517,9 +519,9 @@ export default function CheckoutScreen() {
             </View>
             <View style={[
               styles.radio,
-              paymentMethod === 'wallet' && styles.radioActive
+              paymentMethod === 'wallet' && [styles.radioActive, { borderColor: primaryColor }]
             ]}>
-              {paymentMethod === 'wallet' && <View style={styles.radioDot} />}
+              {paymentMethod === 'wallet' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
           </TouchableOpacity>
         </View>
@@ -530,7 +532,10 @@ export default function CheckoutScreen() {
             style={styles.checkboxRow}
             onPress={() => setUseWallet(!useWallet)}
           >
-            <View style={[styles.checkbox, useWallet && styles.checkboxActive]}>
+            <View style={[
+              styles.checkbox, 
+              useWallet && [styles.checkboxActive, { backgroundColor: primaryColor, borderColor: primaryColor }]
+            ]}>
               {useWallet && (
                 <Ionicons name="checkmark" size={16} color="#FFF" />
               )}
@@ -558,7 +563,10 @@ export default function CheckoutScreen() {
       {/* Bottom Button */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
-          style={[styles.checkoutButton, submitting && styles.checkoutButtonDisabled]}
+          style={[
+            styles.checkoutButton, 
+            { backgroundColor: submitting ? '#CCC' : primaryColor }
+          ]}
           onPress={handleCheckout}
           disabled={submitting}
         >

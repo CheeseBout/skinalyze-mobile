@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router'
 import { login, LoginPayload } from '@/services/authService'
 import { useAuth } from '@/hooks/useAuth'
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function SignInScreen() {
   const router = useRouter()
@@ -27,6 +28,7 @@ export default function SignInScreen() {
   const [errors, setErrors] = useState<Partial<LoginPayload>>({})
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const { primaryColor } = useThemeColor();
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginPayload> = {}
@@ -149,7 +151,7 @@ export default function SignInScreen() {
 
           {/* Login Button */}
           <TouchableOpacity 
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            style={[styles.loginButton, { backgroundColor: primaryColor }, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
