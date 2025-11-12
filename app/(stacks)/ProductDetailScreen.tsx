@@ -6,6 +6,7 @@ import productService, { Product } from '@/services/productService'
 import cartService from '@/services/cartService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
+import reviewService, { ReviewPayload } from '@/services/reviewService';
 
 const { width } = Dimensions.get('window')
 
@@ -125,6 +126,33 @@ export default function ProductDetailScreen() {
       )
     } finally {
       setIsAddingToCart(false)
+    }
+  }
+
+  const handlePostReview = async () => {
+    try {
+      const token = await tokenService.getToken()
+      
+      if (!token) {
+        Alert.alert('Authentication Required', 'Please log in to post a review')
+        return
+      }
+
+      const reviewPayload: ReviewPayload = {
+        productId: productId!,
+        rating: 5, // You can make this dynamic with a rating picker
+        content: 'Your review content here' // Get from TextInput
+      };
+
+      const newReview = await reviewService.postReview(token, reviewPayload)
+      
+      Alert.alert('Success', 'Your review has been posted!')
+      // Refresh product details to show the new review
+      await fetchProductDetails()
+      
+    } catch (error) {
+      console.error('Error posting review:', error)
+      Alert.alert('Error', 'Failed to post review. Please try again.')
     }
   }
 
