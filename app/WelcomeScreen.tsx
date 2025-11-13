@@ -1,9 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Image } from 'react-native'
 import React from 'react'
 import { useRouter } from 'expo-router'
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function WelcomeScreen() {
   const router = useRouter()
+  const { primaryColor } = useThemeColor();
 
   const handleNavigate = (path: any) => {
     router.push(path)
@@ -15,7 +17,7 @@ export default function WelcomeScreen() {
       
       {/* Logo/Icon Section */}
       <View style={styles.logoContainer}>
-        <View style={styles.logoCircle}>
+        <View style={[styles.logoCircle, { backgroundColor: primaryColor }]}>
           <Text style={styles.logoText}>S</Text>
         </View>
         <Text style={styles.appName}>Skinalyze</Text>
@@ -33,7 +35,7 @@ export default function WelcomeScreen() {
       {/* Buttons Section */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
-          style={styles.loginButton}
+          style={[styles.loginButton, { backgroundColor: primaryColor }]}
           onPress={() => handleNavigate('/SignInScreen')}
           activeOpacity={0.8}
         >

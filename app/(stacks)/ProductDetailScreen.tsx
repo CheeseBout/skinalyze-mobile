@@ -6,12 +6,15 @@ import productService, { Product } from '@/services/productService'
 import cartService from '@/services/cartService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
+import reviewService, { ReviewPayload } from '@/services/reviewService'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
 
 const { width } = Dimensions.get('window')
 
 export default function ProductDetailScreen() {
   const router = useRouter()
   const { productId } = useLocalSearchParams<{ productId: string }>()
+  const { primaryColor } = useThemeColor()
 
   const [product, setProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -128,6 +131,33 @@ export default function ProductDetailScreen() {
     }
   }
 
+  const handlePostReview = async () => {
+    try {
+      const token = await tokenService.getToken()
+      
+      if (!token) {
+        Alert.alert('Authentication Required', 'Please log in to post a review')
+        return
+      }
+
+      const reviewPayload: ReviewPayload = {
+        productId: productId!,
+        rating: 5, // You can make this dynamic with a rating picker
+        content: 'Your review content here' // Get from TextInput
+      };
+
+      const newReview = await reviewService.postReview(token, reviewPayload)
+      
+      Alert.alert('Success', 'Your review has been posted!')
+      // Refresh product details to show the new review
+      await fetchProductDetails()
+      
+    } catch (error) {
+      console.error('Error posting review:', error)
+      Alert.alert('Error', 'Failed to post review. Please try again.')
+    }
+  }
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -191,7 +221,7 @@ export default function ProductDetailScreen() {
                 onPress={() => setSelectedImageIndex(index)}
                 style={[
                   styles.thumbnail,
-                  selectedImageIndex === index && styles.thumbnailSelected
+                  selectedImageIndex === index && [styles.thumbnailSelected, { borderColor: primaryColor }]
                 ]}
               >
                 <Image source={{ uri: image + `.jpg` }} style={styles.thumbnailImage} />
@@ -225,7 +255,7 @@ export default function ProductDetailScreen() {
 
           {/* Price */}
           <View style={styles.priceSection}>
-            <Text style={styles.currentPrice}>
+            <Text style={[styles.currentPrice, { color: primaryColor }]}>
               {productService.formatPrice(discountedPrice)}
             </Text>
             {hasDiscount && (
@@ -258,8 +288,8 @@ export default function ProductDetailScreen() {
               <Text style={styles.sectionTitle}>Suitable For</Text>
               <View style={styles.tagsContainer}>
                 {product.suitableFor.map((item, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{item}</Text>
+                  <View key={index} style={[styles.tag, { backgroundColor: `${primaryColor}15` }]}>
+                    <Text style={[styles.tagText, { color: primaryColor }]}>{item}</Text>
                   </View>
                 ))}
               </View>
@@ -339,7 +369,7 @@ export default function ProductDetailScreen() {
         <TouchableOpacity
           style={[
             styles.addToCartButton,
-            (!productService.isInStock(product) || isAddingToCart) && styles.disabledButton
+            { backgroundColor: productService.isInStock(product) && !isAddingToCart ? primaryColor : '#CCC' }
           ]}
           onPress={handleAddToCart}
           disabled={!productService.isInStock(product) || isAddingToCart}
@@ -455,7 +485,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   thumbnailSelected: {
-    borderColor: '#007AFF',
+    borderColor: '#007AFF', // Will be overridden
   },
   thumbnailImage: {
     width: '100%',
@@ -496,7 +526,7 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#007AFF', // Will be overridden
     marginBottom: 4,
   },
   originalPriceContainer: {
@@ -553,13 +583,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#E3F2FD', // Will be overridden
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   tagText: {
-    color: '#007AFF',
+    color: '#007AFF', // Will be overridden
     fontSize: 13,
     fontWeight: '600',
   },
@@ -633,7 +663,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Will be overridden
     paddingVertical: 14,
     borderRadius: 8,
     gap: 8,

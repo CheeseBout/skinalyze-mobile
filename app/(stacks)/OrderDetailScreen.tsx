@@ -14,11 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderItem } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function OrderDetailScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { isAuthenticated } = useAuth();
+  const { primaryColor } = useThemeColor();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +32,7 @@ export default function OrderDetailScreen() {
 
   const fetchOrderDetail = async () => {
     if (!isAuthenticated || !orderId) {
-      Alert.alert('Lỗi', 'Thông tin không hợp lệ');
+      Alert.alert('Error', 'Invalid information');
       return;
     }
 
@@ -38,14 +40,14 @@ export default function OrderDetailScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Lỗi', 'Vui lòng đăng nhập để xem chi tiết đơn hàng');
+        Alert.alert('Error', 'Please login to view order details');
         return;
       }
       const data = await orderService.getOrderById(orderId, token);
       setOrder(data);
     } catch (error: any) {
       console.error('Error fetching order detail:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tải chi tiết đơn hàng');
+      Alert.alert('Error', error.message || 'Unable to load order details');
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ export default function OrderDetailScreen() {
           </Text>
           <Text style={styles.orderItemBrand}>{item.product.brand}</Text>
           <View style={styles.orderItemPriceRow}>
-            <Text style={styles.orderItemPrice}>
+            <Text style={[styles.orderItemPrice, { color: primaryColor }]}>
               {orderService.formatCurrency(parseFloat(item.priceAtTime))}
             </Text>
             <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
@@ -84,8 +86,8 @@ export default function OrderDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Đang tải chi tiết đơn hàng...</Text>
+        <ActivityIndicator size="large" color={primaryColor} />
+        <Text style={styles.loadingText}>Loading order details...</Text>
       </View>
     );
   }
@@ -94,12 +96,12 @@ export default function OrderDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={80} color="#ccc" />
-        <Text style={styles.errorText}>Không tìm thấy đơn hàng</Text>
+        <Text style={styles.errorText}>Order not found</Text>
         <TouchableOpacity
-          style={styles.backToListButton}
+          style={[styles.backToListButton, { backgroundColor: primaryColor }]}
           onPress={() => router.back()}
         >
-          <Text style={styles.backToListButtonText}>Quay lại</Text>
+          <Text style={styles.backToListButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -117,7 +119,7 @@ export default function OrderDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết đơn hàng</Text>
+        <Text style={styles.headerTitle}>Order Details</Text>
         <TouchableOpacity
           style={styles.trackingButton}
           onPress={() => router.push({
@@ -125,7 +127,7 @@ export default function OrderDetailScreen() {
             params: { orderId: order.orderId }
           } as any)}
         >
-          <Ionicons name="location" size={24} color="#4CAF50" />
+          <Ionicons name="location" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
@@ -167,20 +169,20 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="information-circle-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Thông tin đơn hàng</Text>
+            <Text style={styles.sectionTitle}>Order Information</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Mã đơn hàng:</Text>
+            <Text style={styles.infoLabel}>Order ID:</Text>
             <Text style={styles.infoValue}>#{order.orderId.slice(0, 8)}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Ngày đặt:</Text>
+            <Text style={styles.infoLabel}>Order Date:</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.createdAt)}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Cập nhật:</Text>
+            <Text style={styles.infoLabel}>Last Updated:</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.updatedAt)}
             </Text>
@@ -191,12 +193,12 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="location-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Địa chỉ giao hàng</Text>
+            <Text style={styles.sectionTitle}>Shipping Address</Text>
           </View>
           <Text style={styles.addressText}>{order.shippingAddress}</Text>
           {order.notes && (
             <View style={styles.notesContainer}>
-              <Text style={styles.notesLabel}>Ghi chú:</Text>
+              <Text style={styles.notesLabel}>Notes:</Text>
               <Text style={styles.notesText}>{order.notes}</Text>
             </View>
           )}
@@ -206,7 +208,7 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Thông tin khách hàng</Text>
+            <Text style={styles.sectionTitle}>Customer Information</Text>
           </View>
           <View style={styles.customerInfo}>
             {order.customer.user.photoUrl && (
@@ -227,7 +229,7 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="cart-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Sản phẩm ({totalItems})</Text>
+            <Text style={styles.sectionTitle}>Products ({totalItems})</Text>
           </View>
           {order.orderItems.map(renderOrderItem)}
         </View>
@@ -236,22 +238,22 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="receipt-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Tổng cộng</Text>
+            <Text style={styles.sectionTitle}>Order Summary</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tạm tính:</Text>
+            <Text style={styles.summaryLabel}>Subtotal:</Text>
             <Text style={styles.summaryValue}>
               {orderService.formatCurrency(totalAmount)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phí vận chuyển:</Text>
-            <Text style={styles.summaryValue}>Miễn phí</Text>
+            <Text style={styles.summaryLabel}>Shipping Fee:</Text>
+            <Text style={styles.summaryValue}>Free</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Tổng cộng:</Text>
-            <Text style={styles.totalValue}>
+            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={[styles.totalValue, { color: primaryColor }]}>
               {orderService.formatCurrency(totalAmount)}
             </Text>
           </View>
@@ -262,18 +264,18 @@ export default function OrderDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="card-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Thông tin thanh toán</Text>
+              <Text style={styles.sectionTitle}>Payment Information</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phương thức:</Text>
+              <Text style={styles.infoLabel}>Method:</Text>
               <Text style={styles.infoValue}>
-                {order.payment.method || 'Chưa xác định'}
+                {order.payment.method || 'Not specified'}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Trạng thái:</Text>
+              <Text style={styles.infoLabel}>Status:</Text>
               <Text style={styles.infoValue}>
-                {order.payment.status || 'Chưa thanh toán'}
+                {order.payment.status || 'Unpaid'}
               </Text>
             </View>
           </View>
@@ -533,7 +535,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backToListButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },

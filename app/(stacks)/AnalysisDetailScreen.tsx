@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 const { width } = Dimensions.get('window');
 
 export default function AnalysisDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { primaryColor } = useThemeColor();
   const [showMask, setShowMask] = useState(false);
 
   // Parse the result from navigation params
@@ -22,7 +24,7 @@ export default function AnalysisDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorText}>No analysis data available</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={[styles.backButton, { backgroundColor: primaryColor }]} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -88,15 +90,22 @@ export default function AnalysisDetailScreen() {
               {/* Toggle Mask Button */}
               <View style={styles.imageControls}>
                 <TouchableOpacity 
-                  style={[styles.toggleButton, showMask && styles.toggleButtonActive]}
+                  style={[
+                    styles.toggleButton, 
+                    showMask && [styles.toggleButtonActive, { backgroundColor: primaryColor }]
+                  ]}
                   onPress={() => setShowMask(!showMask)}
                 >
                   <Ionicons 
                     name={showMask ? "eye-off" : "eye"} 
                     size={20} 
-                    color={showMask ? "#fff" : "#007AFF"} 
+                    color={showMask ? "#fff" : primaryColor} 
                   />
-                  <Text style={[styles.toggleButtonText, showMask && styles.toggleButtonTextActive]}>
+                  <Text style={[
+                    styles.toggleButtonText, 
+                    showMask && styles.toggleButtonTextActive,
+                    !showMask && { color: primaryColor }
+                  ]}>
                     {showMask ? "Hide Detection Mask" : "Show Detection Mask"}
                   </Text>
                 </TouchableOpacity>
@@ -117,7 +126,7 @@ export default function AnalysisDetailScreen() {
             <Ionicons 
               name={isConditionDetection ? "water" : "medical"} 
               size={32} 
-              color={isConditionDetection ? "#2196F3" : "#E91E63"} 
+              color={isConditionDetection ? primaryColor : "#E91E63"} 
             />
             <Text style={styles.infoTitle}>
               {isConditionDetection ? "Skin Condition" : "Disease Detection"}
@@ -128,7 +137,7 @@ export default function AnalysisDetailScreen() {
             <Text style={styles.resultLabel}>Detected:</Text>
             <Text style={[
               styles.resultValue,
-              isConditionDetection ? styles.conditionValue : styles.diseaseValue
+              isConditionDetection ? { color: primaryColor } : styles.diseaseValue
             ]}>
               {isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
             </Text>
@@ -186,7 +195,7 @@ export default function AnalysisDetailScreen() {
 
         {/* Action Buttons */}
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, { backgroundColor: primaryColor }]}
           onPress={() => router.push('/(tabs)/AnalyzeScreen')}
         >
           <Ionicons name="camera" size={20} color="#fff" />
@@ -274,12 +283,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   toggleButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Will be overridden
   },
   toggleButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#007AFF', // Will be overridden
   },
   toggleButtonTextActive: {
     color: '#fff',
@@ -326,7 +335,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   conditionValue: {
-    color: '#2196F3',
+    color: '#2196F3', // Will be overridden
   },
   diseaseValue: {
     color: '#E91E63',
@@ -373,7 +382,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Will be overridden
     marginHorizontal: 20,
     marginTop: 20,
     paddingVertical: 16,
@@ -399,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Will be overridden
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 10,

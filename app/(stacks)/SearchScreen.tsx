@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import productService, { Product } from '@/services/productService'
 import ProductCard from '@/components/ProductCard'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
 
 const { width } = Dimensions.get('window')
 const CARD_WIDTH = (width - 48) / 2
@@ -47,6 +48,7 @@ const SORT_OPTIONS = [
 
 export default function SearchScreen() {
   const router = useRouter()
+  const { primaryColor } = useThemeColor()
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -182,7 +184,7 @@ export default function SearchScreen() {
         style={styles.filterButton}
         onPress={() => setShowFilters(!showFilters)}
       >
-        <Ionicons name="options" size={24} color="#007AFF" />
+        <Ionicons name="options" size={24} color={primaryColor} />
       </TouchableOpacity>
     </View>
   )
@@ -196,7 +198,7 @@ export default function SearchScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              !selectedSkinType && styles.filterChipActive
+              !selectedSkinType && [styles.filterChipActive, { backgroundColor: primaryColor }]
             ]}
             onPress={() => setSelectedSkinType(null)}
           >
@@ -210,7 +212,7 @@ export default function SearchScreen() {
               key={type.id}
               style={[
                 styles.filterChip,
-                selectedSkinType === type.id && styles.filterChipActive
+                selectedSkinType === type.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
               onPress={() => setSelectedSkinType(type.id)}
             >
@@ -232,7 +234,7 @@ export default function SearchScreen() {
               key={option.id}
               style={[
                 styles.filterChip,
-                selectedSort === option.id && styles.filterChipActive
+                selectedSort === option.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
               onPress={() => setSelectedSort(option.id)}
             >
@@ -370,14 +372,14 @@ export default function SearchScreen() {
       {/* Content */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={primaryColor} />
           <Text style={styles.loadingText}>Searching products...</Text>
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleSearch}>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: primaryColor }]} onPress={handleSearch}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -395,6 +397,7 @@ export default function SearchScreen() {
   )
 }
 
+// Styles with overridable defaults
 const styles = StyleSheet.create({
   container: {
     flex: 1,

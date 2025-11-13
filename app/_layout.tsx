@@ -15,6 +15,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProductProvider } from "@/contexts/ProductContext";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
 import { CartCountProvider } from '@/contexts/CartCountContext';
+import { ThemeColorProvider } from '@/contexts/ThemeColorContext';
 
 export { ErrorBoundary } from "expo-router";
 
@@ -45,13 +46,15 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ProductProvider>
-        <CartCountProvider>
-          <RootLayoutNav />
-        </CartCountProvider>
-      </ProductProvider>
-    </AuthProvider>
+    <ThemeColorProvider>
+      <AuthProvider>
+        <ProductProvider>
+          <CartCountProvider>
+            <RootLayoutNav />
+          </CartCountProvider>
+        </ProductProvider>
+      </AuthProvider>
+    </ThemeColorProvider>
   );
 }
 
@@ -59,7 +62,6 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   // Initialize WebSocket connection for notifications
-  // This hook will automatically connect when user logs in
   useNotificationWebSocket();
 
   return (

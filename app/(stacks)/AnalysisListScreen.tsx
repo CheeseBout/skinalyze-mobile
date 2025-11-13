@@ -16,10 +16,12 @@ import { useAuth } from '@/hooks/useAuth';
 import skinAnalysisService, { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function AnalysisListScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { primaryColor } = useThemeColor();
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,7 +150,7 @@ export default function AnalysisListScreen() {
           <View style={styles.backButton} />
         </View>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={primaryColor} />
           <Text style={styles.loadingText}>Loading analyses...</Text>
         </View>
       </View>
@@ -169,7 +171,7 @@ export default function AnalysisListScreen() {
           onPress={() => router.push('/(tabs)/AnalyzeScreen')}
           style={styles.addButton}
         >
-          <Ionicons name="add-circle" size={24} color="#007AFF" />
+          <Ionicons name="add-circle" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
@@ -180,7 +182,7 @@ export default function AnalysisListScreen() {
         keyExtractor={(item) => item.analysisId}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#007AFF']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -190,7 +192,7 @@ export default function AnalysisListScreen() {
               Start analyzing your skin to see your history here
             </Text>
             <TouchableOpacity
-              style={styles.emptyButton}
+              style={[styles.emptyButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
             >
               <Ionicons name="camera" size={20} color="#fff" />
@@ -204,7 +206,6 @@ export default function AnalysisListScreen() {
   );
 }
 
-// ...existing code... (styles remain the same)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Will be overridden
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,

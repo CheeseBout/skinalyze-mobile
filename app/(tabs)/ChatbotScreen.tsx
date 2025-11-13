@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import chatbotService, { ChatMessage, ChatSession } from '@/services/chatbotService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function ChatbotScreen() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function ChatbotScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const hasLoadedRef = useRef(false);
+  const { primaryColor } = useThemeColor();
 
   useEffect(() => {
     if (user?.userId && !hasLoadedRef.current) {
@@ -118,7 +120,7 @@ export default function ChatbotScreen() {
             <Ionicons name="sparkles" size={16} color="#fff" />
           </View>
         )}
-        <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}>
+        <View style={[styles.messageBubble, isUser ? [styles.userBubble, { backgroundColor: primaryColor }] : styles.aiBubble]}>
           <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.aiMessageText]}>
             {item.messageContent}
           </Text>
@@ -130,7 +132,7 @@ export default function ChatbotScreen() {
           </Text>
         </View>
         {isUser && (
-          <View style={styles.userAvatar}>
+          <View style={[styles.userAvatar, { backgroundColor: primaryColor }]}>
             <Ionicons name="person" size={16} color="#fff" />
           </View>
         )}
@@ -280,15 +282,22 @@ export default function ChatbotScreen() {
     
     return (
       <TouchableOpacity
-        style={[styles.chatItem, isActive && styles.activeChatItem]}
+        style={[
+          styles.chatItem, 
+          isActive && styles.activeChatItem, 
+          { 
+            borderColor: isActive ? primaryColor : '#E5E5E5',
+            backgroundColor: isActive ? `${primaryColor}15` : '#fff'
+          }
+        ]}
         onPress={() => selectChat(item.chatId)}
       >
         <View style={styles.chatItemContent}>
           <View style={styles.chatIconContainer}>
-            <Ionicons name="chatbubble-ellipses" size={24} color={isActive ? '#007AFF' : '#666'} />
+            <Ionicons name="chatbubble-ellipses" size={24} color={isActive ? primaryColor : '#666'} />
           </View>
           <View style={styles.chatItemText}>
-            <Text style={[styles.chatTitle, isActive && styles.activeChatTitle]} numberOfLines={1}>
+            <Text style={[styles.chatTitle, isActive && styles.activeChatTitle, { color: isActive ? primaryColor : '#000' }]} numberOfLines={1}>
               {item.title}
             </Text>
             <Text style={styles.chatPreview} numberOfLines={1}>
@@ -332,7 +341,7 @@ export default function ChatbotScreen() {
   if (isLoading && chatSessions.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={primaryColor} />
         <Text style={styles.loadingText}>Loading chats...</Text>
       </View>
     );
@@ -348,9 +357,9 @@ export default function ChatbotScreen() {
           <Text style={styles.headerTitle}>All Chats</Text>
           <TouchableOpacity onPress={createNewChat} disabled={isLoading}>
             {isLoading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={primaryColor} />
             ) : (
-              <Ionicons name="add-circle" size={24} color="#007AFF" />
+              <Ionicons name="add-circle" size={24} color={primaryColor} />
             )}
           </TouchableOpacity>
         </View>
@@ -368,7 +377,7 @@ export default function ChatbotScreen() {
                 Start a conversation with our AI assistant
               </Text>
               <TouchableOpacity 
-                style={styles.createButton} 
+                style={[styles.createButton, { backgroundColor: primaryColor }]} 
                 onPress={createNewChat}
                 disabled={isLoading}
               >
@@ -393,14 +402,14 @@ export default function ChatbotScreen() {
           <Ionicons name="menu" size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="sparkles" size={20} color="#007AFF" />
+          <Ionicons name="sparkles" size={20} color={primaryColor} />
           <Text style={styles.headerTitle}>AI Assistant</Text>
         </View>
         <TouchableOpacity onPress={createNewChat} disabled={isLoading}>
           {isLoading ? (
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={primaryColor} />
           ) : (
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
           )}
         </TouchableOpacity>
       </View>
@@ -448,7 +457,7 @@ export default function ChatbotScreen() {
             }}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!inputMessage.trim() || isSending) && styles.sendButtonDisabled]}
+            style={[styles.sendButton, (!inputMessage.trim() || isSending) && styles.sendButtonDisabled, { backgroundColor: (!inputMessage.trim() || isSending) ? '#ccc' : primaryColor }]}
             onPress={sendMessage}
             disabled={!inputMessage.trim() || isSending}
           >
@@ -522,7 +531,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   userBubble: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // This will be overridden by inline style
     borderBottomRightRadius: 4,
   },
   aiBubble: {
@@ -558,7 +567,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // This will be overridden by inline style
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -643,9 +652,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   activeChatItem: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#E3F2FD', // This will be overridden by inline style
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#007AFF', // This will be overridden by inline style
   },
   chatItemContent: {
     flexDirection: 'row',
@@ -671,7 +680,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   activeChatTitle: {
-    color: '#007AFF',
+    color: '#007AFF', // This will be overridden by inline style
   },
   chatPreview: {
     fontSize: 13,
@@ -699,7 +708,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   createButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // This will be overridden by inline style
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 20,

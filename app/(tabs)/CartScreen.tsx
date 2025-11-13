@@ -16,6 +16,7 @@ import cartService, { Cart, CartItem } from '@/services/cartService'
 import productService from '@/services/productService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 // Extended CartItem with product image
 interface CartItemWithImage extends CartItem {
@@ -33,6 +34,7 @@ export default function CartScreen() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const { refreshCount } = useCartCount()
+  const { primaryColor } = useThemeColor();
 
   const fetchProductImages = useCallback(async (cartData: Cart) => {
     if (!cartData || cartData.items.length === 0) {
@@ -301,7 +303,7 @@ export default function CartScreen() {
             onPress={() => toggleSelectItem(item.productId)}
             disabled={isUpdating}
           >
-            <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxActive, {backgroundColor: primaryColor, borderColor: primaryColor}]}>
               {isSelected && (
                 <Ionicons name="checkmark" size={16} color="#FFF" />
               )}
@@ -332,7 +334,7 @@ export default function CartScreen() {
               <Text style={styles.itemName} numberOfLines={2}>
                 {item.productName}
               </Text>
-              <Text style={styles.itemPrice}>
+              <Text style={[styles.itemPrice, { color: primaryColor }]}>
                 {productService.formatPrice(item.price)}
               </Text>
               <Text style={styles.itemSubtotal}>
@@ -397,7 +399,7 @@ export default function CartScreen() {
         Add products to your cart to get started
       </Text>
       <TouchableOpacity
-        style={styles.shopButton}
+        style={[styles.shopButton, { backgroundColor: primaryColor }]}
         onPress={() => router.push('/(tabs)/HomeScreen')}
       >
         <Text style={styles.shopButtonText}>Start Shopping</Text>
@@ -424,7 +426,7 @@ export default function CartScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={primaryColor} />
         <Text style={styles.loadingText}>Loading cart...</Text>
       </View>
     )
@@ -461,7 +463,7 @@ export default function CartScreen() {
             style={styles.selectAllContainer}
             onPress={toggleSelectAll}
           >
-            <View style={[styles.checkbox, selectAll && styles.checkboxActive]}>
+            <View style={[styles.checkbox, selectAll && styles.checkboxActive, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
               {selectAll && (
                 <Ionicons name="checkmark" size={16} color="#FFF" />
               )}
@@ -500,7 +502,7 @@ export default function CartScreen() {
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
+            <Text style={[styles.totalValue, { color: primaryColor }]}>
               {productService.formatPrice(selectedTotal.price)}
             </Text>
           </View>
@@ -509,7 +511,8 @@ export default function CartScreen() {
         <TouchableOpacity
           style={[
             styles.checkoutButton,
-            selectedItems.size === 0 && styles.checkoutButtonDisabled
+            selectedItems.size === 0 && styles.checkoutButtonDisabled,
+            { backgroundColor: primaryColor }
           ]}
           onPress={handleCheckout}
           disabled={selectedItems.size === 0}

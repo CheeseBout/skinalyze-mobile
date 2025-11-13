@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth'
 import { Alert } from 'react-native';
 import { useNotificationWebSocket } from '@/hooks/useNotificationWebSocket';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function HeaderComponent() {
   const [searchText, setSearchText] = useState('');
@@ -12,6 +13,7 @@ export default function HeaderComponent() {
   const router = useRouter();
   const { logout } = useAuth();
   const { unreadCount } = useNotificationWebSocket();
+  const { primaryColor } = useThemeColor();
 
   const menuItems = [
     { name: 'Profile', icon: 'person', url: 'ProfileScreen' },
@@ -72,7 +74,7 @@ export default function HeaderComponent() {
         style={styles.notificationButton} 
         onPress={handleNotificationPress}
       >
-        <Ionicons name="notifications-outline" size={28} color="#007AFF" />
+        <Ionicons name="notifications-outline" size={28} color={primaryColor} />
         {unreadCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
@@ -84,7 +86,7 @@ export default function HeaderComponent() {
 
       {/* Profile Icon */}
       <TouchableOpacity style={styles.profileButton} onPress={handleMenuPress}>
-        <Ionicons name="person-circle-outline" size={32} color="#007AFF" />
+        <Ionicons name="person-circle-outline" size={32} color={primaryColor} />
       </TouchableOpacity>
 
       {/* Dropdown Menu */}
@@ -108,7 +110,7 @@ export default function HeaderComponent() {
                 ]}
                 onPress={() => handleNavigate(item.url)}
               >
-                <Ionicons name={item.icon as any} size={22} color="#333" style={styles.menuIcon} />
+                <Ionicons name={item.icon as any} size={22} color={primaryColor} style={styles.menuIcon} />
                 <Text style={styles.menuText}>{item.name}</Text>
               </TouchableOpacity>
             ))}

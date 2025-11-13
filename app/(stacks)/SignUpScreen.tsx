@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router'
 import { register, RegisterPayload } from '@/services/authService'
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '@/hooks/useAuth';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function SignUpScreen() {
   const router = useRouter()
@@ -37,7 +38,7 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
+  const { primaryColor } = useThemeColor();
   const { login: authLogin } = useAuth()
 
   const validateForm = (): boolean => {
@@ -320,7 +321,7 @@ export default function SignUpScreen() {
 
           {/* Register Button */}
           <TouchableOpacity 
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+            style={[styles.registerButton, loading && styles.registerButtonDisabled, { backgroundColor: primaryColor }]}
             onPress={handleRegister}
             disabled={loading}
             activeOpacity={0.8}

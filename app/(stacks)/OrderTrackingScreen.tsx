@@ -16,24 +16,26 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrderTrackingWebSocket } from '@/hooks/useOrderTrackingWebSocket';
 import trackingService from '@/services/trackingService';
 import GoongMap from '@/components/GoongMap';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 // Simple time ago formatter
 const formatTimeAgo = (date: Date): string => {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   
-  if (seconds < 60) return `${seconds} giây trước`;
+  if (seconds < 60) return `${seconds} seconds ago`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} phút trước`;
+  if (minutes < 60) return `${minutes} minutes ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giờ trước`;
+  if (hours < 24) return `${hours} hours ago`;
   const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
+  return `${days} days ago`;
 };
 
 export default function OrderTrackingScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { isAuthenticated } = useAuth();
+  const { primaryColor } = useThemeColor();
   const [refreshing, setRefreshing] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(true);
   const [isShipperExpanded, setIsShipperExpanded] = useState(false);
@@ -58,8 +60,7 @@ export default function OrderTrackingScreen() {
       
       // Show notification if shipper is very close (< 5 minutes)
       if (eta.duration < 300 && eta.duration > 0) {
-        // Could trigger a local notification here
-        console.log('🔔 Shipper sắp đến!');
+        console.log('🔔 Shipper arriving soon!');
       }
     },
   });
@@ -74,12 +75,12 @@ export default function OrderTrackingScreen() {
     if (!trackingData?.shipper) return;
 
     Alert.alert(
-      'Gọi cho shipper',
-      `Bạn có muốn gọi cho ${trackingData.shipper.fullName}?`,
+      'Call Shipper',
+      `Do you want to call ${trackingData.shipper.fullName}?`,
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Gọi',
+          text: 'Call',
           onPress: () => {
             const phoneNumber = trackingData.shipper!.phone;
             Linking.openURL(`tel:${phoneNumber}`);
@@ -99,12 +100,12 @@ export default function OrderTrackingScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
+          <Text style={styles.headerTitle}>Order Tracking</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Đang tải thông tin tracking...</Text>
+          <ActivityIndicator size="large" color={primaryColor} />
+          <Text style={styles.loadingText}>Loading tracking information...</Text>
         </View>
       </View>
     );
@@ -120,16 +121,16 @@ export default function OrderTrackingScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
+          <Text style={styles.headerTitle}>Order Tracking</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.errorContainer}>
           <Ionicons name="time-outline" size={80} color="#FF9800" />
-          <Text style={styles.errorTitle}>Đơn hàng đang được xử lý</Text>
+          <Text style={styles.errorTitle}>Order is being processed</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: primaryColor }]} onPress={refresh}>
             <Ionicons name="refresh" size={20} color="#fff" />
-            <Text style={styles.retryButtonText}>Kiểm tra lại</Text>
+            <Text style={styles.retryButtonText}>Check again</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -146,13 +147,13 @@ export default function OrderTrackingScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
+          <Text style={styles.headerTitle}>Order Tracking</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.errorContainer}>
           <Ionicons name="time-outline" size={80} color="#ccc" />
-          <Text style={styles.errorTitle}>Đơn hàng đang được xử lý</Text>
-          <Text style={styles.errorText}>Shipper sẽ bắt đầu giao hàng sớm. Vui lòng kiểm tra lại sau.</Text>
+          <Text style={styles.errorTitle}>Order is being processed</Text>
+          <Text style={styles.errorText}>Shipper will start delivery soon. Please check again later.</Text>
         </View>
       </View>
     );
@@ -161,14 +162,6 @@ export default function OrderTrackingScreen() {
   const { shippingLog, shipper, customer, currentLocation, eta } = trackingData;
   const statusColor = trackingService.getStatusColor(shippingLog.status);
   const statusLabel = trackingService.getStatusLabel(shippingLog.status);
-
-  // Debug log for map data
-  console.log('🗺️ Map data:', {
-    currentLocation,
-    customerLocation: customer?.location,
-    customerAddress: customer?.address,
-    hasPolyline: !!eta?.polyline,
-  });
 
   return (
     <View style={styles.container}>
@@ -190,7 +183,7 @@ export default function OrderTrackingScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Theo dõi đơn hàng</Text>
+        <Text style={styles.headerTitle}>Order Tracking</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
           <Ionicons name="refresh" size={24} color="#fff" />
         </TouchableOpacity>
@@ -232,17 +225,17 @@ export default function OrderTrackingScreen() {
               <View style={styles.staleBanner}>
                 <Ionicons name="warning" size={16} color="#E65100" />
                 <Text style={styles.staleText}>
-                  Vị trí chưa cập nhật trong 5 phút
+                  Location not updated in 5 minutes
                 </Text>
               </View>
             )}
 
             {/* ETA Info */}
             {eta && (
-              <View style={styles.etaContainer}>
-                <Ionicons name="time-outline" size={20} color="#4CAF50" />
-                <Text style={styles.etaText}>
-                  Dự kiến giao trong: <Text style={styles.etaBold}>{eta.text}</Text>
+              <View style={[styles.etaContainer, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="time-outline" size={20} color={primaryColor} />
+                <Text style={[styles.etaText, { color: primaryColor }]}>
+                  Estimated delivery: <Text style={styles.etaBold}>{eta.text}</Text>
                 </Text>
               </View>
             )}
@@ -267,17 +260,17 @@ export default function OrderTrackingScreen() {
             style={styles.cardHeader}
           >
             <View style={styles.cardHeaderLeft}>
-              <View style={styles.shipperAvatarSmall}>
+              <View style={[styles.shipperAvatarSmall, { backgroundColor: primaryColor }]}>
                 <Ionicons name="person" size={20} color="#fff" />
               </View>
               <View>
                 <Text style={styles.cardTitle}>{shipper.fullName}</Text>
-                <Text style={styles.cardSubtitle}>Người giao hàng</Text>
+                <Text style={styles.cardSubtitle}>Delivery Person</Text>
               </View>
             </View>
             <View style={styles.cardActions}>
               <TouchableOpacity
-                style={styles.callButtonSmall}
+                style={[styles.callButtonSmall, { backgroundColor: primaryColor }]}
                 onPress={handleCallShipper}
               >
                 <Ionicons name="call" size={20} color="#fff" />
@@ -314,7 +307,7 @@ export default function OrderTrackingScreen() {
       {!isConnected && (
         <View style={styles.connectionBanner}>
           <Ionicons name="alert-circle" size={16} color="#FF9800" />
-          <Text style={styles.connectionText}>Đang kết nối lại...</Text>
+          <Text style={styles.connectionText}>Reconnecting...</Text>
         </View>
       )}
     </View>

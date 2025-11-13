@@ -7,6 +7,7 @@ import { useColorScheme } from "@/components/useColorScheme";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import HeaderComponent from "@/components/HeaderComponent";
 import { useCartCount } from "@/hooks/userCartCount";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 function CartTabBarIcon({ color, focused }: { color: string; focused: boolean }) {
   const { count } = useCartCount();
@@ -38,11 +39,12 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const {primaryColor} = useThemeColor()
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+        tabBarActiveTintColor: primaryColor,
         headerShown: useClientOnlyValue(false, true),
         header: () => <HeaderComponent />,
       }}
