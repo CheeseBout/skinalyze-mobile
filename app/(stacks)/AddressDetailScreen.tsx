@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth'
 import tokenService from '@/services/tokenService'
 import userService from '@/services/userService'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
 
 interface AddressFormData {
   street: string
@@ -31,6 +32,7 @@ export default function AddressDetailScreen() {
   const router = useRouter()
   const { addressId } = useLocalSearchParams()
   const { user, refreshUser } = useAuth()
+  const { primaryColor } = useThemeColor()
 
   const isEditMode = !!addressId
 
@@ -343,7 +345,7 @@ export default function AddressDetailScreen() {
 
           {/* Save Button */}
           <TouchableOpacity
-            style={[styles.saveButton, loading && styles.buttonDisabled]}
+            style={[styles.saveButton, loading && styles.buttonDisabled, {backgroundColor: primaryColor}]}
             onPress={handleSave}
             disabled={loading}
             activeOpacity={0.8}

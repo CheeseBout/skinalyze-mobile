@@ -26,12 +26,12 @@ export default function CheckoutScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
-  
+
   const [cart, setCart] = useState<Cart | null>(null);
   const [selectedItems, setSelectedItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Form state
   const [shippingAddress, setShippingAddress] = useState('');
   const [notes, setNotes] = useState('');
@@ -47,7 +47,7 @@ export default function CheckoutScreen() {
   const loadUserAddress = () => {
     if (user?.addresses && user.addresses.length > 0) {
       const primaryAddress = user.addresses[0];
-      
+
       const formattedAddress = [
         primaryAddress.streetLine1,
         primaryAddress.streetLine2,
@@ -58,7 +58,7 @@ export default function CheckoutScreen() {
       ]
         .filter(Boolean)
         .join(', ');
-      
+
       setShippingAddress(formattedAddress);
     }
   };
@@ -74,7 +74,7 @@ export default function CheckoutScreen() {
       }
 
       const cartData = await cartService.getUserCart(token);
-      
+
       if (!cartData || cartData.items.length === 0) {
         Alert.alert('Empty Cart', 'Your cart is empty', [
           { text: 'OK', onPress: () => router.back() }
@@ -85,12 +85,12 @@ export default function CheckoutScreen() {
       setCart(cartData);
 
       // Parse selected product IDs from params
-      const selectedProductIds = params.selectedProductIds 
-        ? JSON.parse(params.selectedProductIds as string) 
+      const selectedProductIds = params.selectedProductIds
+        ? JSON.parse(params.selectedProductIds as string)
         : [];
 
       // Filter cart items to only include selected ones
-      const selectedCartItems = cartData.items.filter(item => 
+      const selectedCartItems = cartData.items.filter(item =>
         selectedProductIds.includes(item.productId)
       );
 
@@ -111,7 +111,7 @@ export default function CheckoutScreen() {
   };
 
   const calculateTotal = () => {
-    return selectedItems.reduce((total, item) => 
+    return selectedItems.reduce((total, item) =>
       total + (item.price * item.quantity), 0
     );
   };
@@ -133,7 +133,7 @@ export default function CheckoutScreen() {
 
     const totalPrice = calculateTotal();
     const paymentLabel = orderService.getPaymentMethodLabel(paymentMethod);
-    
+
     Alert.alert(
       'Confirm Order',
       `Total: ${productService.formatPrice(totalPrice)}\nPayment: ${paymentLabel}`,
@@ -200,23 +200,24 @@ export default function CheckoutScreen() {
       Alert.alert(
         'Select Address',
         'Choose a saved address',
-        user.addresses.map((address, index) => ({
-          text: `${address.streetLine1}, ${address.city}`,
-          onPress: () => {
-            const formattedAddress = [
-              address.streetLine1,
-              address.streetLine2,
-              address.street,
-              address.wardOrSubDistrict,
-              address.district,
-              address.city
-            ]
-              .filter(Boolean)
-              .join(', ');
-            setShippingAddress(formattedAddress);
-            setAddressEditable(false);
-          }
-        })).concat([
+        [
+          ...user.addresses.map((address, index) => ({
+            text: `${address.streetLine1}, ${address.city}`,
+            onPress: () => {
+              const formattedAddress = [
+                address.streetLine1,
+                address.streetLine2,
+                address.street,
+                address.wardOrSubDistrict,
+                address.district,
+                address.city
+              ]
+                .filter(Boolean)
+                .join(', ');
+              setShippingAddress(formattedAddress);
+              setAddressEditable(false);
+            }
+          })),
           {
             text: 'Enter Manually',
             onPress: () => {
@@ -226,9 +227,9 @@ export default function CheckoutScreen() {
           },
           {
             text: 'Cancel',
-            style: 'cancel'
+            style: 'cancel' as const
           }
-        ])
+        ]
       );
     } else {
       setAddressEditable(true);
@@ -374,7 +375,7 @@ export default function CheckoutScreen() {
         {/* Payment Method */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          
+
           {/* Cash on Delivery */}
           <TouchableOpacity
             style={[
@@ -533,7 +534,7 @@ export default function CheckoutScreen() {
             onPress={() => setUseWallet(!useWallet)}
           >
             <View style={[
-              styles.checkbox, 
+              styles.checkbox,
               useWallet && [styles.checkboxActive, { backgroundColor: primaryColor, borderColor: primaryColor }]
             ]}>
               {useWallet && (
@@ -564,7 +565,7 @@ export default function CheckoutScreen() {
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
-            styles.checkoutButton, 
+            styles.checkoutButton,
             { backgroundColor: submitting ? '#CCC' : primaryColor }
           ]}
           onPress={handleCheckout}
