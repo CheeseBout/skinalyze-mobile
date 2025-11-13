@@ -1,12 +1,12 @@
-import apiService from './apiService';
-import tokenService from './tokenService';
-import userService from './userService';
+import apiService from "./apiService";
+import tokenService from "./tokenService";
+import userService from "./userService";
 
 // Type definitions based on API response
 export interface SkinAnalysisResult {
   analysisId: string;
   customerId: string;
-  source: 'AI_SCAN' | 'MANUAL';
+  source: "AI_SCAN" | "MANUAL";
   chiefComplaint: string | null;
   patientSymptoms: string | null;
   imageUrls: string[];
@@ -43,14 +43,14 @@ class SkinAnalysisService {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        throw new Error('Authentication required');
+        throw new Error("Authentication required");
       }
 
       const customerData = await userService.getCustomerByUserId(userId, token);
       return customerData.customerId;
     } catch (error) {
-      console.error('❌ Error getting customer ID:', error);
-      throw new Error('Failed to retrieve customer information');
+      console.error("❌ Error getting customer ID:", error);
+      throw new Error("Failed to retrieve customer information");
     }
   }
 
@@ -67,7 +67,7 @@ class SkinAnalysisService {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       // Get customer ID from user ID
@@ -75,36 +75,37 @@ class SkinAnalysisService {
 
       // Create FormData for multipart/form-data request
       const formData = new FormData();
-      
-      // Extract filename and create file object
-      const filename = imageUri.split('/').pop() || 'image.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      formData.append('file', {
+      // Extract filename and create file object
+      const filename = imageUri.split("/").pop() || "image.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+
+      formData.append("file", {
         uri: imageUri,
         name: filename,
         type: type,
       } as any);
 
-      console.log('📤 Uploading disease detection image...');
+      console.log("📤 Uploading disease detection image...");
 
       // Use apiService.uploadFile instead of fetch
       const result = await apiService.uploadFile<SkinAnalysisResponse>(
         `/skin-analysis/disease-detection/${customerId}`,
-        formData,
-        { token }
+        formData
       );
 
       // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      console.log('✅ Disease detection completed');
+      console.log("✅ Disease detection completed");
 
       return analysisResult;
     } catch (error) {
-      console.error('❌ Error in disease detection:', error);
+      console.error("❌ Error in disease detection:", error);
       throw new Error(
-        error instanceof Error ? error.message : 'Failed to analyze skin for disease detection'
+        error instanceof Error
+          ? error.message
+          : "Failed to analyze skin for disease detection"
       );
     }
   }
@@ -122,7 +123,7 @@ class SkinAnalysisService {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       // Get customer ID from user ID
@@ -130,36 +131,37 @@ class SkinAnalysisService {
 
       // Create FormData for multipart/form-data request
       const formData = new FormData();
-      
-      // Extract filename and create file object
-      const filename = imageUri.split('/').pop() || 'image.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      formData.append('file', {
+      // Extract filename and create file object
+      const filename = imageUri.split("/").pop() || "image.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+
+      formData.append("file", {
         uri: imageUri,
         name: filename,
         type: type,
       } as any);
 
-      console.log('📤 Uploading condition detection image...');
+      console.log("📤 Uploading condition detection image...");
 
       // Use apiService.uploadFile instead of fetch
       const result = await apiService.uploadFile<SkinAnalysisResponse>(
         `/skin-analysis/condition-detection/${customerId}`,
-        formData,
-        { token }
+        formData
       );
 
       // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      console.log('✅ Condition detection completed');
+      console.log("✅ Condition detection completed");
 
       return analysisResult;
     } catch (error) {
-      console.error('❌ Error in condition detection:', error);
+      console.error("❌ Error in condition detection:", error);
       throw new Error(
-        error instanceof Error ? error.message : 'Failed to analyze skin condition'
+        error instanceof Error
+          ? error.message
+          : "Failed to analyze skin condition"
       );
     }
   }
@@ -173,18 +175,17 @@ class SkinAnalysisService {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        throw new Error('Authentication required');
+        throw new Error("Authentication required");
       }
 
       const response = await apiService.get<SkinAnalysisResult[]>(
-        `/skin-analysis/customer/${customerId}`,
-        { token }
+        `/skin-analysis/customer/${customerId}`
       );
 
       // The API returns the array directly, not wrapped in { data: [...] }
       return Array.isArray(response) ? response : [];
     } catch (error) {
-      console.error('❌ Error fetching user analyses:', error);
+      console.error("❌ Error fetching user analyses:", error);
       return []; // Return empty array instead of throwing
     }
   }
@@ -196,20 +197,19 @@ class SkinAnalysisService {
   async getAnalysisById(analysisId: string): Promise<SkinAnalysisResult> {
     try {
       const token = await tokenService.getToken();
-      
+
       if (!token) {
-        throw new Error('Authentication required');
+        throw new Error("Authentication required");
       }
 
       const response = await apiService.get<SkinAnalysisResponse>(
-        `/skin-analysis/${analysisId}`,
-        { token }
+        `/skin-analysis/${analysisId}`
       );
 
       return response.data;
     } catch (error) {
-      console.error('❌ Error fetching analysis:', error);
-      throw new Error('Failed to fetch analysis result');
+      console.error("❌ Error fetching analysis:", error);
+      throw new Error("Failed to fetch analysis result");
     }
   }
 }

@@ -1,7 +1,8 @@
 // Configuration for external services
 export const config = {
   // API Base URL
-  API_BASE_URL: process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1',
+  API_BASE_URL: process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.11:3000/api/v1',
+  // API_BASE_URL: process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1',
   
   // Goong Maps API Keys (Vietnam mapping service)
   // Sign up at: https://account.goong.io/

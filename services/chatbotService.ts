@@ -56,7 +56,6 @@ class ChatbotService {
       const response = await apiService.post<ChatSession>(
         "/chat-sessions",
         payload,
-        { token }
       );
 
       console.log('✅ Chat session created:', response.chatId);
@@ -83,7 +82,6 @@ class ChatbotService {
 
       const response = await apiService.get<ChatSession[]>(
         `/chat-sessions/user/${userId}`,
-        { token }
       );
 
       console.log(`✅ Loaded ${response.length} chat sessions`);
@@ -109,7 +107,6 @@ class ChatbotService {
 
       const response = await apiService.get<ChatSession>(
         `/chat-sessions/${chatId}`,
-        { token }
       );
 
       console.log(`✅ Chat session loaded with ${response.messages?.length || 0} messages`);
@@ -135,7 +132,6 @@ class ChatbotService {
       // API returns { message: "Chat session deleted successfully" }
       const response = await apiService.delete<DeleteResponse>(
         `/chat-sessions/${chatId}`, 
-        { token }
       );
 
       console.log('✅ Chat session deleted:', response.message);
@@ -168,7 +164,6 @@ class ChatbotService {
 
       const response = await apiService.get<ChatMessage[]>(
         `/chat-messages/chat/${chatId}`,
-        { token }
       );
 
       console.log(`✅ Loaded ${response.length} messages`);
@@ -210,7 +205,6 @@ class ChatbotService {
       const response = await apiService.post<SendMessageResponse>(
         "/chat-messages",
         payload,
-        { token }
       );
 
       console.log('✅ Message sent successfully');

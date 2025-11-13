@@ -1,29 +1,29 @@
-const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1'
+import tokenService from "./tokenService";
+
+// const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1'
+const API_URL =
+  process.env.EXPO_PUBLIC_BASE_API_URL || "http://192.168.1.11:3000/api/v1";
 
 interface RequestOptions {
-  headers?: Record<string, string>
-  token?: string
+  headers?: Record<string, string>;
+  params?: Record<string, any>;
 }
 
 class ApiService {
-  private baseURL: string
+  private baseURL: string;
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL
-    console.log('🔗 API Base URL:', this.baseURL) 
+    this.baseURL = baseURL;
+    console.log("🔗 API Base URL:", this.baseURL);
   }
 
   private getHeaders(options?: RequestOptions): HeadersInit {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options?.headers,
-    }
+    };
 
-    if (options?.token) {
-      headers['Authorization'] = `Bearer ${options.token}`
-    }
-
-    return headers
+    return headers;
   }
 
   private async request<T>(
@@ -33,33 +33,56 @@ class ApiService {
     options?: RequestOptions
   ): Promise<T> {
     try {
-      const url = `${this.baseURL}${endpoint}`
-      console.log(`📡 ${method} ${url}`) 
-      
+      let url = `${this.baseURL}${endpoint}`;
+
+      // Add query params
+      if (options?.params) {
+        const validParams: Record<string, string> = {};
+        for (const key in options.params) {
+          const value = options.params[key];
+          if (value !== null && value !== undefined) {
+            validParams[key] = String(value);
+          }
+        }
+        const query = new URLSearchParams(validParams).toString();
+        if (query) {
+          url += `?${query}`;
+        }
+      }
+      console.log(`📡 ${method} ${url}`);
+      // Get auth token and set Authorization header
+      const headers = this.getHeaders(options) as Record<string, string>;
+      const token = await tokenService.getToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const config: RequestInit = {
         method,
-        headers: this.getHeaders(options),
-      }
+        headers,
+      };
 
       if (body) {
-        config.body = JSON.stringify(body)
-        console.log('Request body:', body) 
+        config.body = JSON.stringify(body);
+        console.log("Request body:", body);
       }
 
-      const response = await fetch(url, config)
-      console.log(`Response status: ${response.status}`) 
+      const response = await fetch(url, config);
+      console.log(`Response status: ${response.status}`);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData) 
-        throw new Error(errorData.message || `Request failed with status ${response.status}`)
+        const errorData = await response.json().catch(() => ({}));
+        console.error("API Error:", errorData);
+        throw new Error(
+          errorData.message || `Request failed with status ${response.status}`
+        );
       }
 
-      const data = await response.json()
-      console.log('Response data:', data) 
-      return data
+      const data = await response.json();
+      console.log("Response data at apiService:", data);
+      return data;
     } catch (error) {
-      console.error(`API ${method} Error:`, error)
-      throw error
+      console.error(`API ${method} Error:`, error);
+      throw error;
     }
   }
 
@@ -72,62 +95,77 @@ class ApiService {
     options?: RequestOptions
   ): Promise<T> {
     try {
-      const url = `${this.baseURL}${endpoint}`
-      console.log(`📡 POST (multipart) ${url}`)
+      const url = `${this.baseURL}${endpoint}`;
+      console.log(`📡 POST (multipart) ${url}`);
 
-      const headers: Record<string, string> = {}
-      
-      if (options?.token) {
-        headers['Authorization'] = `Bearer ${options.token}`
+      const headers: Record<string, string> = {};
+
+      const token = await tokenService.getToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       // Don't set Content-Type for FormData - browser/RN will set it automatically with boundary
       const config: RequestInit = {
-        method: 'POST',
+        method: "POST",
         headers,
         body: formData,
-      }
+      };
 
-      const response = await fetch(url, config)
-      console.log(`Response status: ${response.status}`)
+      const response = await fetch(url, config);
+      console.log(`Response status: ${response.status}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        throw new Error(errorData.message || `Upload failed with status ${response.status}`)
+        const errorData = await response.json().catch(() => ({}));
+        console.error("API Error:", errorData);
+        throw new Error(
+          errorData.message || `Upload failed with status ${response.status}`
+        );
       }
 
-      const data = await response.json()
-      console.log('Response data:', data)
-      return data
+      const data = await response.json();
+      console.log("Response data file upload at apiService:", data);
+      return data;
     } catch (error) {
-      console.error('API Upload Error:', error)
-      throw error
+      console.error("API Upload Error:", error);
+      throw error;
     }
   }
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'GET', undefined, options)
+    return this.request<T>(endpoint, "GET", undefined, options);
   }
 
-  async post<T>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'POST', body, options)
+  async post<T>(
+    endpoint: string,
+    body?: any,
+    options?: RequestOptions
+  ): Promise<T> {
+    return this.request<T>(endpoint, "POST", body, options);
   }
 
-  async patch<T>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'PATCH', body, options)
+  async patch<T>(
+    endpoint: string,
+    body?: any,
+    options?: RequestOptions
+  ): Promise<T> {
+    return this.request<T>(endpoint, "PATCH", body, options);
   }
 
-  async put<T>(endpoint: string, body?: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'PUT', body, options)
+  async put<T>(
+    endpoint: string,
+    body?: any,
+    options?: RequestOptions
+  ): Promise<T> {
+    return this.request<T>(endpoint, "PUT", body, options);
   }
-  
+
   async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, 'DELETE', undefined, options)
+    return this.request<T>(endpoint, "DELETE", undefined, options);
   }
 }
 
 // Create and export a singleton instance
-export const apiService = new ApiService(API_URL)
+export const apiService = new ApiService(API_URL);
 
-export default apiService
+export default apiService;

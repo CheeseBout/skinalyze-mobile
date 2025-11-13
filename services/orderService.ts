@@ -111,7 +111,6 @@ class OrderService {
       const response = await apiService.post<CheckoutResponse>(
         '/orders/checkout',
         payload,
-        { token }
       );
       
       console.log('✅ Order created successfully:', response.data.orderId);
@@ -129,7 +128,6 @@ class OrderService {
     try {
       const response = await apiService.get<OrdersResponse>(
         '/orders/my-orders',
-        { token }
       );
       return response.data;
     } catch (error) {
@@ -145,7 +143,6 @@ class OrderService {
     try {
       const response = await apiService.get<OrderDetailResponse>(
         `/orders/${orderId}`,
-        { token }
       );
       return response.data;
     } catch (error) {

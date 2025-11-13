@@ -40,6 +40,7 @@ export interface User {
   fullName: string;
   phone: string;
   dob: string;
+  gender: boolean;
   photoUrl?: string;
   addresses: Address[];
   balance: string;
