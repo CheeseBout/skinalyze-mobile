@@ -1,6 +1,39 @@
+import { Customer } from "./customer.type";
+import { Dermatologist } from "./dermatologist.type";
+import { Payment } from "./payment.type";
+import { TreatmentRoutine } from "./treatment-routine.type";
+
 export enum AppointmentType {
   NEW_PROBLEM = "NEW_PROBLEM",
   FOLLOW_UP = "FOLLOW_UP",
+}
+
+export enum TerminationReason {
+  // CANCELLED
+  CUSTOMER_CANCELLED_EARLY = "CUSTOMER_CANCELLED_EARLY",
+  CUSTOMER_CANCELLED_LATE = "CUSTOMER_CANCELLED_LATE",
+  DOCTOR_CANCELLED = "DOCTOR_CANCELLED",
+  PAYMENT_TIMEOUT = "PAYMENT_TIMEOUT",
+  SYSTEM_CANCELLED = "SYSTEM_CANCELLED",
+
+  //  NO_SHOW
+  CUSTOMER_NO_SHOW = "CUSTOMER_NO_SHOW",
+  DOCTOR_NO_SHOW = "DOCTOR_NO_SHOW",
+
+  //  INTERRUPTED (After 'IN_PROGRESS')
+  CUSTOMER_ISSUE = "CUSTOMER_ISSUE",
+  DOCTOR_ISSUE = "DOCTOR_ISSUE",
+  PLATFORM_ISSUE = "PLATFORM_ISSUE",
+}
+
+export enum AppointmentStatus {
+  PENDING_PAYMENT = "PENDING_PAYMENT",
+  SCHEDULED = "SCHEDULED",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
+  NO_SHOW = "NO_SHOW",
+  INTERRUPTED = "INTERRUPTED",
 }
 
 // Payment as GO Appointment Reservation
@@ -23,7 +56,48 @@ export interface CreateSubscriptionAppointmentDto extends CreateAppointmentDto {
 export interface AppointmentReservationResult {
   appointmentId: string;
   paymentCode: string;
-  amount: number;
+  paymentMethod: string;
+  paymentType: string;
   expiredAt: string;
-  qrCodeUrl: string;
+  bankingInfo: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    amount: number;
+    qrCodeUrl: string;
+  };
+}
+
+export type Appointment = {
+  appointmentId: string;
+  paymentId: string | null;
+  dermatologistId: string;
+  customerId: string;
+  analysisId: string | null;
+  customerSubscriptionId: string | null;
+  trackingRoutineId: string | null;
+
+  customerJoinedAt: string | null;
+  dermatologistJoinedAt: string | null;
+  startTime: string;
+  endTime: string;
+  price: number;
+  note: string | null;
+  meetingUrl: string | null;
+
+  // Enums
+  appointmentType: AppointmentType;
+  appointmentStatus: AppointmentStatus;
+  terminatedReason: TerminationReason | null;
+  terminationNote: string | null;
+
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface AppointmentWithRelations extends Appointment {
+  customer: Customer | null;
+  dermatologist: Dermatologist | null;
+  payment: Payment | null;
 }

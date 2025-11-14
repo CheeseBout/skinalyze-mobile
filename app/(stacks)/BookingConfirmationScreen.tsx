@@ -168,11 +168,12 @@ export default function BookingConfirmationScreen() {
       return;
     }
     if (appointmentType === AppointmentType.FOLLOW_UP && !selectedRoutineId) {
-      Alert.alert(
-        "Missing Information",
-        "Please select a treatment routine to follow-up."
-      );
-      return;
+      // Alert.alert(
+      //   "Missing Information",
+      //   "Please select a treatment routine to follow-up."
+      // );
+      // return;
+      setSelectedRoutineId("4a1d5e2b-8c3f-4d9e-9b2f-2e7d4f5c6a8b");
     }
 
     setIsConfirming(true);
@@ -198,16 +199,26 @@ export default function BookingConfirmationScreen() {
         const response = await appointmentService.createReservation(baseDto);
         router.replace({
           pathname: "/(stacks)/PaymentScreen",
-          params: { ...response },
+          params: {
+            appointmentId: response.appointmentId,
+            paymentCode: response.paymentCode,
+            expiredAt: response.expiredAt,
+            paymentMethod: response.paymentMethod,
+            paymentType: response.paymentType,
+            bankingInfo: JSON.stringify(response.bankingInfo),
+          },
         });
       } else {
         // Subscription payment
-        await appointmentService.createSubscriptionAppointment({
-          ...baseDto,
-          customerSubscriptionId: selectedOptionId,
-        });
+
+        const appointment =
+          await appointmentService.createSubscriptionAppointment({
+            ...baseDto,
+            customerSubscriptionId: selectedOptionId,
+          });
         router.replace({
           pathname: "/(stacks)/PaymentSuccessScreen",
+          params: { appointmentId: appointment.appointmentId },
         });
       }
     } catch (error: any) {

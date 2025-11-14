@@ -82,8 +82,22 @@ class DermatologistService {
     date: string
   ): Promise<AvailabilitySlot[]> {
     try {
-      const startDate = new Date(date);
-      startDate.setHours(0, 0, 0, 0);
+      const now = new Date();
+
+      const requestedDayStart = new Date(date);
+      requestedDayStart.setHours(0, 0, 0, 0);
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      let startDate: Date;
+
+      if (requestedDayStart.getTime() === todayStart.getTime()) {
+        // If today is requested, start from now
+        startDate = now;
+      } else {
+        startDate = requestedDayStart;
+      }
 
       const endDate = new Date(date);
       endDate.setHours(23, 59, 59, 999);
