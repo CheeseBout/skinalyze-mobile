@@ -100,8 +100,11 @@ export default function BookingConfirmationScreen() {
 
         const [doctorData, subsData] = await Promise.all([
           dermatologistService.getDermatologistById(params.dermatologistId),
-          customerSubscriptionService.getMyActiveSubscriptions(),
+          customerSubscriptionService.getMyActiveSubscriptions(
+            params.dermatologistId
+          ),
         ]);
+        console.log("❤️MY PLAN", subsData);
 
         setDoctor(doctorData);
         setSubscriptions(subsData);
@@ -375,8 +378,8 @@ export default function BookingConfirmationScreen() {
           {subscriptions.map((sub) =>
             renderOption(
               sub.id,
-              (sub.plan as any)?.name || "My Subscription",
-              `${sub.sessionRemaining} sessions remaining`
+              (sub.subscriptionPlan as any)?.planName || "My Subscription",
+              `${sub.sessionsRemaining} sessions remaining`
             )
           )}
           {subscriptions.length === 0 && slotDetails.price === 0 && (

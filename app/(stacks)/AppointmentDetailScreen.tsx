@@ -17,6 +17,7 @@ import appointmentService from "@/services/appointmentService";
 import { AppointmentWithRelations } from "@/types/appointment.type";
 import { AppointmentStatus } from "@/types/appointment.type";
 
+const CHECK_IN_WINDOW_MINUTES = 10;
 const formatTime = (isoDate: string) => {
   if (!isoDate) return "N/A";
   return new Date(isoDate).toLocaleTimeString("en-US", {
@@ -60,7 +61,7 @@ export default function AppointmentDetailScreen() {
     useState<AppointmentWithRelations | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [isJoining, setIsJoining] = useState(false);
   useEffect(() => {
     if (!appointmentId) {
       setError("No appointment ID provided.");
@@ -85,19 +86,33 @@ export default function AppointmentDetailScreen() {
   }, [appointmentId]);
 
   const handleJoinMeeting = async () => {
-    if (!appointment?.meetingUrl) {
-      Alert.alert(
-        "No Link Available",
-        "The meeting link is not ready yet. Please check back later."
-      );
-      return;
-    }
+    if (!appointment || !appointment.meetingUrl || !appointmentId) return;
+    if (isJoining) return; // (Avoid multiple taps)
+
+    setIsJoining(true);
 
     try {
+      await appointmentService.checkInCustomer(appointmentId);
       await Linking.openURL(appointment.meetingUrl);
-    } catch (err) {
-      Alert.alert("Error", "Could not open the meeting link.");
+    } catch (err: any) {
+      if (err.message?.includes("check-in")) {
+        Alert.alert(
+          "Check-in Failed",
+          err.message || "Could not record check-in."
+        );
+      } else {
+        Alert.alert("Error", "Could not open the meeting link.");
+      }
+    } finally {
+      setIsJoining(false);
     }
+  };
+
+  const handleViewRoutine = (routineId: string) => {
+    router.push({
+      pathname: "/(stacks)/TreatmentRoutineDetailScreen",
+      params: { routineId: routineId },
+    });
   };
 
   const renderContent = () => {
@@ -116,10 +131,25 @@ export default function AppointmentDetailScreen() {
     }
 
     const statusInfo = getStatusInfo(appointment.appointmentStatus);
-    const isJoinable =
+
+    const isJoinableStatus =
       appointment.appointmentStatus === AppointmentStatus.SCHEDULED ||
       appointment.appointmentStatus === AppointmentStatus.IN_PROGRESS;
 
+    // Check in time
+    const startTime = new Date(appointment.startTime);
+    const checkInTime = new Date(
+      startTime.getTime() - CHECK_IN_WINDOW_MINUTES * 60000
+    );
+    const now = new Date();
+
+    // Enable join if current time is within the check-in window
+    const isJoinableTime = now >= checkInTime;
+
+    const hasMeetingUrl = !!appointment.meetingUrl;
+    const routineId =
+      appointment.createdRoutine?.routineId ||
+      appointment.trackingRoutine?.routineId;
     return (
       <>
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -129,7 +159,7 @@ export default function AppointmentDetailScreen() {
             <Text style={styles.backButtonText}>Back to Schedule</Text>
           </Pressable>
 
-          {/* Thẻ Trạng Thái */}
+          {/* Status Card */}
           <View
             style={[styles.statusCard, { backgroundColor: statusInfo.color }]}
           >
@@ -214,20 +244,62 @@ export default function AppointmentDetailScreen() {
             </View>
           </View>
         </ScrollView>
+        {/* Footer */}
+        <View style={styles.footer}>
+          {/* {isJoinableStatus && hasMeetingUrl && ( */}
+          <Pressable
+            style={[
+              styles.joinButton,
+              (!isJoinableTime ||
+                isJoining ||
+                !isJoinableStatus ||
+                !hasMeetingUrl) &&
+                styles.buttonDisabled,
+            ]}
+            onPress={handleJoinMeeting}
+            // Disable button if not joinable
+            disabled={
+              !isJoinableTime ||
+              isJoining ||
+              !isJoinableStatus ||
+              !hasMeetingUrl
+            }
+          >
+            {isJoining ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialCommunityIcons
+                  name="video-plus"
+                  size={24}
+                  color="#fff"
+                />
+                <Text style={styles.joinButtonText}>
+                  {isJoinableTime
+                    ? "Join Meeting"
+                    : `Joinable ${CHECK_IN_WINDOW_MINUTES} mins before`}
+                </Text>
+              </>
+            )}
+          </Pressable>
+          {/* )} */}
 
-        {/* Join Meeting Button (Sticky Footer) */}
-        {isJoinable && ( // (Only show button when joinable)
-          <View style={styles.footer}>
-            <Pressable style={styles.joinButton} onPress={handleJoinMeeting}>
+          {routineId && (
+            <Pressable
+              style={styles.routineButton}
+              onPress={() => handleViewRoutine(routineId)}
+            >
               <MaterialCommunityIcons
-                name="video-plus"
+                name="clipboard-text"
                 size={24}
                 color="#fff"
               />
-              <Text style={styles.joinButtonText}>Join Meeting</Text>
+              <Text style={styles.routineButtonText}>
+                View Treatment Routine
+              </Text>
             </Pressable>
-          </View>
-        )}
+          )}
+        </View>
       </>
     );
   };
@@ -374,5 +446,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 8,
+  },
+
+  routineButton: {
+    flexDirection: "row",
+    backgroundColor: "#6f42c1",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  routineButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  buttonDisabled: {
+    backgroundColor: "#9E9E9E",
   },
 });

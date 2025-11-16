@@ -19,6 +19,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import paymentService, {
   PaymentStatusResponse,
 } from "@/services/paymentService";
+import CustomAlert from "@/components/CustomAlert";
+import appointmentService from "@/services/appointmentService";
 
 const POLLING_INTERVAL_MS = 5000;
 
@@ -54,6 +56,9 @@ export default function PaymentScreen() {
   const [isChecking, setIsChecking] = useState(false);
 
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+  const [isAlertVisible, setIsAlertVisible] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [leaveAction, setLeaveAction] = useState<any>(null);
 
   // --- Countdown Timer ---
   useEffect(() => {
@@ -114,7 +119,7 @@ export default function PaymentScreen() {
 
         const status = result.status.toUpperCase();
 
-        if (status === "completed") {
+        if (status === "COMPLETED") {
           stopPolling();
           router.replace({
             pathname: "/(stacks)/PaymentSuccessScreen",
@@ -142,34 +147,51 @@ export default function PaymentScreen() {
 
   // --- Back Button Warning Logic ---
   useEffect(() => {
-    // (Listen for 'beforeRemove' event (back button))
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      // (Nếu đang check, hoặc đã hết hạn/thành công, cho phép rời đi)
       if (isChecking || timeLeft === "Expired" || !pollingInterval.current) {
         return;
       }
 
-      // (Prevent default back action)
+      // (Avoid default behavior of leaving the screen)
       e.preventDefault();
 
-      // (Show confirmation popup)
-      Alert.alert(
-        "Leave Payment Page?",
-        "If you leave now, your reserved slot will be cancelled automatically if payment is not completed in time.",
-        [
-          { text: "Stay", style: "cancel", onPress: () => {} },
-          {
-            text: "Leave",
-            style: "destructive",
-            // (Nếu user vẫn muốn rời đi, chạy hành động 'back')
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-        ]
-      );
+      setLeaveAction(e.data.action);
+      setIsAlertVisible(true);
     });
 
     return unsubscribe;
   }, [navigation, isChecking, timeLeft]);
+
+  const handleAlertCancel = () => {
+    setIsAlertVisible(false);
+    setLeaveAction(null);
+  };
+
+  const handleAlertConfirm = async () => {
+    if (isCancelling) return; // (Avoid double clicks)
+
+    setIsCancelling(true);
+
+    // 1. Stop polling
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+    }
+
+    try {
+      // 2. Call Cancel API (release slot)
+      await appointmentService.cancelPendingReservation(params.appointmentId);
+    } catch (error) {
+      console.error("Failed to cancel reservation:", error);
+      // (No need to alert user, just let them leave)
+    }
+
+    // 3. Close popup and allow leaving
+    setIsCancelling(false);
+    setIsAlertVisible(false);
+    if (leaveAction) {
+      navigation.dispatch(leaveAction);
+    }
+  };
 
   const copyToClipboard = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
@@ -179,7 +201,6 @@ export default function PaymentScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {timeLeft === "Expired" ? (
-          // --- EXPIRED UI ---
           <View style={styles.expiredContainer}>
             <Text style={styles.title}>Payment Expired</Text>
             <Text style={styles.instructions}>
@@ -194,7 +215,6 @@ export default function PaymentScreen() {
             </Pressable>
           </View>
         ) : (
-          // --- WAITING FOR PAYMENT UI ---
           <>
             <Text style={styles.title}>Waiting for Payment</Text>
             <Text style={styles.instructions}>
@@ -238,7 +258,6 @@ export default function PaymentScreen() {
                   <Text style={styles.value} selectable>
                     {bankingInfo.accountNumber}
                   </Text>
-                  (Nút Copy đã bị vô hiệu hóa)
                   <Pressable
                     onPress={() =>
                       copyToClipboard(
@@ -256,7 +275,6 @@ export default function PaymentScreen() {
                   </Pressable>
                 </View>
               </View>
-              {/* ================================== */}
 
               <View style={styles.divider} />
               <Text style={styles.contentLabel}>
@@ -280,7 +298,6 @@ export default function PaymentScreen() {
                   />
                 </Pressable>
               </View>
-              {/* ================================== */}
 
               <Text style={styles.note}>
                 Please use the exact code above as the transfer content.
@@ -298,6 +315,21 @@ export default function PaymentScreen() {
           </>
         )}
       </ScrollView>
+      <CustomAlert
+        visible={isAlertVisible}
+        title="Leave Payment Page?"
+        message="If you leave now, this reservation will be cancelled to free up the slot for others."
+        confirmText="Leave & Cancel"
+        cancelText="Stay"
+        onConfirm={handleAlertConfirm}
+        onCancel={handleAlertCancel}
+      />
+      {isCancelling && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Cancelling...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -442,5 +474,17 @@ const styles = StyleSheet.create({
   copyButton: {
     marginLeft: 8,
     padding: 4,
+  },
+
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#fff",
+    marginTop: 10,
+    fontSize: 16,
   },
 });

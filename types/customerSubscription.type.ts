@@ -3,11 +3,11 @@ export interface CustomerSubscription {
   customerId: string;
   planId: string;
   paymentId: string;
-  sessionRemaining: number;
+  sessionsRemaining: number;
   startDate: string;
   endDate: string;
   isActive: boolean;
-  plan?: {
+  subscriptionPlan?: {
     planName: string;
   };
 }

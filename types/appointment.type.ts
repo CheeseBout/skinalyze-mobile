@@ -100,4 +100,6 @@ export interface AppointmentWithRelations extends Appointment {
   customer: Customer | null;
   dermatologist: Dermatologist | null;
   payment: Payment | null;
+  createdRoutine: TreatmentRoutine | null;
+  trackingRoutine: TreatmentRoutine | null;
 }

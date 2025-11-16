@@ -114,6 +114,27 @@ export default function DermatologistDetailScreen() {
         <Text style={styles.address}>{dermatologist.clinicAddress}</Text>
       </View>
 
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Subscription Plans</Text>
+        <Text style={styles.bio}>
+          View and purchase consultation packages offered by this doctor.
+        </Text>
+        <Pressable
+          style={[styles.bookButton, styles.planButton]} 
+          onPress={() => {
+            router.push({
+              pathname: "/(stacks)/SubscriptionPlanListScreen",
+              params: {
+                dermatologistId: dermatologistId, 
+                doctorName: fullName, 
+              },
+            });
+          }}
+        >
+          <Text style={styles.bookButtonText}>View Available Plans</Text>
+        </Pressable>
+      </View>
+
       {/* Booking Section  */}
       <View style={styles.bookingSection}>
         <Text style={styles.price}>
@@ -236,5 +257,11 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+
+  planButton: {
+    backgroundColor: "#6f42c1",
+    marginTop: 16,
+    alignSelf: "center",
   },
 });

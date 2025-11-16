@@ -79,6 +79,30 @@ class AppointmentService {
       throw error;
     }
   }
+
+  async cancelPendingReservation(appointmentId: string): Promise<any> {
+    try {
+      const response = await apiService.delete(
+        `/appointments/${appointmentId}/reservation`
+      );
+      return response;
+    } catch (error) {
+      console.error("Error cancelling reservation:", error);
+      throw error;
+    }
+  }
+
+  async checkInCustomer(appointmentId: string): Promise<any> {
+    try {
+      const response = await apiService.patch(
+        `/appointments/my/${appointmentId}/check-in`
+      );
+      return response;
+    } catch (error) {
+      console.error("Error recording check-in:", error);
+      throw error;
+    }
+  }
 }
 
 export default new AppointmentService();
