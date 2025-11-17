@@ -25,6 +25,9 @@ export default function ProfileScreen() {
   
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [currency, setCurrency] = useState<string>('VND')
+  const [balanceLoading, setBalanceLoading] = useState(false)
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     phone: user?.phone || '',
@@ -38,8 +41,25 @@ export default function ProfileScreen() {
         phone: user.phone,
         dob: user.dob,
       })
+      fetchBalance()
     }
   }, [user])
+
+  const fetchBalance = async () => {
+    setBalanceLoading(true)
+    try {
+      const token = await tokenService.getToken()
+      if (!token) return
+
+      const balanceData = await userService.getBalance(token)
+      setBalance(balanceData.balance)
+      setCurrency(balanceData.currency)
+    } catch (error: any) {
+      console.error('Error fetching balance:', error)
+    } finally {
+      setBalanceLoading(false)
+    }
+  }
 
   const handleSave = async () => {
     setLoading(true)
@@ -250,10 +270,39 @@ export default function ProfileScreen() {
               <Ionicons name="wallet-outline" size={20} color="#666" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Balance</Text>
-                <Text style={styles.infoValue}>${user.balance}</Text>
+                {balanceLoading ? (
+                  <ActivityIndicator size="small" color={primaryColor} />
+                ) : (
+                  <Text style={styles.infoValue}>
+                    {balance !== null 
+                      ? `${balance.toLocaleString()} ${currency}`
+                      : 'N/A'
+                    }
+                  </Text>
+                )}
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Wallet Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Wallet</Text>
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => router.push('/(stacks)/WithdrawalScreen')}
+          >
+            <View style={styles.menuCardContent}>
+              <View style={[styles.menuIconContainer, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="cash" size={24} color={primaryColor} />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>Withdraw Money</Text>
+                <Text style={styles.menuSubtitle}>Transfer funds to your bank account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
         </View>
 
         {/* Skin Analysis History */}

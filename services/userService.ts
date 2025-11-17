@@ -21,6 +21,21 @@ interface DeleteResponse {
   timestamp: string;
 }
 
+interface BalanceData {
+  userId: string;
+  email: string;
+  fullName: string;
+  balance: number;
+  currency: string;
+}
+
+interface BalanceResponse {
+  statusCode: number;
+  message: string;
+  data: BalanceData;
+  timestamp: string;
+}
+
 interface CustomerData {
   customerId: string;
   user: User;
@@ -175,6 +190,16 @@ class UserService {
     } catch (error) {
       console.error("Error deleting address:", error);
       throw new Error("Failed to delete address");
+    }
+  }
+
+  async getBalance(token: string): Promise<BalanceData> {
+    try {
+      const response = await apiService.get<BalanceResponse>("/users/balance");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+      throw new Error("Failed to fetch user balance");
     }
   }
 }

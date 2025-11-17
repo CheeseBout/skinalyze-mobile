@@ -3,6 +3,7 @@ export interface User {
   fullName: string;
   email: string;
   balance?: number;
+  currency?: string;
   dob: string;
   phone: string;
   photoUrl?: string;
