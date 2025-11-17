@@ -157,46 +157,51 @@ export default function BookingConfirmationScreen() {
     };
   }, [params]);
 
+  // === THAY ĐỔI: Cập nhật Validation và DTO ===
   const handleConfirm = async () => {
     if (!selectedOptionId || !params.dermatologistId) return;
 
-    if (
-      appointmentType === AppointmentType.NEW_PROBLEM &&
-      !selectedAnalysisId
-    ) {
+    // --- Validation (Logic mới) ---
+    // 1. Cả hai đều cần Analysis ID
+    if (!selectedAnalysisId) {
       Alert.alert(
         "Missing Information",
         "Please select a skin analysis result to review."
       );
       return;
     }
+
+    // 2. Chỉ FOLLOW_UP mới cần Routine ID
     if (appointmentType === AppointmentType.FOLLOW_UP && !selectedRoutineId) {
-      // Alert.alert(
-      //   "Missing Information",
-      //   "Please select a treatment routine to follow-up."
-      // );
-      // return;
-      setSelectedRoutineId("4a1d5e2b-8c3f-4d9e-9b2f-2e7d4f5c6a8b");
+      Alert.alert(
+        "Missing Information",
+        "Please select a treatment routine to follow-up."
+      );
+      return;
     }
+    // --- Hết Validation ---
 
     setIsConfirming(true);
 
+    // --- DTO (Logic mới) ---
     const baseDto: CreateAppointmentDto = {
       dermatologistId: params.dermatologistId,
       startTime: params.startTime,
       endTime: params.endTime,
       appointmentType: appointmentType,
-      analysisId:
-        appointmentType === AppointmentType.NEW_PROBLEM
-          ? selectedAnalysisId || undefined
-          : undefined,
+
+      // (Gửi analysisId cho cả 2 trường hợp)
+      analysisId: selectedAnalysisId || undefined,
+
       trackingRoutineId:
         appointmentType === AppointmentType.FOLLOW_UP
           ? selectedRoutineId || undefined
-          : undefined,
+          : undefined, // (Chỉ gửi khi là Follow-up)
+
       note: note || undefined,
     };
 
+    // (Phần 'try/catch' (gọi API) giữ nguyên)
     try {
       if (selectedOptionId === "PAY_NOW") {
         const response = await appointmentService.createReservation(baseDto);
@@ -213,7 +218,6 @@ export default function BookingConfirmationScreen() {
         });
       } else {
         // Subscription payment
-
         const appointment =
           await appointmentService.createSubscriptionAppointment({
             ...baseDto,
@@ -229,6 +233,7 @@ export default function BookingConfirmationScreen() {
       setIsConfirming(false);
     }
   };
+  // ============================================
 
   const renderOption = (id: string, title: string, description: string) => {
     const isSelected = selectedOptionId === id;
@@ -369,12 +374,7 @@ export default function BookingConfirmationScreen() {
         {/* Payment Option Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Option</Text>
-          {slotDetails.price > 0 &&
-            renderOption(
-              "PAY_NOW",
-              "Pay per Session",
-              slotDetails.priceDisplay
-            )}
+          {renderOption("PAY_NOW", "Pay per Session", slotDetails.priceDisplay)}
           {subscriptions.map((sub) =>
             renderOption(
               sub.id,

@@ -8,7 +8,7 @@ import {
   Image,
   Alert,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
@@ -16,6 +16,7 @@ import * as Linking from "expo-linking";
 import appointmentService from "@/services/appointmentService";
 import { AppointmentWithRelations } from "@/types/appointment.type";
 import { AppointmentStatus } from "@/types/appointment.type";
+import CustomAlert from "@/components/CustomAlert";
 
 const CHECK_IN_WINDOW_MINUTES = 10;
 const formatTime = (isoDate: string) => {
@@ -62,28 +63,31 @@ export default function AppointmentDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
-  useEffect(() => {
+  const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelWarning, setCancelWarning] = useState("");
+
+  const fetchAppointment = useCallback(async () => {
     if (!appointmentId) {
       setError("No appointment ID provided.");
       setIsLoading(false);
       return;
     }
-
-    const fetchAppointment = async () => {
-      try {
-        setIsLoading(true);
-        const data = await appointmentService.getAppointmentById(appointmentId);
-        setAppointment(data);
-      } catch (err) {
-        console.error("Failed to load appointment details:", err);
-        setError("Failed to load appointment details.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAppointment();
+    try {
+      setIsLoading(true);
+      const data = await appointmentService.getAppointmentById(appointmentId);
+      setAppointment(data);
+    } catch (err) {
+      console.error("Failed to load appointment details:", err);
+      setError("Failed to load appointment details.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [appointmentId]);
+
+  useEffect(() => {
+    fetchAppointment();
+  }, [fetchAppointment]);
 
   const handleJoinMeeting = async () => {
     if (!appointment || !appointment.meetingUrl || !appointmentId) return;
@@ -113,6 +117,44 @@ export default function AppointmentDetailScreen() {
       pathname: "/(stacks)/TreatmentRoutineDetailScreen",
       params: { routineId: routineId },
     });
+  };
+
+  const handleOpenCancelModal = () => {
+    if (!appointment) return;
+
+    const startTime = new Date(appointment.startTime);
+    const now = new Date();
+    const hoursDiff = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDiff > 24) {
+      setCancelWarning(
+        "You are cancelling more than 24 hours in advance. You will be refunded."
+      );
+    } else {
+      setCancelWarning(
+        "You are cancelling less than 24 hours before. This booking is non-refundable."
+      );
+    }
+
+    setIsCancelModalVisible(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (isCancelling || !appointmentId) return;
+
+    setIsCancelling(true);
+    try {
+      await appointmentService.cancelMyAppointment(appointmentId);
+
+      Alert.alert("Success", "Your appointment has been cancelled.");
+
+      await fetchAppointment();
+    } catch (error: any) {
+      Alert.alert("Cancellation Failed", error.message || "An error occurred.");
+    } finally {
+      setIsCancelling(false);
+      setIsCancelModalVisible(false);
+    }
   };
 
   const renderContent = () => {
@@ -145,11 +187,13 @@ export default function AppointmentDetailScreen() {
 
     // Enable join if current time is within the check-in window
     const isJoinableTime = now >= checkInTime;
-
+    const isCancellable =
+      appointment.appointmentStatus === AppointmentStatus.SCHEDULED;
     const hasMeetingUrl = !!appointment.meetingUrl;
     const routineId =
       appointment.createdRoutine?.routineId ||
       appointment.trackingRoutine?.routineId;
+
     return (
       <>
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -282,7 +326,6 @@ export default function AppointmentDetailScreen() {
               </>
             )}
           </Pressable>
-          {/* )} */}
 
           {routineId && (
             <Pressable
@@ -299,7 +342,26 @@ export default function AppointmentDetailScreen() {
               </Text>
             </Pressable>
           )}
+
+          {isCancellable && (
+            <Pressable
+              style={styles.cancelButton}
+              onPress={handleOpenCancelModal}
+            >
+              <MaterialCommunityIcons name="cancel" size={24} color="#fff" />
+              <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
+            </Pressable>
+          )}
         </View>
+        <CustomAlert
+          visible={isCancelModalVisible}
+          title="Confirm Cancellation?"
+          message={cancelWarning}
+          confirmText={isCancelling ? "Cancelling..." : "Confirm Cancel"}
+          cancelText="Stay"
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setIsCancelModalVisible(false)}
+        />
       </>
     );
   };
@@ -465,5 +527,20 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: "#9E9E9E",
+  },
+  cancelButton: {
+    flexDirection: "row",
+    backgroundColor: "#d9534f",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  cancelButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
   },
 });

@@ -103,6 +103,18 @@ class AppointmentService {
       throw error;
     }
   }
+
+  async cancelMyAppointment(appointmentId: string): Promise<any> {
+    try {
+      const response = await apiService.patch(
+        `/appointments/my/${appointmentId}/cancel`
+      );
+      return (response as ApiResponse<any>).data;
+    } catch (error) {
+      console.error("Error cancelling appointment:", error);
+      throw error;
+    }
+  }
 }
 
 export default new AppointmentService();

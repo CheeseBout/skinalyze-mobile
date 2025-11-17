@@ -1,3 +1,6 @@
+// File: components/booking/AppointmentPurposeCard.tsx
+// (Giả sử file này nằm ở: @/components/AppointmentPurposeCard.tsx)
+
 import React from "react";
 import { View, Text, StyleSheet, Pressable, TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker";
@@ -47,7 +50,7 @@ export default function AppointmentPurposeCard({
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Appointment Purpose</Text>
 
-      {/* Select Type (NEW_PROBLEM / FOLLOW_UP) */}
+      {/* 1. Chọn Type (NEW_PROBLEM / FOLLOW_UP) */}
       <View style={styles.segmentedControl}>
         <Pressable
           style={[
@@ -87,37 +90,38 @@ export default function AppointmentPurposeCard({
         </Pressable>
       </View>
 
-      {/* Dropdown */}
-      {appointmentType === AppointmentType.NEW_PROBLEM && (
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Analysis to review:</Text>
-          <Picker
-            selectedValue={selectedAnalysisId}
-            onValueChange={(itemValue) => setSelectedAnalysisId(itemValue)}
-            style={styles.picker}
-          >
-            {analyses.length === 0 && (
-              <Picker.Item
-                label="No previous analysis found"
-                value={null}
-                enabled={false}
-              />
-            )}
-            {analyses.map((analysis) => (
-              <Picker.Item
-                key={analysis.analysisId}
-                label={`${formatDate(analysis.createdAt)} - ${
-                  analysis.chiefComplaint ||
-                  analysis.aiDetectedDisease ||
-                  "AI Scan"
-                }`}
-                value={analysis.analysisId}
-              />
-            ))}
-          </Picker>
-        </View>
-      )}
+      {/* === THAY ĐỔI 1: Luôn hiển thị Analysis Picker === */}
+      {/* (Vì cả NEW_PROBLEM và FOLLOW_UP đều cần nó) */}
+      <View style={styles.pickerContainer}>
+        <Text style={styles.label}>Analysis to review:</Text>
+        <Picker
+          selectedValue={selectedAnalysisId}
+          onValueChange={(itemValue) => setSelectedAnalysisId(itemValue)}
+          style={styles.picker}
+        >
+          {analyses.length === 0 && (
+            <Picker.Item
+              label="No previous analysis found"
+              value={null}
+              enabled={false}
+            />
+          )}
+          {analyses.map((analysis) => (
+            <Picker.Item
+              key={analysis.analysisId}
+              label={`${formatDate(analysis.createdAt)} - ${
+                analysis.chiefComplaint ||
+                analysis.aiDetectedDisease ||
+                "AI Scan"
+              }`}
+              value={analysis.analysisId}
+            />
+          ))}
+        </Picker>
+      </View>
+      {/* ============================================== */}
 
+      {/* === THAY ĐỔI 2: Chỉ hiển thị Routine Picker khi là FOLLOW_UP === */}
       {appointmentType === AppointmentType.FOLLOW_UP && (
         <View style={styles.pickerContainer}>
           <Text style={styles.label}>Routine to follow-up:</Text>
@@ -145,8 +149,9 @@ export default function AppointmentPurposeCard({
           </Picker>
         </View>
       )}
+      {/* ======================================================== */}
 
-      {/* Add Note */}
+      {/* 3. Add Note (Không đổi) */}
       <View style={styles.noteContainer}>
         <Text style={styles.label}>Note (Optional):</Text>
         <TextInput
@@ -161,6 +166,7 @@ export default function AppointmentPurposeCard({
   );
 }
 
+// (Styles không đổi)
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
