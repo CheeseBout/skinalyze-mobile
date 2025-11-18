@@ -18,6 +18,7 @@ import orderService, { PaymentMethod } from '@/services/orderService';
 import cartService, { Cart, CartItem } from '@/services/cartService';
 import tokenService from '@/services/tokenService';
 import productService from '@/services/productService';
+import userService from '@/services/userService';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 
@@ -38,11 +39,31 @@ export default function CheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [useWallet, setUseWallet] = useState(false);
   const [addressEditable, setAddressEditable] = useState(false);
+  const [balance, setBalance] = useState<number>(0);
+  const [currency, setCurrency] = useState<string>('VND');
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   useEffect(() => {
     loadCart();
     loadUserAddress();
+    fetchBalance();
   }, []);
+
+  const fetchBalance = async () => {
+    setBalanceLoading(true);
+    try {
+      const token = await tokenService.getToken();
+      if (!token) return;
+
+      const balanceData = await userService.getBalance(token);
+      setBalance(balanceData.balance);
+      setCurrency(balanceData.currency);
+    } catch (error: any) {
+      console.error('Error fetching balance:', error);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
 
   const loadUserAddress = () => {
     if (user?.addresses && user.addresses.length > 0) {
@@ -73,7 +94,7 @@ export default function CheckoutScreen() {
         return;
       }
 
-      const cartData = await cartService.getUserCart(token);
+      const cartData = await cartService.getUserCart();
 
       if (!cartData || cartData.items.length === 0) {
         Alert.alert('Empty Cart', 'Your cart is empty', [
@@ -132,11 +153,30 @@ export default function CheckoutScreen() {
     }
 
     const totalPrice = calculateTotal();
-    const paymentLabel = orderService.getPaymentMethodLabel(paymentMethod);
+    
+    // Check if using wallet and balance is insufficient
+    if (paymentMethod === 'wallet' && balance < totalPrice) {
+      Alert.alert(
+        'Insufficient Balance',
+        `Your balance: ${balance.toLocaleString()} ${currency}\nOrder total: ${totalPrice.toLocaleString()} ${currency}\n\nPlease top up your wallet or choose another payment method.`,
+        [
+          { text: 'OK', style: 'default' },
+          {
+            text: 'Top Up Wallet',
+            onPress: () => router.push('/(stacks)/WithdrawalScreen')
+          }
+        ]
+      );
+      return;
+    }
+
+    const paymentLabel = paymentMethod === 'wallet' 
+      ? 'Wallet Balance' 
+      : orderService.getPaymentMethodLabel(paymentMethod);
 
     Alert.alert(
       'Confirm Order',
-      `Total: ${productService.formatPrice(totalPrice)}\nPayment: ${paymentLabel}`,
+      `Total: ${productService.formatPrice(totalPrice)}\nPayment: ${paymentLabel}${paymentMethod === 'wallet' ? `\n\nNew Balance: ${(balance - totalPrice).toLocaleString()} ${currency}` : ''}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -157,13 +197,21 @@ export default function CheckoutScreen() {
                 shippingAddress: shippingAddress.trim(),
                 selectedProductIds,
                 paymentMethod,
-                useWallet,
+                useWallet: paymentMethod === 'wallet', // Set useWallet based on payment method
                 notes: notes.trim() || undefined,
               });
 
+              // Refresh balance if paid with wallet
+              let newBalance = balance;
+              if (paymentMethod === 'wallet') {
+                await fetchBalance();
+                const balanceData = await userService.getBalance(token);
+                newBalance = balanceData.balance;
+              }
+
               Alert.alert(
                 'Order Placed!',
-                `Order ID: ${order.orderId}\nYour order has been placed successfully.`,
+                `Order ID: ${order.orderId}\nYour order has been placed successfully.${paymentMethod === 'wallet' ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}` : ''}`,
                 [
                   {
                     text: 'View Order',
@@ -182,10 +230,14 @@ export default function CheckoutScreen() {
               );
             } catch (error: any) {
               console.error('Checkout error:', error);
-              Alert.alert(
-                'Checkout Failed',
-                error.message || 'Failed to place order. Please try again.'
-              );
+              
+              // Handle insufficient balance error
+              const errorMessage = error.message || 'Failed to place order. Please try again.';
+              if (errorMessage.includes('Số dư không đủ') || errorMessage.includes('insufficient')) {
+                Alert.alert('Insufficient Balance', errorMessage);
+              } else {
+                Alert.alert('Checkout Failed', errorMessage);
+              }
             } finally {
               setSubmitting(false);
             }
@@ -376,6 +428,31 @@ export default function CheckoutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
 
+          {/* Wallet Balance */}
+          <TouchableOpacity
+            style={[
+              styles.paymentOption,
+              paymentMethod === 'wallet' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
+            ]}
+            onPress={() => setPaymentMethod('wallet')}
+          >
+            <View style={styles.paymentOptionContent}>
+              <Ionicons name="wallet" size={24} color={primaryColor} />
+              <View style={styles.paymentOptionText}>
+                <Text style={styles.paymentOptionTitle}>Wallet Balance</Text>
+                <Text style={styles.paymentOptionSubtitle}>
+                  {balanceLoading ? 'Loading...' : `Available: ${balance.toLocaleString()} ${currency}`}
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.radio,
+              paymentMethod === 'wallet' && [styles.radioActive, { borderColor: primaryColor }]
+            ]}>
+              {paymentMethod === 'wallet' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
+            </View>
+          </TouchableOpacity>
+
           {/* Cash on Delivery */}
           <TouchableOpacity
             style={[
@@ -499,49 +576,6 @@ export default function CheckoutScreen() {
             ]}>
               {paymentMethod === 'zalopay' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
             </View>
-          </TouchableOpacity>
-
-          {/* Wallet Balance */}
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'wallet' && [styles.paymentOptionActive, { borderColor: primaryColor, backgroundColor: `${primaryColor}10` }]
-            ]}
-            onPress={() => setPaymentMethod('wallet')}
-          >
-            <View style={styles.paymentOptionContent}>
-              <Ionicons name="wallet-outline" size={24} color="#34C759" />
-              <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Wallet Balance</Text>
-                <Text style={styles.paymentOptionSubtitle}>
-                  Pay from your account balance
-                </Text>
-              </View>
-            </View>
-            <View style={[
-              styles.radio,
-              paymentMethod === 'wallet' && [styles.radioActive, { borderColor: primaryColor }]
-            ]}>
-              {paymentMethod === 'wallet' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Use Wallet */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.checkboxRow}
-            onPress={() => setUseWallet(!useWallet)}
-          >
-            <View style={[
-              styles.checkbox,
-              useWallet && [styles.checkboxActive, { backgroundColor: primaryColor, borderColor: primaryColor }]
-            ]}>
-              {useWallet && (
-                <Ionicons name="checkmark" size={16} color="#FFF" />
-              )}
-            </View>
-            <Text style={styles.checkboxLabel}>Use wallet balance</Text>
           </TouchableOpacity>
         </View>
 
