@@ -1,15 +1,55 @@
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
-import React, { useState } from 'react'
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  RefreshControl,
+  StatusBar,
+  Animated,
+  Dimensions
+} from 'react-native'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'expo-router'
 import { useProducts } from '@/hooks/useProducts'
 import { Ionicons } from '@expo/vector-icons'
-import productService from '@/services/productService'
 import ProductCard from '@/components/ProductCard'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
+import { useAuth } from '@/hooks/useAuth'
+import ToTopButton from '@/components/ToTopButton' 
+
+const { width } = Dimensions.get('window')
 
 export default function HomeScreen() {
   const router = useRouter()
+  const { user } = useAuth()
+  const { primaryColor } = useThemeColor()
   const { products, categories, saleProducts, isLoading, error, refreshProducts } = useProducts()
   const [refreshing, setRefreshing] = useState(false)
+  const [showToTop, setShowToTop] = useState(false)  
+  const scrollViewRef = useRef(null)  
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(30)).current
+
+  useEffect(() => {
+    if (!isLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    }
+  }, [isLoading])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -17,46 +57,287 @@ export default function HomeScreen() {
     setRefreshing(false)
   }
 
+  // Add scroll handler to show/hide button
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y
+    setShowToTop(offsetY > 200)  // Show button when scrolled more than 200px
+  }
+
   if (isLoading && products.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading products...</Text>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        <View style={styles.loadingContainer}>
+          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </View>
+          <Text style={styles.loadingText}>Loading products...</Text>
+        </View>
       </View>
     )
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refreshProducts}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        <View style={styles.errorContainer}>
+          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
+            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
+          </View>
+          <Text style={styles.errorTitle}>Oops!</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: primaryColor }]} 
+            onPress={refreshProducts}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={20} color="#FFFFFF" />
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good Morning'
+    if (hour < 18) return 'Good Afternoon'
+    return 'Good Evening'
+  }
+
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Featured Sale Products */}
-      {saleProducts.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🔥 Hot Deals</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
+
+      <ScrollView 
+        ref={scrollViewRef}  
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}  
+        scrollEventThrottle={16} 
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[primaryColor]}
+          />
+        }
+      >
+        {/* Header */}
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.headerLeft}>
+            <View style={[styles.greetingBadge, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="sunny" size={20} color={primaryColor} />
+            </View>
+            <View>
+              <Text style={styles.greeting}>{getGreeting()}</Text>
+              <Text style={styles.userName}>{user?.fullName || 'Guest'}</Text>
+            </View>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {saleProducts.slice(0, 5).map((product) => (
-              <View key={product.productId} style={styles.horizontalCardWrapper}>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => router.push('/(stacks)/ProfileScreen')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.profileAvatar, { backgroundColor: primaryColor }]}>
+              <Text style={styles.profileInitial}>
+                {user?.fullName?.charAt(0).toUpperCase() || 'G'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Quick Actions */}
+        <Animated.View 
+          style={[
+            styles.quickActions,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/(tabs)/AnalyzeScreen')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#F0F9FF' }]}>
+              <Ionicons name="camera" size={24} color="#2196F3" />
+            </View>
+            <View style={styles.quickActionContent}>
+              <Text style={styles.quickActionTitle}>Analyze</Text>
+              <Text style={styles.quickActionSubtitle}>Scan your skin</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/(stacks)/OrderListScreen')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#FFF4E6' }]}>
+              <Ionicons name="receipt" size={24} color="#FF9800" />
+            </View>
+            <View style={styles.quickActionContent}>
+              <Text style={styles.quickActionTitle}>Orders</Text>
+              <Text style={styles.quickActionSubtitle}>Track orders</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Featured Sale Products */}
+        {saleProducts.length > 0 && (
+          <Animated.View 
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleWrapper}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#FFE8E8' }]}>
+                  <Ionicons name="flame" size={18} color="#FF3B30" />
+                </View>
+                <Text style={styles.sectionTitle}>Hot Deals</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={[styles.seeAllText, { color: primaryColor }]}>See All →</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {saleProducts.slice(0, 5).map((product) => (
+                <View key={product.productId} style={styles.horizontalCardWrapper}>
+                  <ProductCard
+                    product={product}
+                    onPress={() => router.push({
+                      pathname: '/(stacks)/ProductDetailScreen',
+                      params: { productId: product.productId }
+                    })}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* Categories */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleWrapper}>
+              <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="grid" size={18} color={primaryColor} />
+              </View>
+              <Text style={styles.sectionTitle}>Categories</Text>
+            </View>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {categories.map((category, index) => {
+              const colors = [
+                { bg: '#F0F9FF', icon: '#2196F3' },
+                { bg: '#F0FDF4', icon: '#34C759' },
+                { bg: '#FFF4E6', icon: '#FF9800' },
+                { bg: '#F3E8FF', icon: '#A855F7' },
+                { bg: '#FFE8E8', icon: '#FF3B30' },
+              ]
+              const colorSet = colors[index % colors.length]
+              
+              return (
+                <TouchableOpacity
+                  key={category.categoryId}
+                  style={styles.categoryCard}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
+                    <Ionicons name="layers" size={28} color={colorSet.icon} />
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={2}>
+                    {category.categoryName}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        </Animated.View>
+
+        {/* All Products */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleWrapper}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="sparkles" size={18} color="#34C759" />
+              </View>
+              <Text style={styles.sectionTitle}>All Products</Text>
+            </View>
+            <View style={styles.productCount}>
+              <Text style={styles.productCountText}>{products.length}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.productsGrid}>
+            {products.map((product) => (
+              <View key={product.productId} style={styles.gridCardWrapper}>
                 <ProductCard
                   product={product}
                   onPress={() => router.push({
@@ -66,109 +347,250 @@ export default function HomeScreen() {
                 />
               </View>
             ))}
-          </ScrollView>
-        </View>
-      )}
+          </View>
+        </Animated.View>
+      </ScrollView>
 
-      {/* Categories */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Shop by Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.categoryId}
-              style={styles.categoryCard}
-            >
-              <View style={styles.categoryIcon}>
-                <Ionicons name="grid-outline" size={32} color="#007AFF" />
-              </View>
-              <Text style={styles.categoryName}>{category.categoryName}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* All Products */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>All Products</Text>
-        <View style={styles.productsGrid}>
-          {products.map((product) => (
-            <View key={product.productId} style={styles.gridCardWrapper}>
-              <ProductCard
-                product={product}
-                onPress={() => router.push({
-                  pathname: '/(stacks)/ProductDetailScreen',
-                  params: { productId: product.productId }
-                })}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
-    </ScrollView>
+      <ToTopButton
+        visible={showToTop}
+        onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
+      />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+  },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#F8F9FA',
+    padding: 40,
+  },
+  errorIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
   },
   errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#FF3B30',
+    fontSize: 15,
+    color: '#666',
+    marginBottom: 28,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: 20,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   retryButtonText: {
-    color: '#FFF',
     fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  greetingBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  greeting: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
+  },
+  profileButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  profileAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitial: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    gap: 12,
+    marginBottom: 24,
+  },
+  quickActionCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickActionContent: {
+    flex: 1,
+  },
+  quickActionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  quickActionSubtitle: {
+    fontSize: 11,
+    color: '#666',
     fontWeight: '600',
   },
   section: {
-    marginTop: 20,
-    paddingHorizontal: 16,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 24,
     marginBottom: 16,
+  },
+  sectionTitleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
   seeAllText: {
     fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  productCount: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  productCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+  horizontalScroll: {
+    paddingLeft: 24,
+    paddingRight: 12,
   },
   horizontalCardWrapper: {
     width: 160,
@@ -176,29 +598,36 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 20,
+    width: 80,
   },
   categoryIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#E3F2FD',
+    width: 72,
+    height: 72,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   categoryName: {
     fontSize: 12,
+    fontWeight: '700',
     color: '#1A1A1A',
     textAlign: 'center',
+    lineHeight: 16,
   },
   productsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    gap: 12,
   },
   gridCardWrapper: {
-    width: '48%',
-    marginBottom: 16,
+    width: (width - 60) / 2,
   },
-})
+});

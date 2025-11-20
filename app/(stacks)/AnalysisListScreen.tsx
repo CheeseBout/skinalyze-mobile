@@ -18,6 +18,7 @@ import skinAnalysisService, { SkinAnalysisResult } from '@/services/skinAnalysis
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import ToTopButton from '@/components/ToTopButton';  // Add this import
 
 export function AnalysisListScreen() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export function AnalysisListScreen() {
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showToTop, setShowToTop] = useState(false);  // Add state for button visibility
+  const flatListRef = useRef(null);  // Add ref for FlatList
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -85,6 +88,12 @@ export function AnalysisListScreen() {
     setRefreshing(true);
     await loadAnalyses();
     setRefreshing(false);
+  };
+
+  // Add scroll handler to show/hide button
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowToTop(offsetY > 200);  // Show button when scrolled more than 200px
   };
 
   const handleAnalysisPress = (analysis: SkinAnalysisResult) => {
@@ -278,6 +287,7 @@ export function AnalysisListScreen() {
 
       {/* Analysis List */}
       <FlatList
+        ref={flatListRef}  // Add ref
         data={analyses}
         renderItem={renderAnalysisItem}
         keyExtractor={(item) => item.analysisId}
@@ -285,6 +295,8 @@ export function AnalysisListScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
         }
+        onScroll={handleScroll}  // Add scroll handler
+        scrollEventThrottle={16}  // Optimize scroll events
         ListEmptyComponent={
           <Animated.View 
             style={[
@@ -313,6 +325,12 @@ export function AnalysisListScreen() {
           </Animated.View>
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Add ToTopButton as overlay */}
+      <ToTopButton
+        visible={showToTop}
+        onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
       />
     </View>
   );

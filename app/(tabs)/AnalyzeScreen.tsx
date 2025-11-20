@@ -1,11 +1,22 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native'
-import React, { useState } from 'react'
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Alert, 
+  ScrollView, 
+  ActivityIndicator,
+  StatusBar,
+  Animated
+} from 'react-native'
+import React, { useState, useRef, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import FacialSkinCamera from '@/components/FacialSkinCamera'
 import OtherAreaCamera from '@/components/OtherAreaCamera'
-import { useAuth } from '@/hooks/useAuth';
-import skinAnalysisService from '@/services/skinAnalysisService';
+import { useAuth } from '@/hooks/useAuth'
+import skinAnalysisService from '@/services/skinAnalysisService'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
 
 type ScreenState = 'options' | 'diseaseOptions' | 'camera';
 type DetectionType = 'skinCondition' | 'facialDisease' | 'otherDisease';
@@ -15,7 +26,30 @@ export default function AnalyzeScreen() {
   const [detectionType, setDetectionType] = useState<DetectionType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { user } = useAuth();
+  const { primaryColor } = useThemeColor();
   const router = useRouter();
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(30);
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [screenState]);
 
   const handleSkinConditionDetection = () => {
     setDetectionType('skinCondition');
@@ -50,9 +84,6 @@ export default function AnalyzeScreen() {
   };
 
   const handleCapture = async (imageUri: string) => {
-    console.log('📸 Image captured:', imageUri);
-    console.log('🔍 Detection type:', detectionType);
-    
     if (!user?.userId) {
       Alert.alert('Authentication Required', 'Please log in to use this feature');
       setScreenState('options');
@@ -66,39 +97,21 @@ export default function AnalyzeScreen() {
       let result;
       
       if (detectionType === 'skinCondition') {
-        console.log('🌊 Starting skin condition analysis...');
         result = await skinAnalysisService.detectCondition(user.userId, imageUri);
-        
-        // Navigate to detail screen with result
-        setScreenState('options');
-        setDetectionType(null);
-        setIsAnalyzing(false);
-        
-        router.push({
-          pathname: '/(stacks)/AnalysisDetailScreen',
-          params: {
-            result: JSON.stringify(result)
-          }
-        });
-        
       } else if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
-        console.log('🔬 Starting disease detection...');
         result = await skinAnalysisService.detectDisease(user.userId, imageUri);
-        
-        // Navigate to detail screen with result
-        setScreenState('options');
-        setDetectionType(null);
-        setIsAnalyzing(false);
-        
-        router.push({
-          pathname: '/(stacks)/AnalysisDetailScreen',
-          params: {
-            result: JSON.stringify(result)
-          }
-        });
       }
 
-      console.log('📊 Full analysis result:', result);
+      setScreenState('options');
+      setDetectionType(null);
+      setIsAnalyzing(false);
+      
+      router.push({
+        pathname: '/(stacks)/AnalysisDetailScreen',
+        params: {
+          result: JSON.stringify(result)
+        }
+      });
       
     } catch (error: any) {
       console.error('❌ Analysis error:', error);
@@ -118,7 +131,6 @@ export default function AnalyzeScreen() {
 
   // Camera Screen with Loading Overlay
   if (screenState === 'camera') {
-    // Front camera for Skin Condition and Facial Disease
     if (detectionType === 'skinCondition' || detectionType === 'facialDisease') {
       const title = detectionType === 'skinCondition' 
         ? 'Position your face in the frame'
@@ -134,9 +146,12 @@ export default function AnalyzeScreen() {
           />
           {isAnalyzing && (
             <View style={styles.loadingOverlay}>
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>Analyzing image...</Text>
+              <View style={styles.loadingCard}>
+                <View style={[styles.loadingIconWrapper, { backgroundColor: `${primaryColor}15` }]}>
+                  <ActivityIndicator size="large" color={primaryColor} />
+                </View>
+                <Text style={styles.loadingTitle}>Analyzing...</Text>
+                <Text style={styles.loadingText}>AI is processing your image</Text>
               </View>
             </View>
           )}
@@ -144,7 +159,6 @@ export default function AnalyzeScreen() {
       );
     }
 
-    // Back camera for Other Disease Detection
     return (
       <>
         <OtherAreaCamera 
@@ -154,9 +168,12 @@ export default function AnalyzeScreen() {
         />
         {isAnalyzing && (
           <View style={styles.loadingOverlay}>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Analyzing image...</Text>
+            <View style={styles.loadingCard}>
+              <View style={[styles.loadingIconWrapper, { backgroundColor: `${primaryColor}15` }]}>
+                <ActivityIndicator size="large" color={primaryColor} />
+              </View>
+              <Text style={styles.loadingTitle}>Analyzing...</Text>
+              <Text style={styles.loadingText}>AI is processing your image</Text>
             </View>
           </View>
         )}
@@ -168,56 +185,144 @@ export default function AnalyzeScreen() {
   if (screenState === 'options') {
     return (
       <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Skin Analysis with AI</Text>
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="scan" size={32} color={primaryColor} />
+            </View>
+            <Text style={styles.headerTitle}>AI Skin Analysis</Text>
             <Text style={styles.headerSubtitle}>Choose your analysis type</Text>
-          </View>
+          </Animated.View>
 
-          {/* Cards */}
-          <View style={styles.cardsContainer}>
+          {/* Feature Cards */}
+          <Animated.View 
+            style={[
+              styles.cardsContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
             <TouchableOpacity 
-              style={styles.card}
+              style={styles.featureCard}
               onPress={handleSkinConditionDetection}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="water" size={32} color="#2196F3" />
+              <View style={styles.cardTop}>
+                <View style={[styles.cardIconWrapper, { backgroundColor: '#F0F9FF' }]}>
+                  <View style={[styles.cardIcon, { backgroundColor: '#2196F3' }]}>
+                    <Ionicons name="water" size={28} color="#FFFFFF" />
+                  </View>
+                </View>
+                <View style={[styles.cardBadge, { backgroundColor: '#E3F2FF' }]}>
+                  <Ionicons name="sparkles" size={12} color="#2196F3" />
+                  <Text style={[styles.cardBadgeText, { color: '#2196F3' }]}>Popular</Text>
+                </View>
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Skin Condition Detection</Text>
-                <Text style={styles.cardDescription}>Analyze dryness, oiliness & texture</Text>
+
+              <Text style={styles.cardTitle}>Skin Condition</Text>
+              <Text style={styles.cardDescription}>
+                Analyze dryness, oiliness, texture & overall skin health
+              </Text>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.cardFeatures}>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                    <Text style={styles.featureText}>Face analysis</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                    <Text style={styles.featureText}>Instant result</Text>
+                  </View>
+                </View>
+                <View style={[styles.cardArrow, { backgroundColor: `${primaryColor}15` }]}>
+                  <Ionicons name="arrow-forward" size={18} color={primaryColor} />
+                </View>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#999" />
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.card}
+              style={styles.featureCard}
               onPress={handleDiseaseDetection}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <View style={[styles.iconContainer, { backgroundColor: '#FCE4EC' }]}>
-                <Ionicons name="medical" size={32} color="#E91E63" />
+              <View style={styles.cardTop}>
+                <View style={[styles.cardIconWrapper, { backgroundColor: '#FFF0F6' }]}>
+                  <View style={[styles.cardIcon, { backgroundColor: '#E91E63' }]}>
+                    <Ionicons name="medical" size={28} color="#FFFFFF" />
+                  </View>
+                </View>
+                <View style={[styles.cardBadge, { backgroundColor: '#FFE8F0' }]}>
+                  <Ionicons name="shield-checkmark" size={12} color="#E91E63" />
+                  <Text style={[styles.cardBadgeText, { color: '#E91E63' }]}>Advanced</Text>
+                </View>
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Disease Detection</Text>
-                <Text style={styles.cardDescription}>Identify potential skin conditions</Text>
+
+              <Text style={styles.cardTitle}>Disease Detection</Text>
+              <Text style={styles.cardDescription}>
+                Identify potential skin diseases & conditions with AI
+              </Text>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.cardFeatures}>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                    <Text style={styles.featureText}>Any skin area</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                    <Text style={styles.featureText}>AI powered</Text>
+                  </View>
+                </View>
+                <View style={[styles.cardArrow, { backgroundColor: `${primaryColor}15` }]}>
+                  <Ionicons name="arrow-forward" size={18} color={primaryColor} />
+                </View>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#999" />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Disclaimer */}
-          <View style={styles.disclaimer}>
-            <Ionicons name="information-circle-outline" size={20} color="#FF9800" />
-            <Text style={styles.disclaimerText}>
-              Results are for reference only and not a medical diagnosis. Consult a healthcare professional for any health concerns.
-            </Text>
-          </View>
+          <Animated.View 
+            style={[
+              styles.disclaimer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.disclaimerIconWrapper}>
+              <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
+            </View>
+            <View style={styles.disclaimerContent}>
+              <Text style={styles.disclaimerTitle}>Medical Disclaimer</Text>
+              <Text style={styles.disclaimerText}>
+                Results are for informational purposes only. Always consult a healthcare professional for diagnosis.
+              </Text>
+            </View>
+          </Animated.View>
         </ScrollView>
       </View>
     );
@@ -226,61 +331,119 @@ export default function AnalyzeScreen() {
   // Disease Options Screen
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
+
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
+        <Animated.View 
+          style={[
+            styles.backButtonContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={handleBack}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* Header */}
-        <View style={styles.header}>
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.headerIcon, { backgroundColor: '#FFE8F0' }]}>
+            <Ionicons name="medical" size={32} color="#E91E63" />
+          </View>
           <Text style={styles.headerTitle}>Choose Skin Area</Text>
           <Text style={styles.headerSubtitle}>Select the area to analyze for disease detection</Text>
-        </View>
+        </Animated.View>
 
-        {/* Cards */}
-        <View style={styles.cardsContainer}>
+        {/* Area Selection Cards */}
+        <Animated.View 
+          style={[
+            styles.cardsContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
           <TouchableOpacity 
-            style={styles.card}
+            style={styles.areaCard}
             onPress={handleFacialDisease}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <View style={[styles.iconContainer, { backgroundColor: '#FFF3E0' }]}>
-              <Ionicons name="happy" size={32} color="#FF9800" />
+            <View style={[styles.areaIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+              <Ionicons name="happy" size={28} color="#FF9800" />
             </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Facial Skin Area</Text>
-              <Text style={styles.cardDescription}>Use front camera with face guide</Text>
+            <View style={styles.areaContent}>
+              <Text style={styles.areaTitle}>Facial Skin Area</Text>
+              <Text style={styles.areaDescription}>Use front camera with face guide</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
+            <View style={[styles.areaArrow, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="chevron-forward" size={20} color={primaryColor} />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.card}
+            style={styles.areaCard}
             onPress={handleOtherDisease}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="body" size={32} color="#4CAF50" />
+            <View style={[styles.areaIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="body" size={28} color="#34C759" />
             </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Other Skin Area</Text>
-              <Text style={styles.cardDescription}>Use back camera for body areas</Text>
+            <View style={styles.areaContent}>
+              <Text style={styles.areaTitle}>Other Skin Area</Text>
+              <Text style={styles.areaDescription}>Use back camera for body areas</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
+            <View style={[styles.areaArrow, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="chevron-forward" size={20} color={primaryColor} />
+            </View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Ionicons name="information-circle-outline" size={20} color="#FF9800" />
-          <Text style={styles.disclaimerText}>
-            Results are for reference only and not a medical diagnosis. Consult a healthcare professional for any health concerns.
-          </Text>
-        </View>
+        <Animated.View 
+          style={[
+            styles.disclaimer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.disclaimerIconWrapper}>
+            <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
+          </View>
+          <View style={styles.disclaimerContent}>
+            <Text style={styles.disclaimerTitle}>Medical Disclaimer</Text>
+            <Text style={styles.disclaimerText}>
+              Results are for informational purposes only. Always consult a healthcare professional for diagnosis.
+            </Text>
+          </View>
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -289,36 +452,77 @@ export default function AnalyzeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 40,
   },
   header: {
+    alignItems: 'center',
     marginBottom: 32,
   },
+  headerIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#1A1A1A',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
-    fontWeight: '400',
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  backButtonContainer: {
+    marginBottom: 20,
   },
   backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -326,84 +530,208 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    zIndex: 10,
   },
   cardsContainer: {
     gap: 16,
     marginBottom: 24,
   },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+  featureCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
   },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
-  cardContent: {
-    flex: 1,
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  cardBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 4,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   cardDescription: {
     fontSize: 14,
     color: '#666',
-    fontWeight: '400',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardFeatures: {
+    flex: 1,
+    gap: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  featureText: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+  },
+  cardArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  areaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  areaIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  areaContent: {
+    flex: 1,
+  },
+  areaTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  areaDescription: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  areaArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   disclaimer: {
     flexDirection: 'row',
     backgroundColor: '#FFF8E1',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
+    borderRadius: 16,
+    padding: 18,
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
   },
-  disclaimerText: {
+  disclaimerIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  disclaimerContent: {
     flex: 1,
+  },
+  disclaimerTitle: {
     fontSize: 13,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  disclaimerText: {
+    fontSize: 12,
     color: '#666',
-    lineHeight: 20,
-    marginLeft: 12,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
-  loadingContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     padding: 32,
     alignItems: 'center',
+    marginHorizontal: 40,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  loadingIconWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });
