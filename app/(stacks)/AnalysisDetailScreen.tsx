@@ -1,5 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
-import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Image, 
+  TouchableOpacity, 
+  Dimensions,
+  StatusBar,
+  Animated
+} from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
@@ -13,7 +23,25 @@ export default function AnalysisDetailScreen() {
   const { primaryColor } = useThemeColor();
   const [showMask, setShowMask] = useState(false);
 
-  // Parse the result from navigation params
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const result: SkinAnalysisResult = params.result 
     ? JSON.parse(params.result as string) 
     : null;
@@ -21,11 +49,27 @@ export default function AnalysisDetailScreen() {
   if (!result) {
     return (
       <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-          <Text style={styles.errorText}>No analysis data available</Text>
-          <TouchableOpacity style={[styles.backButton, { backgroundColor: primaryColor }]} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
+            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
+          </View>
+          <Text style={styles.errorTitle}>No Data Available</Text>
+          <Text style={styles.errorText}>Unable to load analysis details</Text>
+          <TouchableOpacity 
+            style={[styles.errorButton, { backgroundColor: primaryColor }]} 
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            <Text style={styles.errorButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -36,132 +80,168 @@ export default function AnalysisDetailScreen() {
   const isDiseaseDetection = result.aiDetectedDisease !== null;
   const imageUrl = result.imageUrls[0];
   
-  // Handle mask data - it can be string, array of strings, or null
   let maskBase64: string | null = null;
   if (result.mask) {
     if (Array.isArray(result.mask)) {
-      // If it's an array, get the first non-empty element
       maskBase64 = result.mask.find(m => m && m.length > 0) || null;
     } else if (typeof result.mask === 'string') {
-      // If it's already a string, use it directly
       maskBase64 = result.mask;
     }
   }
 
+  const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Analysis Result</Text>
-        <View style={styles.headerButton} />
-      </View>
+      <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image Display */}
-        <View style={styles.imageContainer}>
-          {isDiseaseDetection && maskBase64 ? (
-            <>
-              {/* Original Image */}
-              <Image 
-                source={{ uri: imageUrl }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-              
-              {/* Mask Overlay with Red Tint */}
-              {showMask && (
-                <View style={styles.maskContainer}>
-                  <Image 
-                    source={{ uri: `data:image/png;base64,${maskBase64}` }}
-                    style={styles.maskImage}
-                    resizeMode="cover"
-                  />
-                  {/* Red tint overlay */}
-                  <View style={styles.redTintOverlay} />
-                </View>
-              )}
-              
-              {/* Toggle Mask Button */}
-              <View style={styles.imageControls}>
-                <TouchableOpacity 
-                  style={[
-                    styles.toggleButton, 
-                    showMask && [styles.toggleButtonActive, { backgroundColor: primaryColor }]
-                  ]}
-                  onPress={() => setShowMask(!showMask)}
-                >
-                  <Ionicons 
-                    name={showMask ? "eye-off" : "eye"} 
-                    size={20} 
-                    color={showMask ? "#fff" : primaryColor} 
-                  />
-                  <Text style={[
-                    styles.toggleButtonText, 
-                    showMask && styles.toggleButtonTextActive,
-                    !showMask && { color: primaryColor }
-                  ]}>
-                    {showMask ? "Hide Detection Mask" : "Show Detection Mask"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
+        {/* Image Section with Header Overlay */}
+        <View style={styles.imageSection}>
+          <View style={styles.imageContainer}>
             <Image 
               source={{ uri: imageUrl }}
               style={styles.image}
               resizeMode="cover"
             />
+            
+            {/* Mask Overlay */}
+            {isDiseaseDetection && maskBase64 && showMask && (
+              <View style={styles.maskContainer}>
+                <Image 
+                  source={{ uri: `data:image/png;base64,${maskBase64}` }}
+                  style={styles.maskImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.redTintOverlay} />
+              </View>
+            )}
+
+            {/* Gradient Overlay for better header visibility */}
+            <View style={styles.gradientOverlay} />
+          </View>
+
+          {/* Header Overlay */}
+          <View style={styles.headerOverlay}>
+            <TouchableOpacity 
+              style={styles.overlayButton} 
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <View style={styles.headerBadgeContainer}>
+              <View style={[styles.headerBadge, { backgroundColor: detectionColor }]}>
+                <Ionicons 
+                  name={isConditionDetection ? 'water' : 'medical'} 
+                  size={16} 
+                  color="#FFFFFF" 
+                />
+              </View>
+              <Text style={styles.headerTitle}>Analysis Result</Text>
+            </View>
+            
+            <View style={styles.overlayButton} />
+          </View>
+
+          {/* Mask Toggle Button */}
+          {isDiseaseDetection && maskBase64 && result.aiDetectedDisease.toLowerCase() !== "normal" && (
+            <View style={styles.maskControls}>
+              <TouchableOpacity 
+                style={[
+                  styles.maskToggle,
+                  showMask && [styles.maskToggleActive, { backgroundColor: detectionColor }]
+                ]}
+                onPress={() => setShowMask(!showMask)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.maskToggleIcon, showMask && styles.maskToggleIconActive]}>
+                  <Ionicons 
+                    name={showMask ? 'eye-off' : 'eye'} 
+                    size={18} 
+                    color={showMask ? '#FFFFFF' : detectionColor} 
+                  />
+                </View>
+                <Text style={[
+                  styles.maskToggleText,
+                  showMask && styles.maskToggleTextActive
+                ]}>
+                  {showMask ? 'Hide Mask' : 'Show Mask'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
-        {/* Analysis Information */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoHeader}>
-            <Ionicons 
-              name={isConditionDetection ? "water" : "medical"} 
-              size={32} 
-              color={isConditionDetection ? primaryColor : "#E91E63"} 
-            />
-            <Text style={styles.infoTitle}>
-              {isConditionDetection ? "Skin Condition" : "Disease Detection"}
-            </Text>
-          </View>
-
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultLabel}>Detected:</Text>
-            <Text style={[
-              styles.resultValue,
-              isConditionDetection ? { color: primaryColor } : styles.diseaseValue
-            ]}>
-              {isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
-            </Text>
-          </View>
-
-          {/* Analysis Details */}
-          <View style={styles.detailsContainer}>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Date</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(result.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+        {/* Content Section */}
+        <View style={styles.contentSection}>
+          {/* Detection Result Card */}
+          <Animated.View 
+            style={[
+              styles.resultCard,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.resultHeader}>
+              <View style={[styles.resultIconWrapper, { backgroundColor: `${detectionColor}15` }]}>
+                <View style={[styles.resultIcon, { backgroundColor: detectionColor }]}>
+                  <Ionicons 
+                    name={isConditionDetection ? 'water' : 'medical'} 
+                    size={24} 
+                    color="#FFFFFF" 
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.resultContent}>
+                <Text style={styles.resultLabel}>
+                  {isConditionDetection ? 'Skin Condition' : 'Disease Detection'}
+                </Text>
+                <Text style={[styles.resultValue, { color: detectionColor }]}>
+                  {isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
                 </Text>
               </View>
             </View>
+          </Animated.View>
 
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <View style={styles.detailContent}>
+          {/* Details Grid */}
+          <Animated.View 
+            style={[
+              styles.detailsSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Analysis Details</Text>
+            
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
+                  <Ionicons name="calendar" size={20} color="#2196F3" />
+                </View>
+                <Text style={styles.detailLabel}>Date</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(result.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+                  <Ionicons name="time" size={20} color="#FF9800" />
+                </View>
                 <Text style={styles.detailLabel}>Time</Text>
                 <Text style={styles.detailValue}>
                   {new Date(result.createdAt).toLocaleTimeString('en-US', {
@@ -170,37 +250,71 @@ export default function AnalysisDetailScreen() {
                   })}
                 </Text>
               </View>
-            </View>
 
-            <View style={styles.detailRow}>
-              <Ionicons name="analytics-outline" size={20} color="#666" />
-              <View style={styles.detailContent}>
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                  <Ionicons 
+                    name={result.source === 'AI_SCAN' ? 'sparkles' : 'create'} 
+                    size={20} 
+                    color="#34C759" 
+                  />
+                </View>
                 <Text style={styles.detailLabel}>Source</Text>
                 <Text style={styles.detailValue}>
                   {result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
                 </Text>
               </View>
+
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="document-text" size={20} color="#A855F7" />
+                </View>
+                <Text style={styles.detailLabel}>Type</Text>
+                <Text style={styles.detailValue}>
+                  {isConditionDetection ? 'Condition' : 'Disease'}
+                </Text>
+              </View>
             </View>
-          </View>
-        </View>
+          </Animated.View>
 
-        {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Ionicons name="information-circle" size={24} color="#FF9800" />
-          <Text style={styles.disclaimerText}>
-            This result is for reference only and not a medical diagnosis. 
-            Please consult a healthcare professional for proper medical advice.
-          </Text>
-        </View>
+          {/* Disclaimer */}
+          <Animated.View 
+            style={[
+              styles.disclaimer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.disclaimerHeader}>
+              <View style={styles.disclaimerIconWrapper}>
+                <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
+              </View>
+              <Text style={styles.disclaimerTitle}>Medical Disclaimer</Text>
+            </View>
+            <Text style={styles.disclaimerText}>
+              This analysis is for informational purposes only and should not replace professional medical advice. Always consult a qualified healthcare provider for diagnosis and treatment.
+            </Text>
+          </Animated.View>
 
-        {/* Action Buttons */}
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: primaryColor }]}
-          onPress={() => router.push('/(tabs)/AnalyzeScreen')}
-        >
-          <Ionicons name="camera" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>New Analysis</Text>
-        </TouchableOpacity>
+          {/* Action Button */}
+          <Animated.View 
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }}
+          >
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: primaryColor }]}
+              onPress={() => router.push('/(tabs)/AnalyzeScreen')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera" size={20} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Start New Analysis</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -209,213 +323,363 @@ export default function AnalysisDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FAFAFA',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
   scrollContent: {
     paddingBottom: 40,
   },
+  imageSection: {
+    position: 'relative',
+  },
   imageContainer: {
+    width: width,
+    height: width * 1.1,
     backgroundColor: '#000',
     position: 'relative',
   },
   image: {
-    width: width,
-    height: width * 1.2,
+    width: '100%',
+    height: '100%',
   },
   maskContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: width,
-    height: width * 1.2,
+    ...StyleSheet.absoluteFillObject,
   },
   maskImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.15, 
+    opacity: 0.15,
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
-    mixBlendMode: 'multiply',
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
   },
-  imageControls: {
+  gradientOverlay: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+    backgroundColor: 'transparent',
+    backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
   },
-  toggleButton: {
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  overlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  maskControls: {
+    position: 'absolute',
+    bottom: 20,
+    left: 24,
+    right: 24,
+  },
+  maskToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 25,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  toggleButtonActive: {
-    backgroundColor: '#007AFF', // Will be overridden
-  },
-  toggleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF', // Will be overridden
-  },
-  toggleButtonTextActive: {
-    color: '#fff',
-  },
-  infoCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
     borderRadius: 16,
-    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  maskToggleActive: {
+    backgroundColor: '#007AFF',
+  },
+  maskToggleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  maskToggleIconActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  maskToggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  maskToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  contentSection: {
+    padding: 24,
+  },
+  resultCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
   },
-  infoHeader: {
+  resultHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  infoTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  resultContainer: {
-    backgroundColor: '#F8F9FA',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  resultLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  resultValue: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  conditionValue: {
-    color: '#2196F3', // Will be overridden
-  },
-  diseaseValue: {
-    color: '#E91E63',
-  },
-  detailsContainer: {
     gap: 16,
   },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+  resultIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  detailContent: {
+  resultIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  resultContent: {
     flex: 1,
   },
+  resultLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  resultValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 26,
+    letterSpacing: -0.3,
+  },
+  detailsSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  detailCard: {
+    width: (width - 60) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  detailIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   detailLabel: {
-    fontSize: 13,
+    fontSize: 11,
+    fontWeight: '700',
     color: '#666',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   detailValue: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#1A1A1A',
+    textAlign: 'center',
   },
   disclaimer: {
-    flexDirection: 'row',
     backgroundColor: '#FFF8E1',
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 24,
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
   },
+  disclaimerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  disclaimerIconWrapper: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disclaimerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
   disclaimerText: {
-    flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF', // Will be overridden
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 16,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
   actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  actionArrow: {
+    position: 'absolute',
+    right: 24,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
+  },
+  errorIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
   },
   errorText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 15,
     color: '#666',
-    marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 28,
+    textAlign: 'center',
   },
-  backButton: {
-    backgroundColor: '#007AFF', // Will be overridden
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 10,
+  errorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  backButtonText: {
+  errorButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
