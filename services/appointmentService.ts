@@ -26,6 +26,19 @@ class AppointmentService {
     }
   }
 
+  async createWalletAppointment(dto: CreateAppointmentDto): Promise<any> {
+    try {
+      const response = await apiService.post<ApiResponse<any>>(
+        "/appointments/use-wallet",
+        dto
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error creating wallet appointment:", error);
+      throw error;
+    }
+  }
+
   async createSubscriptionAppointment(
     dto: CreateSubscriptionAppointmentDto
   ): Promise<any> {

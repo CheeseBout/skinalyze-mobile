@@ -240,6 +240,23 @@ export default function AppointmentDetailScreen() {
             </View>
           </View>
 
+          {/* Customer Information */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Patient</Text>
+            <View style={styles.row}>
+              <Text style={styles.label}>Name:</Text>
+              <Text style={styles.value}>
+                {appointment.customer?.user?.fullName || "Patient"}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Email:</Text>
+              <Text style={styles.emailValue}>
+                {appointment.customer?.user?.email}
+              </Text>
+            </View>
+          </View>
+
           {/* Appointment Details */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Appointment Details</Text>
@@ -269,23 +286,31 @@ export default function AppointmentDetailScreen() {
                 <Text style={styles.noteText}>{appointment.note}</Text>
               </View>
             )}
-          </View>
 
-          {/* Customer Information */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Patient</Text>
-            <View style={styles.row}>
-              <Text style={styles.label}>Name:</Text>
-              <Text style={styles.value}>
-                {appointment.customer?.user?.fullName || "Patient"}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Email:</Text>
-              <Text style={styles.emailValue}>
-                {appointment.customer?.user?.email}
-              </Text>
-            </View>
+            {appointment.medicalNote && (
+              <View style={styles.noteContainer}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: "#28a745", fontWeight: "bold" },
+                  ]}
+                >
+                  Doctor's Medical Note:
+                </Text>
+                <Text
+                  style={[
+                    styles.noteText,
+                    {
+                      backgroundColor: "#e8f5e9",
+                      borderColor: "#c3e6cb",
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  {appointment.medicalNote}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
         {/* Footer */}

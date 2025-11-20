@@ -83,6 +83,7 @@ export type Appointment = {
   endTime: string;
   price: number;
   note: string | null;
+  medicalNote: string | null;
   meetingUrl: string | null;
 
   // Enums

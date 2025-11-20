@@ -193,9 +193,11 @@ class UserService {
     }
   }
 
-  async getBalance(token: string): Promise<BalanceData> {
+  async getBalance(): Promise<BalanceData> {
     try {
       const response = await apiService.get<BalanceResponse>("/users/balance");
+      console.log("❤️ BALANCEEEE", response);
+
       return response.data;
     } catch (error) {
       console.error("Error fetching user balance:", error);

@@ -31,6 +31,8 @@ import skinAnalysisService from "@/services/skinAnalysisService";
 import treatmentRoutineService from "@/services/treamentRoutineService";
 
 import { AuthContext } from "@/contexts/AuthContext";
+import userService from "@/services/userService";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const formatTime = (isoDate: string) => {
   if (!isoDate) return "N/A";
@@ -64,7 +66,7 @@ export default function BookingConfirmationScreen() {
   }>();
 
   const { user, isLoading: isAuthLoading } = useContext(AuthContext);
-
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [doctor, setDoctor] = useState<Dermatologist | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [subscriptions, setSubscriptions] = useState<CustomerSubscription[]>(
@@ -98,16 +100,18 @@ export default function BookingConfirmationScreen() {
       try {
         setIsLoadingData(true);
 
-        const [doctorData, subsData] = await Promise.all([
+        const [doctorData, subsData, walletData] = await Promise.all([
           dermatologistService.getDermatologistById(params.dermatologistId),
           customerSubscriptionService.getMyActiveSubscriptions(
             params.dermatologistId
           ),
+          userService.getBalance(),
         ]);
         console.log("❤️MY PLAN", subsData);
 
         setDoctor(doctorData);
         setSubscriptions(subsData);
+        setWalletBalance(walletData.balance);
 
         const customerData = await customerService.getCustomerProfile(
           user.userId
@@ -157,12 +161,8 @@ export default function BookingConfirmationScreen() {
     };
   }, [params]);
 
-  // === THAY ĐỔI: Cập nhật Validation và DTO ===
   const handleConfirm = async () => {
     if (!selectedOptionId || !params.dermatologistId) return;
-
-    // --- Validation (Logic mới) ---
-    // 1. Cả hai đều cần Analysis ID
     if (!selectedAnalysisId) {
       Alert.alert(
         "Missing Information",
@@ -171,7 +171,7 @@ export default function BookingConfirmationScreen() {
       return;
     }
 
-    // 2. Chỉ FOLLOW_UP mới cần Routine ID
+    // For Follow-up, routine is required
     if (appointmentType === AppointmentType.FOLLOW_UP && !selectedRoutineId) {
       Alert.alert(
         "Missing Information",
@@ -179,29 +179,26 @@ export default function BookingConfirmationScreen() {
       );
       return;
     }
-    // --- Hết Validation ---
 
     setIsConfirming(true);
 
-    // --- DTO (Logic mới) ---
     const baseDto: CreateAppointmentDto = {
       dermatologistId: params.dermatologistId,
       startTime: params.startTime,
       endTime: params.endTime,
       appointmentType: appointmentType,
 
-      // (Gửi analysisId cho cả 2 trường hợp)
+      // Analysis required for all appointment types
       analysisId: selectedAnalysisId || undefined,
 
       trackingRoutineId:
         appointmentType === AppointmentType.FOLLOW_UP
           ? selectedRoutineId || undefined
-          : undefined, // (Chỉ gửi khi là Follow-up)
+          : undefined, // (Only send when Follow-up)
 
       note: note || undefined,
     };
 
-    // (Phần 'try/catch' (gọi API) giữ nguyên)
     try {
       if (selectedOptionId === "PAY_NOW") {
         const response = await appointmentService.createReservation(baseDto);
@@ -215,6 +212,20 @@ export default function BookingConfirmationScreen() {
             paymentType: response.paymentType,
             bankingInfo: JSON.stringify(response.bankingInfo),
           },
+        });
+      } else if (selectedOptionId === "WALLET") {
+        if (walletBalance < slotDetails.price) {
+          Alert.alert("Insufficient Balance", "Please top up your wallet.");
+          setIsConfirming(false);
+          return;
+        }
+
+        const appointment = await appointmentService.createWalletAppointment(
+          baseDto
+        );
+        router.replace({
+          pathname: "/(stacks)/PaymentSuccessScreen",
+          params: { appointmentId: appointment.appointmentId },
         });
       } else {
         // Subscription payment
@@ -233,25 +244,54 @@ export default function BookingConfirmationScreen() {
       setIsConfirming(false);
     }
   };
-  // ============================================
 
-  const renderOption = (id: string, title: string, description: string) => {
+  const renderOption = (
+    id: string,
+    title: string,
+    description: string,
+    disabled: boolean = false,
+    icon?: any
+  ) => {
     const isSelected = selectedOptionId === id;
     return (
       <Pressable
-        style={[styles.option, isSelected && styles.optionSelected]}
-        onPress={() => setSelectedOptionId(id)}
+        style={[
+          styles.option,
+          isSelected && styles.optionSelected,
+          disabled && styles.optionDisabled, 
+        ]}
+        onPress={() => !disabled && setSelectedOptionId(id)}
+        disabled={disabled}
       >
-        <Text
-          style={isSelected ? styles.optionTextSelected : styles.optionText}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
         >
-          {title}
-        </Text>
-        <Text
-          style={isSelected ? styles.optionDescSelected : styles.optionDesc}
-        >
-          {description}
-        </Text>
+          <View>
+            <Text
+              style={[
+                styles.optionText,
+                isSelected && styles.optionTextSelected,
+                disabled && styles.textDisabled,
+              ]}
+            >
+              {title}
+            </Text>
+            <Text
+              style={[
+                styles.optionDesc,
+                isSelected && styles.optionDescSelected,
+                disabled && styles.textDisabled,
+              ]}
+            >
+              {description}
+            </Text>
+          </View>
+          {icon}
+        </View>
       </Pressable>
     );
   };
@@ -374,7 +414,36 @@ export default function BookingConfirmationScreen() {
         {/* Payment Option Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Option</Text>
-          {renderOption("PAY_NOW", "Pay per Session", slotDetails.priceDisplay)}
+
+          {/* 1. Option: Banking */}
+          {slotDetails.price > 0 &&
+            renderOption(
+              "PAY_NOW",
+              "Bank Transfer (VietQR)",
+              slotDetails.priceDisplay,
+              false,
+              <MaterialCommunityIcons
+                name="bank-transfer"
+                size={24}
+                color={selectedOptionId === "PAY_NOW" ? "#fff" : "#007bff"}
+              />
+            )}
+
+          {/* 2. Option: Wallet */}
+          {slotDetails.price > 0 &&
+            renderOption(
+              "WALLET",
+              "Skinalyze Wallet",
+              `Balance: ${walletBalance.toLocaleString("vi-VN")} VND`,
+              walletBalance < slotDetails.price, // (Disabled nếu không đủ tiền)
+              <MaterialCommunityIcons
+                name="wallet"
+                size={24}
+                color={selectedOptionId === "WALLET" ? "#fff" : "#28a745"}
+              />
+            )}
+
+          {/* 3. Option: Gói */}
           {subscriptions.map((sub) =>
             renderOption(
               sub.id,
@@ -382,6 +451,13 @@ export default function BookingConfirmationScreen() {
               `${sub.sessionsRemaining} sessions remaining`
             )
           )}
+
+          {/* Notify insufficient wallet balance */}
+          {selectedOptionId === "WALLET" &&
+            walletBalance < slotDetails.price && (
+              <Text style={styles.errorText}>Insufficient wallet balance.</Text>
+            )}
+
           {subscriptions.length === 0 && slotDetails.price === 0 && (
             <Text style={styles.infoText}>This is a free consultation.</Text>
           )}
@@ -537,5 +613,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  optionDisabled: {
+    opacity: 0.5,
+    backgroundColor: "#eee",
+    borderColor: "#ddd",
+  },
+  textDisabled: {
+    color: "#999",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#d9534f",
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
 });

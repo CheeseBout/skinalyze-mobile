@@ -59,10 +59,10 @@ export default function WithdrawalScreen() {
 
   const fetchBalance = async () => {
     try {
-      const token = await tokenService.getToken();
-      if (!token) return;
+      // const token = await tokenService.getToken();
+      // if (!token) return;
 
-      const balanceData = await userService.getBalance(token);
+      const balanceData = await userService.getBalance();
       setBalance(balanceData.balance);
       setCurrency(balanceData.currency);
     } catch (error: any) {
@@ -204,7 +204,10 @@ export default function WithdrawalScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Withdraw Money</Text>
@@ -217,13 +220,17 @@ export default function WithdrawalScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Balance Card */}
-        <View style={[styles.balanceCard, { backgroundColor: `${primaryColor}15` }]}>
+        <View
+          style={[styles.balanceCard, { backgroundColor: `${primaryColor}15` }]}
+        >
           <View style={styles.balanceContent}>
             <Ionicons name="wallet" size={32} color={primaryColor} />
             <View style={styles.balanceTextContainer}>
               <Text style={styles.balanceLabel}>Available Balance</Text>
               <Text style={[styles.balanceAmount, { color: primaryColor }]}>
-                {balance !== null ? `${formatCurrency(balance)} ${currency}` : "Loading..."}
+                {balance !== null
+                  ? `${formatCurrency(balance)} ${currency}`
+                  : "Loading..."}
               </Text>
             </View>
           </View>
@@ -240,7 +247,12 @@ export default function WithdrawalScreen() {
                   Amount <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="cash-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons
+                    name="cash-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.input}
                     placeholder="Enter amount"
@@ -251,7 +263,9 @@ export default function WithdrawalScreen() {
                   />
                   <Text style={styles.currencyLabel}>{currency}</Text>
                 </View>
-                <Text style={styles.helperText}>Minimum withdrawal: 50,000 VND</Text>
+                <Text style={styles.helperText}>
+                  Minimum withdrawal: 50,000 VND
+                </Text>
               </View>
 
               <View style={styles.inputGroup}>
@@ -263,7 +277,12 @@ export default function WithdrawalScreen() {
                   onPress={() => setShowBankPicker(true)}
                   disabled={loading || banksLoading}
                 >
-                  <Ionicons name="business-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons
+                    name="business-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
                   <Text style={[styles.input, !bankName && styles.placeholder]}>
                     {bankName || "Select your bank"}
                   </Text>
@@ -276,7 +295,12 @@ export default function WithdrawalScreen() {
                   Account Number <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="card-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons
+                    name="card-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.input}
                     placeholder="Enter bank account number"
@@ -293,7 +317,12 @@ export default function WithdrawalScreen() {
                   Account Holder Name <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons
+                    name="person-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.input}
                     placeholder="Enter account holder name"
@@ -308,7 +337,8 @@ export default function WithdrawalScreen() {
             <View style={styles.infoBox}>
               <Ionicons name="information-circle" size={20} color="#007AFF" />
               <Text style={styles.infoText}>
-                Your withdrawal will be processed within 1-3 business days. A verification code will be sent to your email.
+                Your withdrawal will be processed within 1-3 business days. A
+                verification code will be sent to your email.
               </Text>
             </View>
 
@@ -335,18 +365,33 @@ export default function WithdrawalScreen() {
           // OTP Verification
           <View style={styles.formContainer}>
             <View style={styles.otpContainer}>
-              <View style={[styles.otpIconContainer, { backgroundColor: `${primaryColor}15` }]}>
-                <Ionicons name="shield-checkmark" size={48} color={primaryColor} />
+              <View
+                style={[
+                  styles.otpIconContainer,
+                  { backgroundColor: `${primaryColor}15` },
+                ]}
+              >
+                <Ionicons
+                  name="shield-checkmark"
+                  size={48}
+                  color={primaryColor}
+                />
               </View>
               <Text style={styles.otpTitle}>Verify Your Identity</Text>
               <Text style={styles.otpSubtitle}>
-                We've sent a verification code to your email. Please enter it below to complete the withdrawal.
+                We've sent a verification code to your email. Please enter it
+                below to complete the withdrawal.
               </Text>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Verification Code</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="keypad-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons
+                    name="keypad-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.input}
                     placeholder="Enter OTP"
@@ -361,11 +406,20 @@ export default function WithdrawalScreen() {
 
               <View style={styles.otpActions}>
                 <Text style={styles.otpTimer}>
-                  {countdown > 0 ? `Resend code in ${countdown}s` : "Didn't receive the code?"}
+                  {countdown > 0
+                    ? `Resend code in ${countdown}s`
+                    : "Didn't receive the code?"}
                 </Text>
                 {countdown === 0 && (
-                  <TouchableOpacity onPress={handleResendOTP} disabled={loading}>
-                    <Text style={[styles.resendButton, { color: primaryColor }]}>Resend OTP</Text>
+                  <TouchableOpacity
+                    onPress={handleResendOTP}
+                    disabled={loading}
+                  >
+                    <Text
+                      style={[styles.resendButton, { color: primaryColor }]}
+                    >
+                      Resend OTP
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -399,7 +453,9 @@ export default function WithdrawalScreen() {
                 onPress={() => setStep("form")}
                 disabled={loading}
               >
-                <Text style={[styles.backButtonText, { color: primaryColor }]}>Back</Text>
+                <Text style={[styles.backButtonText, { color: primaryColor }]}>
+                  Back
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -415,8 +471,14 @@ export default function WithdrawalScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>Verify & Withdraw</Text>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.submitButtonText}>
+                      Verify & Withdraw
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -458,13 +520,20 @@ export default function WithdrawalScreen() {
                       setShowBankPicker(false);
                     }}
                   >
-                    <Image source={{ uri: item.logo }} style={styles.bankLogo} />
+                    <Image
+                      source={{ uri: item.logo }}
+                      style={styles.bankLogo}
+                    />
                     <View style={styles.bankInfo}>
                       <Text style={styles.bankName}>{item.name}</Text>
                       <Text style={styles.bankCode}>{item.shortName}</Text>
                     </View>
                     {bankName === item.name && (
-                      <Ionicons name="checkmark-circle" size={24} color={primaryColor} />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={primaryColor}
+                      />
                     )}
                   </TouchableOpacity>
                 )}
