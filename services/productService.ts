@@ -67,9 +67,11 @@ class ProductService {
       
       // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {
+        console.log(`All categories: `, response)
         return response;
       }
       if (response.data && Array.isArray(response.data)) {
+        console.log(`All categories: `, response.data)
         return response.data;
       }
       
@@ -103,11 +105,11 @@ class ProductService {
       
       // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {
-        console.log(`📊 Loaded ${response.length} products`);
+        // console.log(`📊 Loaded ${response.length} products`);
         return response;
       }
       if (response.data && Array.isArray(response.data)) {
-        console.log(`📊 Loaded ${response.data.length} products`);
+        // console.log(`📊 Loaded ${response.data.length} products`);
         return response.data;
       }
       
@@ -138,7 +140,7 @@ class ProductService {
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
     try {
       console.log(`🛍️ Fetching products for category ${categoryId}...`);
-      const response = await apiService.get<ProductListResponse>(`/categories/${categoryId}/products`);
+      const response = await apiService.get<ProductListResponse>(`/products/category/${categoryId}`);
       
       if (Array.isArray(response)) {
         return response;
@@ -266,6 +268,11 @@ class ProductService {
   hasReviews(product: Product): boolean {
     return product.reviews && product.reviews.length > 0;
   }
+
+  convertToVND(usdPrice: number): number {
+    return usdPrice * 26243;
+  }
+
 }
 
 export const productService = new ProductService();

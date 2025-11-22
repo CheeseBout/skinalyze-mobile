@@ -209,6 +209,25 @@ export default function CheckoutScreen() {
                 newBalance = balanceData.balance;
               }
 
+              // For banking payment, navigate to PaymentScreen with QR details
+              if (paymentMethod === 'banking' && order.payment) {
+                router.replace({
+                  pathname: '/(stacks)/PaymentScreen',
+                  params: {
+                    paymentCode: order.payment.paymentCode || '',
+                    expiredAt: order.payment.expiredAt || '',
+                    qrCodeUrl: order.payment.qrCodeUrl || '',
+                    amount: order.payment.amount || 0,
+                    instructions: JSON.stringify(order.payment.instructions || []), 
+                    bankName: order.payment.bankingInfo?.bankName,
+                    accountNumber: order.payment.bankingInfo?.accountNumber,
+                    accountName: order.payment.bankingInfo?.accountName,
+                  }
+                });
+                return;
+              }
+
+              // For other payment methods, show success alert
               Alert.alert(
                 'Order Placed!',
                 `Order ID: ${order.orderId}\nYour order has been placed successfully.${paymentMethod === 'wallet' ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}` : ''}`,
@@ -390,38 +409,34 @@ export default function CheckoutScreen() {
               onPress={() => setAddressEditable(true)}
             >
               <View style={styles.addressCardContent}>
-                <Ionicons name="location" size={24} color={primaryColor} />
+                <Ionicons name="location-outline" size={20} color="#666" />
                 <Text style={styles.addressText}>{shippingAddress}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
               </View>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => setAddressEditable(true)}
-              >
-                <Ionicons name="create-outline" size={20} color={primaryColor} />
-              </TouchableOpacity>
             </TouchableOpacity>
           ) : (
-            <View>
-              <TextInput
-                style={styles.textArea}
-                value={shippingAddress}
-                onChangeText={setShippingAddress}
-                placeholder="Enter your full shipping address"
-                placeholderTextColor="#999"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-              {addressEditable && shippingAddress && (
-                <TouchableOpacity
-                  style={[styles.doneButton, { backgroundColor: primaryColor }]}
-                  onPress={() => setAddressEditable(false)}
-                >
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <TextInput
+              style={styles.addressInput}
+              placeholder="Enter shipping address"
+              value={shippingAddress}
+              onChangeText={setShippingAddress}
+              multiline
+              numberOfLines={3}
+            />
           )}
+        </View>
+
+        {/* Notes */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notes (Optional)</Text>
+          <TextInput
+            style={styles.notesInput}
+            placeholder="Add any special instructions..."
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={3}
+          />
         </View>
 
         {/* Payment Method */}
@@ -578,29 +593,24 @@ export default function CheckoutScreen() {
             </View>
           </TouchableOpacity>
         </View>
-
-        {/* Notes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Notes (Optional)</Text>
-          <TextInput
-            style={styles.textArea}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add any special instructions for your order"
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </View>
       </ScrollView>
 
-      {/* Bottom Button */}
+      {/* Bottom Checkout Button */}
       <View style={styles.bottomContainer}>
+        <View style={styles.checkoutSummary}>
+          <View style={styles.checkoutRow}>
+            <Text style={styles.checkoutLabel}>Total ({totalItems} items)</Text>
+            <Text style={styles.checkoutAmount}>
+              {productService.formatPrice(totalPrice)}
+            </Text>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[
             styles.checkoutButton,
-            { backgroundColor: submitting ? '#CCC' : primaryColor }
+            submitting && styles.checkoutButtonDisabled,
+            { backgroundColor: primaryColor }
           ]}
           onPress={handleCheckout}
           disabled={submitting}
@@ -622,7 +632,6 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ...existing styles (keep all the existing styles from your previous code)
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
@@ -778,7 +787,7 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
   },
-  textArea: {
+  addressInput: {
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 16,
@@ -787,6 +796,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5E5',
     minHeight: 100,
+  },
+  notesInput: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    minHeight: 60,
   },
   doneButton: {
     alignSelf: 'flex-end',
@@ -910,5 +929,35 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: '700',
+  },
+  checkoutSummary: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  checkoutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  checkoutLabel: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  checkoutAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#007AFF',
   },
 });

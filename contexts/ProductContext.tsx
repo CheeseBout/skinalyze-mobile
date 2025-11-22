@@ -57,7 +57,15 @@ export function ProductProvider({ children }: ProductProviderProps) {
         productService.getAllCategories(),
       ]);
 
-      setProducts(productsData);
+      // In fetchAllData, pre-compute values
+      const processedProducts = productsData.map(product => ({
+        ...product,
+        _discountedPrice: productService.calculateDiscountedPrice(product), // Cache this
+        _avgRating: productService.calculateAverageRating(product),
+        _stockStatus: productService.getStockStatus(product),
+      }));
+
+      setProducts(processedProducts);
       setCategories(categoriesData);
 
       // Filter sale products on client side

@@ -116,8 +116,8 @@ export default function ChatbotScreen() {
     return (
       <View style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.aiMessageContainer]}>
         {isAI && (
-          <View style={styles.aiAvatar}>
-            <Ionicons name="sparkles" size={16} color="#fff" />
+          <View style={[styles.aiAvatar, { color: primaryColor, borderColor: primaryColor, borderWidth: 1, backgroundColor: '#fff' }]}>
+            <Ionicons name="sparkles" size={16} color={primaryColor} />
           </View>
         )}
         <View style={[styles.messageBubble, isUser ? [styles.userBubble, { backgroundColor: primaryColor }] : styles.aiBubble]}>

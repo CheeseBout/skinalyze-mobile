@@ -8,7 +8,8 @@ import {
   RefreshControl,
   StatusBar,
   Animated,
-  Dimensions
+  Dimensions,
+  FlatList
 } from 'react-native'
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'expo-router'
@@ -18,6 +19,7 @@ import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
+import { Product } from '@/services/productService'
 
 const { width } = Dimensions.get('window')
 
@@ -28,7 +30,11 @@ export default function HomeScreen() {
   const { products, categories, saleProducts, isLoading, error, refreshProducts } = useProducts()
   const [refreshing, setRefreshing] = useState(false)
   const [showToTop, setShowToTop] = useState(false)  
-  const scrollViewRef = useRef(null)  
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  
+  const PRODUCTS_PER_PAGE = 50
+  const flatListRef = useRef<FlatList>(null)
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -51,29 +57,221 @@ export default function HomeScreen() {
     }
   }, [isLoading])
 
+  useEffect(() => {
+    if (products.length > 0) {
+      setDisplayedProducts(products.slice(0, PRODUCTS_PER_PAGE))
+    }
+  }, [products])
+
   const onRefresh = async () => {
     setRefreshing(true)
     await refreshProducts()
     setRefreshing(false)
   }
 
-  // Add scroll handler to show/hide button
-  const handleScroll = (event) => {
+  const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y
-    setShowToTop(offsetY > 200)  // Show button when scrolled more than 200px
+    setShowToTop(offsetY > 200)
   }
 
+  const loadMoreProducts = () => {
+    if (loadingMore || displayedProducts.length >= products.length) return
+
+    setLoadingMore(true)
+    setTimeout(() => { 
+      const nextBatch = products.slice(
+        displayedProducts.length,
+        displayedProducts.length + PRODUCTS_PER_PAGE
+      )
+      setDisplayedProducts(prev => [...prev, ...nextBatch])
+      setLoadingMore(false)
+    }, 500)
+  }
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good Morning'
+    if (hour < 18) return 'Good Afternoon'
+    return 'Good Evening'
+  }
+
+  // --- Render Components ---
+
+  const renderHeader = () => (
+    <Animated.View 
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }]
+      }}
+    >
+      {/* Header Info */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.greetingBadge, { backgroundColor: `${primaryColor}15` }]}>
+            <Ionicons name="sunny" size={20} color={primaryColor} />
+          </View>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>{user?.fullName || 'Guest'}</Text>
+          </View>
+        </View>
+        <TouchableOpacity 
+          style={styles.profileButton}
+          onPress={() => router.push('/(stacks)/ProfileScreen')}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.profileAvatar, { backgroundColor: primaryColor }]}>
+            <Text style={styles.profileInitial}>
+              {user?.fullName?.charAt(0).toUpperCase() || 'G'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity 
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(tabs)/AnalyzeScreen')}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: '#F0F9FF' }]}>
+            <Ionicons name="camera" size={24} color="#2196F3" />
+          </View>
+          <View style={styles.quickActionContent}>
+            <Text style={styles.quickActionTitle}>Analyze</Text>
+            <Text style={styles.quickActionSubtitle}>Scan your skin</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(stacks)/OrderListScreen')}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: '#FFF4E6' }]}>
+            <Ionicons name="receipt" size={24} color="#FF9800" />
+          </View>
+          <View style={styles.quickActionContent}>
+            <Text style={styles.quickActionTitle}>Orders</Text>
+            <Text style={styles.quickActionSubtitle}>Track orders</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Featured Sale Products */}
+      {saleProducts.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleWrapper}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FFE8E8' }]}>
+                <Ionicons name="flame" size={18} color="#FF3B30" />
+              </View>
+              <Text style={styles.sectionTitle}>Hot Deals</Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={[styles.seeAllText, { color: primaryColor }]}>See All →</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {saleProducts.slice(0, 5).map((product) => (
+              <View key={product.productId} style={styles.horizontalCardWrapper}>
+                <ProductCard
+                  product={product}
+                  onPress={() => router.push({
+                    pathname: '/(stacks)/ProductDetailScreen',
+                    params: { productId: product.productId }
+                  })}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Categories */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleWrapper}>
+            <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="grid" size={18} color={primaryColor} />
+            </View>
+            <Text style={styles.sectionTitle}>Categories</Text>
+          </View>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalScroll}
+        >
+          {categories.map((category, index) => {
+            const colors = [
+              { bg: '#F0F9FF', icon: '#2196F3' },
+              { bg: '#F0FDF4', icon: '#34C759' },
+              { bg: '#FFF4E6', icon: '#FF9800' },
+              { bg: '#F3E8FF', icon: '#A855F7' },
+              { bg: '#FFE8E8', icon: '#FF3B30' },
+            ]
+            const colorSet = colors[index % colors.length]
+            
+            return (
+              <TouchableOpacity
+                key={category.categoryId}
+                style={styles.categoryCard}
+                activeOpacity={0.7}
+                // === MODIFIED: Navigation to SearchScreen with Params ===
+                onPress={() => router.push({
+                  pathname: '/(stacks)/SearchScreen',
+                  params: { 
+                    categoryId: category.categoryId,
+                    categoryName: category.categoryName
+                  }
+                })}
+              >
+                <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
+                  <Ionicons name="layers" size={28} color={colorSet.icon} />
+                </View>
+                <Text style={styles.categoryName} numberOfLines={2}>
+                  {category.categoryName}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      </View>
+
+      {/* All Products Title (Part of Header) */}
+      <View style={[styles.sectionHeader, { marginBottom: 12 }]}>
+        <View style={styles.sectionTitleWrapper}>
+          <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
+            <Ionicons name="sparkles" size={18} color="#34C759" />
+          </View>
+          <Text style={styles.sectionTitle}>All Products</Text>
+        </View>
+        <View style={styles.productCount}>
+          <Text style={styles.productCountText}>{products.length}</Text>
+        </View>
+      </View>
+    </Animated.View>
+  )
+
+  // Loading State
   if (isLoading && products.length === 0) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
         <View style={styles.backgroundPattern}>
           <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
           <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
         </View>
-
         <View style={styles.loadingContainer}>
           <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
             <ActivityIndicator size="large" color={primaryColor} />
@@ -84,17 +282,15 @@ export default function HomeScreen() {
     )
   }
 
+  // Error State
   if (error) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
         <View style={styles.backgroundPattern}>
           <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
           <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
         </View>
-
         <View style={styles.errorContainer}>
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
@@ -114,13 +310,6 @@ export default function HomeScreen() {
     )
   }
 
-  const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Good Morning'
-    if (hour < 18) return 'Good Afternoon'
-    return 'Good Evening'
-  }
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
@@ -131,12 +320,32 @@ export default function HomeScreen() {
         <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
       </View>
 
-      <ScrollView 
-        ref={scrollViewRef}  
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}  
-        scrollEventThrottle={16} 
+      <FlatList
+        ref={flatListRef}
+        data={displayedProducts}
+        keyExtractor={(item, index) => `${item.productId}-${index}`}
+        ListHeaderComponent={renderHeader}
+        renderItem={({ item }) => (
+          <View style={styles.gridCardWrapper}>
+            <ProductCard
+              product={item}
+              onPress={() => router.push({
+                pathname: '/(stacks)/ProductDetailScreen',
+                params: { productId: item.productId }
+              })}
+            />
+          </View>
+        )}
+        // Grid Layout Props
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
+        contentContainerStyle={styles.flatListContent}
+        
+        // Optimization & Events
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onEndReached={loadMoreProducts}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -144,216 +353,27 @@ export default function HomeScreen() {
             colors={[primaryColor]}
           />
         }
-      >
-        {/* Header */}
-        <Animated.View 
-          style={[
-            styles.header,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <View style={styles.headerLeft}>
-            <View style={[styles.greetingBadge, { backgroundColor: `${primaryColor}15` }]}>
-              <Ionicons name="sunny" size={20} color={primaryColor} />
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color={primaryColor} />
+              <Text style={styles.loadingMoreText}>Loading more products...</Text>
             </View>
-            <View>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.userName}>{user?.fullName || 'Guest'}</Text>
-            </View>
-          </View>
-          <TouchableOpacity 
-            style={styles.profileButton}
-            onPress={() => router.push('/(stacks)/ProfileScreen')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.profileAvatar, { backgroundColor: primaryColor }]}>
-              <Text style={styles.profileInitial}>
-                {user?.fullName?.charAt(0).toUpperCase() || 'G'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Quick Actions */}
-        <Animated.View 
-          style={[
-            styles.quickActions,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            style={styles.quickActionCard}
-            onPress={() => router.push('/(tabs)/AnalyzeScreen')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#F0F9FF' }]}>
-              <Ionicons name="camera" size={24} color="#2196F3" />
-            </View>
-            <View style={styles.quickActionContent}>
-              <Text style={styles.quickActionTitle}>Analyze</Text>
-              <Text style={styles.quickActionSubtitle}>Scan your skin</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.quickActionCard}
-            onPress={() => router.push('/(stacks)/OrderListScreen')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#FFF4E6' }]}>
-              <Ionicons name="receipt" size={24} color="#FF9800" />
-            </View>
-            <View style={styles.quickActionContent}>
-              <Text style={styles.quickActionTitle}>Orders</Text>
-              <Text style={styles.quickActionSubtitle}>Track orders</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Featured Sale Products */}
-        {saleProducts.length > 0 && (
-          <Animated.View 
-            style={[
-              styles.section,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
-            ]}
-          >
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleWrapper}>
-                <View style={[styles.sectionIcon, { backgroundColor: '#FFE8E8' }]}>
-                  <Ionicons name="flame" size={18} color="#FF3B30" />
-                </View>
-                <Text style={styles.sectionTitle}>Hot Deals</Text>
-              </View>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={[styles.seeAllText, { color: primaryColor }]}>See All →</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {saleProducts.slice(0, 5).map((product) => (
-                <View key={product.productId} style={styles.horizontalCardWrapper}>
-                  <ProductCard
-                    product={product}
-                    onPress={() => router.push({
-                      pathname: '/(stacks)/ProductDetailScreen',
-                      params: { productId: product.productId }
-                    })}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Categories */}
-        <Animated.View 
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleWrapper}>
-              <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
-                <Ionicons name="grid" size={18} color={primaryColor} />
-              </View>
-              <Text style={styles.sectionTitle}>Categories</Text>
-            </View>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScroll}
-          >
-            {categories.map((category, index) => {
-              const colors = [
-                { bg: '#F0F9FF', icon: '#2196F3' },
-                { bg: '#F0FDF4', icon: '#34C759' },
-                { bg: '#FFF4E6', icon: '#FF9800' },
-                { bg: '#F3E8FF', icon: '#A855F7' },
-                { bg: '#FFE8E8', icon: '#FF3B30' },
-              ]
-              const colorSet = colors[index % colors.length]
-              
-              return (
-                <TouchableOpacity
-                  key={category.categoryId}
-                  style={styles.categoryCard}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
-                    <Ionicons name="layers" size={28} color={colorSet.icon} />
-                  </View>
-                  <Text style={styles.categoryName} numberOfLines={2}>
-                    {category.categoryName}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </ScrollView>
-        </Animated.View>
-
-        {/* All Products */}
-        <Animated.View 
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleWrapper}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
-                <Ionicons name="sparkles" size={18} color="#34C759" />
-              </View>
-              <Text style={styles.sectionTitle}>All Products</Text>
-            </View>
-            <View style={styles.productCount}>
-              <Text style={styles.productCountText}>{products.length}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.productsGrid}>
-            {products.map((product) => (
-              <View key={product.productId} style={styles.gridCardWrapper}>
-                <ProductCard
-                  product={product}
-                  onPress={() => router.push({
-                    pathname: '/(stacks)/ProductDetailScreen',
-                    params: { productId: product.productId }
-                  })}
-                />
-              </View>
-            ))}
-          </View>
-        </Animated.View>
-      </ScrollView>
+          ) : (
+             // Add some bottom padding
+             <View style={{ height: 20 }} />
+          )
+        }
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
+      />
 
       <ToTopButton
         visible={showToTop}
-        onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
+        onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
       />
     </View>
   )
@@ -371,6 +391,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 400,
     overflow: 'hidden',
+    zIndex: -1, // Ensure background stays behind
   },
   circle1: {
     position: 'absolute',
@@ -388,9 +409,19 @@ const styles = StyleSheet.create({
     top: -80,
     left: -60,
   },
-  scrollView: {
-    flex: 1,
+  // FlatList Styles
+  flatListContent: {
+    paddingBottom: 40,
   },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 12, // Gap between rows
+  },
+  gridCardWrapper: {
+    width: (width - 48 - 12) / 2, // (Screen Width - Outer Padding - Gap) / 2
+  },
+  // Loading & Error
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -453,6 +484,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  // Header Styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -516,8 +548,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
-    gap: 12,
+    padding: 10,
+    gap: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -621,13 +653,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-  productsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 24,
-    gap: 12,
+  loadingMore: {
+    padding: 20,
+    alignItems: 'center',
   },
-  gridCardWrapper: {
-    width: (width - 60) / 2,
+  loadingMoreText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
   },
 });

@@ -13,13 +13,19 @@ import {
   Animated,
   Modal
 } from 'react-native'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { register, RegisterPayload } from '@/services/authService'
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useAuth } from '@/hooks/useAuth';
-import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { Calendar } from 'react-native-calendars';
+import { useAuth } from '@/hooks/useAuth'
+import { useThemeColor } from '@/contexts/ThemeColorContext'
+import { Picker } from '@react-native-picker/picker'; 
+
+// Static definition ensures no calculation errors
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 export default function SignUpScreen() {
   const router = useRouter()
@@ -42,7 +48,13 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  
+  // Date Picker States
   const [showCalendar, setShowCalendar] = useState(false)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(1); // 1-12
+  const [selectedDay, setSelectedDay] = useState(1);
+  
   const [phoneDigits, setPhoneDigits] = useState('')
   const { primaryColor } = useThemeColor();
   const { login: authLogin } = useAuth()
@@ -69,59 +81,27 @@ export default function SignUpScreen() {
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof RegisterPayload | 'confirmPassword', string>> = {}
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid'
-    }
+    if (!formData.email.trim()) newErrors.email = 'Email is required'
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid'
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
-    }
+    if (!formData.password) newErrors.password = 'Password is required'
+    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters'
 
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password'
-    } else if (confirmPassword !== formData.password) {
-      newErrors.confirmPassword = 'Passwords do not match'
-    }
+    if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password'
+    else if (confirmPassword !== formData.password) newErrors.confirmPassword = 'Passwords do not match'
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required'
-    }
+    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required'
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone is required'
-    } else if (!/^\+84\d{9}$/.test(formData.phone)) {
-      newErrors.phone = 'Phone number must be 9 digits'
-    }
+    if (!formData.phone.trim()) newErrors.phone = 'Phone is required'
+    else if (!/^\+84\d{9}$/.test(formData.phone)) newErrors.phone = 'Phone number must be 9 digits'
 
-    if (!formData.dob.trim()) {
-      newErrors.dob = 'Date of birth is required'
-    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.dob)) {
-      newErrors.dob = 'Date format should be YYYY-MM-DD'
-    }
+    if (!formData.dob.trim()) newErrors.dob = 'Date of birth is required'
 
-    if (!formData.street.trim()) {
-      newErrors.street = 'Street is required'
-    }
-
-    if (!formData.streetLine1.trim()) {
-      newErrors.streetLine1 = 'Street line 1 is required'
-    }
-
-    if (!formData.wardOrSubDistrict.trim()) {
-      newErrors.wardOrSubDistrict = 'Ward/Sub-district is required'
-    }
-
-    if (!formData.district.trim()) {
-      newErrors.district = 'District is required'
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required'
-    }
+    if (!formData.street.trim()) newErrors.street = 'Street is required'
+    if (!formData.streetLine1.trim()) newErrors.streetLine1 = 'Street line 1 is required'
+    if (!formData.wardOrSubDistrict.trim()) newErrors.wardOrSubDistrict = 'Ward/Sub-district is required'
+    if (!formData.district.trim()) newErrors.district = 'District is required'
+    if (!formData.city.trim()) newErrors.city = 'City is required'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -151,30 +131,27 @@ export default function SignUpScreen() {
     }
   }
 
-  const handleDateSelect = (day: any) => {
-    setFormData({ ...formData, dob: day.dateString })
-    if (errors.dob) setErrors({ ...errors, dob: '' })
-    setShowCalendar(false)
-  }
-
   const handlePhoneChange = (text: string) => {
-    // Remove non-numeric characters
     const cleaned = text.replace(/\D/g, '')
-    // Limit to 9 digits
     const limited = cleaned.slice(0, 9)
     setPhoneDigits(limited)
     setFormData({ ...formData, phone: limited ? `+84${limited}` : '' })
     if (errors.phone) setErrors({ ...errors, phone: '' })
   }
 
+  // REFACTORED: String-based formatting prevents timezone shifts
   const formatDate = (dateString: string) => {
     if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
-    })
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parts[2];
+    
+    const monthName = MONTH_NAMES[monthIndex] ? MONTH_NAMES[monthIndex].slice(0, 3) : '';
+    
+    return `${day} ${monthName} ${year}` // "23 Feb 2004"
   }
 
   const renderStepIndicator = () => (
@@ -206,6 +183,49 @@ export default function SignUpScreen() {
     </View>
   )
 
+  // --- Date Logic ---
+
+  // Helper to get days in month (accounts for leap years correctly)
+  const getDaysInMonth = (year: number, month: number) => {
+    // month is 1-12. Date constructor expects 0-11 for month index.
+    // But creating Date(year, month, 0) gives the last day of the PREVIOUS month.
+    // So Date(2004, 2, 0) -> Day 0 of March -> Last day of Feb.
+    return new Date(year, month, 0).getDate();
+  };
+
+  // Memoized arrays to prevent re-renders
+  const years = useMemo(() => 
+    Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => 1900 + i).reverse(), 
+  []);
+  
+  const days = useMemo(() => 
+    Array.from({ length: getDaysInMonth(selectedYear, selectedMonth) }, (_, i) => i + 1),
+  [selectedYear, selectedMonth]);
+
+  // Update DOB string construction
+  const handleDateConfirm = () => {
+    const formattedDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+    setFormData({ ...formData, dob: formattedDate });
+    if (errors.dob) setErrors({ ...errors, dob: '' });
+    setShowCalendar(false);
+  };
+
+  // Initialize picker with current selection or defaults
+  const handleOpenCalendar = () => {
+    if (formData.dob) {
+        const [y, m, d] = formData.dob.split('-').map(Number);
+        setSelectedYear(y);
+        setSelectedMonth(m);
+        setSelectedDay(d);
+    } else {
+        const now = new Date();
+        setSelectedYear(now.getFullYear());
+        setSelectedMonth(now.getMonth() + 1);
+        setSelectedDay(now.getDate());
+    }
+    setShowCalendar(true);
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -213,7 +233,6 @@ export default function SignUpScreen() {
     >
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
       
-      {/* Decorative Background */}
       <View style={styles.backgroundPattern}>
         <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
         <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
@@ -297,7 +316,6 @@ export default function SignUpScreen() {
                 primaryColor={primaryColor}
               />
 
-              {/* Phone Number Input with +84 prefix */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Phone Number</Text>
                 <View style={[styles.inputWrapper, errors.phone && styles.inputWrapperError]}>
@@ -327,12 +345,12 @@ export default function SignUpScreen() {
                 <Text style={styles.helperText}>Enter 9 digits after +84</Text>
               </View>
 
-              {/* Date of Birth Input with Calendar */}
+              {/* Date of Birth Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Date of Birth</Text>
                 <TouchableOpacity
                   style={[styles.inputWrapper, errors.dob && styles.inputWrapperError]}
-                  onPress={() => setShowCalendar(true)}
+                  onPress={handleOpenCalendar}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="calendar-outline" size={20} color="#666" style={styles.inputIcon} />
@@ -527,7 +545,6 @@ export default function SignUpScreen() {
             </>
           )}
 
-          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/(stacks)/SignInScreen')} activeOpacity={0.7}>
@@ -549,40 +566,76 @@ export default function SignUpScreen() {
           activeOpacity={1}
           onPress={() => setShowCalendar(false)}
         >
-          <View style={styles.calendarContainer}>
-            <View style={styles.calendarHeader}>
-              <Text style={styles.calendarTitle}>Select Date of Birth</Text>
+          <View style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>Select Date of Birth</Text>
               <TouchableOpacity onPress={() => setShowCalendar(false)} activeOpacity={0.7}>
                 <Ionicons name="close-circle" size={28} color={primaryColor} />
               </TouchableOpacity>
             </View>
-            <Calendar
-              onDayPress={handleDateSelect}
-              markedDates={formData.dob ? {
-                [formData.dob]: { selected: true, selectedColor: primaryColor }
-              } : {}}
-              maxDate={new Date().toISOString().split('T')[0]}
-              theme={{
-                backgroundColor: '#FFFFFF',
-                calendarBackground: '#FFFFFF',
-                textSectionTitleColor: '#666666',
-                selectedDayBackgroundColor: primaryColor,
-                selectedDayTextColor: '#FFFFFF',
-                todayTextColor: primaryColor,
-                dayTextColor: '#1A1A1A',
-                textDisabledColor: '#D9D9D9',
-                dotColor: primaryColor,
-                selectedDotColor: '#FFFFFF',
-                arrowColor: primaryColor,
-                monthTextColor: '#1A1A1A',
-                textDayFontWeight: '500',
-                textMonthFontWeight: '700',
-                textDayHeaderFontWeight: '600',
-                textDayFontSize: 16,
-                textMonthFontSize: 18,
-                textDayHeaderFontSize: 14
-              }}
-            />
+            <View style={styles.pickerRow}>
+              {/* Year Picker */}
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <Picker
+                  selectedValue={selectedYear}
+                  onValueChange={(value) => {
+                    setSelectedYear(value);
+                    // Validation to ensure day is valid for new year (e.g. Feb 29 -> Feb 28)
+                    const maxDays = getDaysInMonth(value, selectedMonth);
+                    if (selectedDay > maxDays) setSelectedDay(maxDays);
+                  }}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {years.map((year) => (
+                    <Picker.Item key={year} label={String(year)} value={year} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Month Picker */}
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <Picker
+                  selectedValue={selectedMonth}
+                  onValueChange={(value) => {
+                    setSelectedMonth(value);
+                    // Validation to ensure day is valid for new month (e.g. Jan 31 -> Feb 28)
+                    const maxDays = getDaysInMonth(selectedYear, value);
+                    if (selectedDay > maxDays) setSelectedDay(maxDays);
+                  }}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {MONTH_NAMES.map((month, index) => (
+                    <Picker.Item key={index} label={month} value={index + 1} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Day Picker */}
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Day</Text>
+                <Picker
+                  selectedValue={selectedDay}
+                  onValueChange={setSelectedDay}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {days.map((day) => (
+                    <Picker.Item key={day} label={String(day)} value={day} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={[styles.confirmButton, { backgroundColor: primaryColor }]}
+              onPress={handleDateConfirm}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -590,7 +643,7 @@ export default function SignUpScreen() {
   )
 }
 
-// Input Field Component
+// Reusable Input Components
 interface InputFieldProps {
   label: string
   placeholder: string
@@ -612,7 +665,6 @@ const InputField: React.FC<InputFieldProps> = ({
   error,
   keyboardType = 'default',
   autoCapitalize = 'sentences',
-  primaryColor,
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>{label}</Text>
@@ -640,7 +692,6 @@ const InputField: React.FC<InputFieldProps> = ({
   </View>
 )
 
-// Password Field Component
 const PasswordField: React.FC<any> = ({
   label,
   placeholder,
@@ -649,7 +700,6 @@ const PasswordField: React.FC<any> = ({
   error,
   showPassword,
   setShowPassword,
-  primaryColor,
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>{label}</Text>
@@ -980,11 +1030,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  calendarContainer: {
+  datePickerContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 20,
-    width: '100%',
+    width: '90%',
     maxWidth: 400,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -992,15 +1042,48 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  calendarHeader: {
+  datePickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  calendarTitle: {
+  datePickerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1A1A1A',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  pickerWrapper: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  pickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  picker: {
+    width: 100,
+    height: 150,
+  },
+  pickerItem: {
+     fontSize: 16, 
+     height: 150 
+  },
+  confirmButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 })

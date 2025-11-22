@@ -1,179 +1,177 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native'
-import React from 'react'
-import { Ionicons } from '@expo/vector-icons'
-import { Product } from '@/services/productService'
-import productService from '@/services/productService'
+import React from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { productService, Product } from '@/services/productService'; // Import Product interface
 
 interface ProductCardProps {
-  product: Product
-  onPress: () => void
+  product: Product; // Use the actual Product type from your service
+  onPress: () => void;
 }
 
-export default function ProductCard({ product, onPress }: ProductCardProps) {
-  const discountedPrice = productService.calculateDiscountedPrice(product)
-  const avgRating = productService.calculateAverageRating(product)
-  const stockStatus = productService.getStockStatus(product)
-  const hasDiscount = parseFloat(product.salePercentage) > 0
+const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
+  const { primaryColor } = useThemeColor();
+
+  // 1. Get Pricing in USD
+  const originalPriceUSD = product.sellingPrice || 0;
+  const finalPriceUSD = productService.calculateDiscountedPrice(product);
+  
+  // 2. Convert to VND
+  const originalPriceVND = productService.convertToVND(originalPriceUSD);
+  const finalPriceVND = productService.convertToVND(finalPriceUSD);
+
+  // 3. Determine Discount Status
+  // We use the API's salePercentage string to determine if a discount exists
+  const salePercentVal = parseFloat(product.salePercentage);
+  const hasDiscount = salePercentVal > 0;
+
+  // 4. Handle Image (API returns an array 'productImages')
+  const displayImage = (product.productImages && product.productImages.length > 0)
+    ? product.productImages[0] 
+    : 'https://via.placeholder.com/150';
+
+  // 5. Handle Rating
+  const averageRating = productService.calculateAverageRating(product);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      {/* Product Image */}
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: `${product.productImages[0]}.jpg` }}
-          style={styles.image}
+          source={{ uri: displayImage }} 
+          style={styles.productImage}
           resizeMode="cover"
         />
-        
-        {/* Sale Badge */}
         {hasDiscount && (
-          <View style={styles.saleBadge}>
-            <Text style={styles.saleBadgeText}>-{product.salePercentage}%</Text>
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>
+              {Math.round(salePercentVal)}% OFF
+            </Text>
           </View>
         )}
       </View>
-
-      {/* Product Info */}
-      <View style={styles.info}>
-        {/* Brand */}
-        <Text style={styles.brand} numberOfLines={1}>
-          {product.brand}
-        </Text>
-
-        {/* Product Name */}
+      <View style={styles.content}>
         <Text style={styles.productName} numberOfLines={2}>
-          {product.productName}
+          {product.productName || 'Unknown Product'}
         </Text>
-
-        {/* Rating */}
-        <View style={styles.ratingContainer}>
-          <Ionicons 
-            name={avgRating > 0 ? 'star' : 'star-outline'} 
-            size={14} 
-            color="#FFB800" 
-          />
-          <Text style={styles.ratingText}>
-            {avgRating > 0 ? avgRating.toFixed(1) : 'New'}
-          </Text>
-          <Text style={styles.reviewCount}>
-            ({product.reviews?.length || 0})
-          </Text>
-        </View>
-
-        {/* Price */}
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>
-            {productService.formatPrice(discountedPrice)}
-          </Text>
-          {hasDiscount && (
-            <Text style={styles.originalPrice}>
-              {productService.formatPrice(product.sellingPrice)}
+          {hasDiscount ? (
+            <>
+              <Text style={styles.discountedPrice}>
+                {productService.formatPrice(finalPriceVND)}
+              </Text>
+              <Text style={styles.originalPrice}>
+                {productService.formatPrice(originalPriceVND)}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.price}>
+              {productService.formatPrice(originalPriceVND)}
             </Text>
           )}
         </View>
-
-        {/* Stock Status */}
-        <View style={[styles.stockBadge, { backgroundColor: stockStatus.color }]}>
-          <Text style={styles.stockText}>{stockStatus.status}</Text>
+        
+        <View style={styles.ratingContainer}>
+          <Ionicons name="star" size={14} color="#FFD700" />
+          <Text style={styles.ratingText}>
+            {averageRating > 0 ? averageRating.toFixed(1) : 'New'}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
-  )
-}
+  );
+});
+
+ProductCard.displayName = 'ProductCard';
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 3,
+    marginBottom: 12,
+    overflow: 'hidden',
   },
   imageContainer: {
     position: 'relative',
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#F8F9FA',
   },
-  image: {
+  productImage: {
     width: '100%',
-    height: '100%',
+    height: 150,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    backgroundColor: '#f0f0f0',
   },
-  saleBadge: {
+  discountBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
     backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  saleBadgeText: {
+  discountText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
   },
-  info: {
+  content: {
     padding: 12,
-  },
-  brand: {
-    fontSize: 12,
-    color: '#666666',
-    fontWeight: '500',
-    marginBottom: 4,
   },
   productName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
-    lineHeight: 20,
-    marginBottom: 8,
-    minHeight: 40,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#1A1A1A',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: '#999999',
-    marginLeft: 4,
+    marginBottom: 6,
+    lineHeight: 18,
+    height: 36, 
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: 4,
+    height: 22,
+    flexWrap: 'wrap', // Added to prevent overflow if prices are long
   },
   price: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#1A1A1A',
+  },
+  discountedPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginRight: 6,
   },
   originalPrice: {
-    fontSize: 12,
-    color: '#999999',
+    fontSize: 12, // Slightly smaller for better fit
+    color: '#999',
     textDecorationLine: 'line-through',
   },
-  stockBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  stockText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  ratingText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
   },
-})
+});
+
+export default ProductCard;

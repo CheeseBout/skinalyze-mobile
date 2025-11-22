@@ -27,8 +27,8 @@ export function AnalysisListScreen() {
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showToTop, setShowToTop] = useState(false);  // Add state for button visibility
-  const flatListRef = useRef(null);  // Add ref for FlatList
+  const [showToTop, setShowToTop] = useState(false);  
+  const flatListRef = useRef(null);  
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;

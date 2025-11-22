@@ -1,333 +1,269 @@
+import React, { useState, useEffect } from 'react';
 import {
-  Text,
   View,
+  Text,
   StyleSheet,
   Image,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
-  ScrollView,
-  Pressable,
-} from "react-native";
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
-
-import { useNavigation } from "@react-navigation/native";
-
-import * as Clipboard from "expo-clipboard";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-
-import paymentService, {
-  PaymentStatusResponse,
-} from "@/services/paymentService";
-import CustomAlert from "@/components/CustomAlert";
-import appointmentService from "@/services/appointmentService";
-
-const POLLING_INTERVAL_MS = 5000;
-
-interface BankingInfo {
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
-  amount: number;
-  qrCodeUrl: string;
-}
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import apiService from '@/services/apiService';
+import tokenService from '@/services/tokenService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
+  const params = useLocalSearchParams();
+  const { primaryColor } = useThemeColor();
 
-  const params = useLocalSearchParams<{
-    appointmentId: string;
-    paymentCode: string;
-    expiredAt: string;
-    bankingInfo: string;
-  }>();
-
-  const bankingInfo: BankingInfo = useMemo(() => {
+  // Get values directly from params (no JSON parsing needed)
+  const [paymentCode] = useState(params.paymentCode as string || '');
+  const [expiredAt] = useState(() => {
     try {
-      return JSON.parse(params.bankingInfo || "{}");
-    } catch (e) {
-      console.error("Failed to parse bankingInfo:", e);
-      return {} as BankingInfo;
+      return new Date(params.expiredAt as string);
+    } catch {
+      return new Date(Date.now() + 5 * 60 * 1000); // Default to 5 minutes from now
     }
-  }, [params.bankingInfo]);
+  });
+  const [qrCodeUrl] = useState(params.qrCodeUrl as string || '');
+  const [amount] = useState(parseInt(params.amount as string) || 0);
+  const [instructions] = useState(() => {
+    try {
+      return params.instructions ? JSON.parse(params.instructions as string) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [bankName] = useState(params.bankName as string || 'MB Bank');
+  const [accountNumber] = useState(params.accountNumber as string || '0347178790');
+  const [accountName] = useState(params.accountName as string || 'CHU PHAN NHAT LONG');
+  const [status, setStatus] = useState<'pending' | 'paid' | 'expired' | 'failed'>('pending');
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [qrLoadError, setQrLoadError] = useState(false); // Track QR image load errors
 
-  const [timeLeft, setTimeLeft] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-  const [isAlertVisible, setIsAlertVisible] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [leaveAction, setLeaveAction] = useState<any>(null);
-
-  // --- Countdown Timer ---
   useEffect(() => {
-    const calculateTimeLeft = () => {
-      if (!params.expiredAt) return null;
-      const expiration = new Date(params.expiredAt);
+    console.log('PaymentScreen: qrCodeUrl =', qrCodeUrl); // Debug log for QR URL
+    console.log('PaymentScreen: params =', params); // Debug log for all params
+
+    // Calculate initial time left
+    const now = new Date();
+    const diff = expiredAt.getTime() - now.getTime();
+    setTimeLeft(Math.max(0, Math.floor(diff / 1000)));
+
+    // Start polling for payment status
+    const pollInterval = setInterval(checkPaymentStatus, 5000); // Poll every 5 seconds
+
+    // Countdown timer
+    const timerInterval = setInterval(() => {
       const now = new Date();
-      const diff = expiration.getTime() - now.getTime();
+      const diff = expiredAt.getTime() - now.getTime();
+      const secondsLeft = Math.max(0, Math.floor(diff / 1000));
+      setTimeLeft(secondsLeft);
 
-      if (diff <= 0) {
-        setTimeLeft("Expired");
-        return null;
+      if (secondsLeft <= 0 && status === 'pending') {
+        setStatus('expired');
+        clearInterval(pollInterval);
+        clearInterval(timerInterval);
+        Alert.alert('Payment Expired', 'The payment time has expired. Please try again.', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
       }
-      const minutes = Math.floor(diff / 1000 / 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      return `${minutes.toString().padStart(2, "0")}:${seconds
-        .toString()
-        .padStart(2, "0")}`;
-    };
-    setTimeLeft(calculateTimeLeft());
-    const countdownTimer = setInterval(() => {
-      const newTime = calculateTimeLeft();
-      if (newTime === null) {
-        clearInterval(countdownTimer);
-      }
-      setTimeLeft(newTime);
     }, 1000);
-    return () => clearInterval(countdownTimer);
-  }, [params.expiredAt]);
 
-  // --- Polling ---
-  useEffect(() => {
-    const stopPolling = () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-        pollingInterval.current = null;
-      }
-      setIsChecking(false);
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(timerInterval);
     };
+  }, [expiredAt, status, qrCodeUrl]); // Updated deps
 
-    const checkStatus = async () => {
-      const expiration = new Date(params.expiredAt);
-      if (new Date() > expiration) {
-        if (timeLeft !== "Expired") {
-          setTimeLeft("Expired");
-          Alert.alert("Payment Expired", "The payment time has expired.");
-        }
-        stopPolling();
-        return;
-      }
-
-      if (isChecking || !params.paymentCode) return;
-
-      try {
-        setIsChecking(true);
-        const result: PaymentStatusResponse =
-          await paymentService.checkPaymentStatus(params.paymentCode);
-
-        const status = result.status.toUpperCase();
-
-        if (status === "COMPLETED") {
-          stopPolling();
-          router.replace({
-            pathname: "/(stacks)/PaymentSuccessScreen",
-            params: { appointmentId: params.appointmentId },
-          });
-        } else if (status === "EXPIRED" || status === "FAILED") {
-          stopPolling();
-          setTimeLeft("Expired");
-          Alert.alert(
-            "Payment Failed",
-            `The payment was ${result.status.toLowerCase()}.`
-          );
-        }
-      } catch (error) {
-        console.error("Polling error:", error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkStatus();
-    pollingInterval.current = setInterval(checkStatus, POLLING_INTERVAL_MS);
-    return () => stopPolling();
-  }, [params.paymentCode, params.expiredAt, router]);
-
-  // --- Back Button Warning Logic ---
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      if (isChecking || timeLeft === "Expired" || !pollingInterval.current) {
-        return;
-      }
-
-      // (Avoid default behavior of leaving the screen)
-      e.preventDefault();
-
-      setLeaveAction(e.data.action);
-      setIsAlertVisible(true);
-    });
-
-    return unsubscribe;
-  }, [navigation, isChecking, timeLeft]);
-
-  const handleAlertCancel = () => {
-    setIsAlertVisible(false);
-    setLeaveAction(null);
-  };
-
-  const handleAlertConfirm = async () => {
-    if (isCancelling) return; // (Avoid double clicks)
-
-    setIsCancelling(true);
-
-    // 1. Stop polling
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
-    }
+  const checkPaymentStatus = async () => {
+    if (status !== 'pending' || !paymentCode) return;
 
     try {
-      // 2. Call Cancel API (release slot)
-      await appointmentService.cancelPendingReservation(params.appointmentId);
+      setLoading(true);
+      const token = await tokenService.getToken();
+      if (!token) return;
+
+      const response = await apiService.get(`/payments/check/${paymentCode}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const paymentData = response.data;
+      if (paymentData.status === 'paid') {
+        setStatus('paid');
+        Alert.alert('Payment Successful!', 'Your payment has been confirmed.', [
+          {
+            text: 'View Order',
+            onPress: () => {
+              // Assuming order details screen exists; adjust path if needed
+              router.replace({
+                pathname: '/(stacks)/OrderDetailScreen',
+                params: { orderId: paymentData.order?.orderId || 'unknown' }
+              });
+            }
+          },
+          {
+            text: 'Go to Home',
+            onPress: () => router.replace('/(tabs)/HomeScreen')
+          }
+        ]);
+      }
     } catch (error) {
-      console.error("Failed to cancel reservation:", error);
-      // (No need to alert user, just let them leave)
-    }
-
-    // 3. Close popup and allow leaving
-    setIsCancelling(false);
-    setIsAlertVisible(false);
-    if (leaveAction) {
-      navigation.dispatch(leaveAction);
+      console.error('Error checking payment status:', error);
+      setStatus('failed');
+      Alert.alert('Error', 'Failed to check payment status. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const copyToClipboard = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
-    Alert.alert("Copied!", `${label} has been copied to your clipboard.`);
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const formatAmount = (amount: number) => {
+    return `${amount.toLocaleString()} VND`;
+  };
+
+  const handleQrError = () => {
+    console.error('QR Code failed to load:', qrCodeUrl); // Debug log for image error
+    setQrLoadError(true);
+  };
+
+  if (status === 'paid') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.successContainer}>
+          <Ionicons name="checkmark-circle" size={80} color="#34C759" />
+          <Text style={styles.successTitle}>Payment Successful!</Text>
+          <Text style={styles.successSubtitle}>Your order is being processed.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="close-circle" size={80} color="#FF3B30" />
+          <Text style={styles.errorTitle}>Payment Expired</Text>
+          <Text style={styles.errorSubtitle}>Please try again.</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: primaryColor }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.retryButtonText}>Back to Checkout</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Bank Transfer Payment</Text>
+        <View style={styles.backButton} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {timeLeft === "Expired" ? (
-          <View style={styles.expiredContainer}>
-            <Text style={styles.title}>Payment Expired</Text>
-            <Text style={styles.instructions}>
-              This payment session has expired. Please go back and try to book
-              again.
-            </Text>
-            <Pressable
-              style={styles.backButton}
-              onPress={() => router.back()} // (Go back to Confirmation)
-            >
-              <Text style={styles.backButtonText}>Go Back</Text>
-            </Pressable>
+        {/* QR Code Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Scan QR Code to Pay</Text>
+          <View style={styles.qrContainer}>
+            {qrCodeUrl && !qrLoadError ? (
+              <Image
+                source={{ uri: qrCodeUrl }}
+                style={styles.qrCode}
+                resizeMode="contain"
+                onError={handleQrError}
+              />
+            ) : (
+              <View style={styles.qrPlaceholder}>
+                <Ionicons name="qr-code-outline" size={100} color="#CCC" />
+                <Text style={styles.qrPlaceholderText}>
+                  {qrLoadError ? 'QR Code failed to load' : 'QR Code not available'}
+                </Text>
+              </View>
+            )}
           </View>
-        ) : (
-          <>
-            <Text style={styles.title}>Waiting for Payment</Text>
-            <Text style={styles.instructions}>
-              Scan the QR code to complete the payment
-            </Text>
+          <Text style={styles.qrSubtitle}>Use your banking app to scan this QR code</Text>
+        </View>
 
-            <Image
-              style={styles.qrCode}
-              source={{ uri: bankingInfo.qrCodeUrl }}
-              resizeMode="contain"
-            />
-
-            <View style={styles.timerBox}>
-              <Text style={styles.timerText}>{timeLeft || "..."}</Text>
-              <Text style={styles.timerLabel}>Time Left</Text>
+        {/* Payment Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <View style={styles.detailsCard}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Amount</Text>
+              <Text style={styles.detailValue}>{formatAmount(amount)}</Text>
             </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Payment Code</Text>
+              <Text style={styles.detailValue}>{paymentCode || 'N/A'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Time Left</Text>
+              <Text style={[styles.detailValue, timeLeft < 60 && styles.detailValueUrgent]}>
+                {formatTime(timeLeft)}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-            <View style={styles.infoCard}>
-              <Text style={styles.cardTitle}>Bank Transfer Details</Text>
-
-              <View style={styles.row}>
-                <Text style={styles.label}>Amount:</Text>
-                <Text style={styles.valueAmount}>
-                  {Number(bankingInfo.amount || 0).toLocaleString("vi-VN")} VND
-                </Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.row}>
-                <Text style={styles.label}>Bank:</Text>
-                <Text style={styles.value}>{bankingInfo.bankName}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Account Name:</Text>
-                <Text style={styles.value}>{bankingInfo.accountName}</Text>
-              </View>
-
-              {/* --- Update Copy Button UI (Disabled) --- */}
-              <View style={styles.row}>
-                <Text style={styles.label}>Account Number:</Text>
-                <View style={styles.copyableValueContainer}>
-                  <Text style={styles.value} selectable>
-                    {bankingInfo.accountNumber}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      copyToClipboard(
-                        bankingInfo.accountNumber,
-                        "Account Number"
-                      )
-                    }
-                    style={styles.copyButton}
-                  >
-                    <MaterialCommunityIcons
-                      name="content-copy"
-                      size={20}
-                      color="#666"
-                    />
-                  </Pressable>
+        {/* Banking Instructions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Instructions</Text>
+          <View style={styles.instructionsCard}>
+            {instructions.length > 0 ? (
+              instructions.map((instruction: string, index: number) => (
+                <View key={index} style={styles.instructionRow}>
+                  <Text style={styles.instructionText}>{instruction}</Text>
                 </View>
-              </View>
+              ))
+            ) : (
+              <Text style={styles.instructionText}>No instructions available</Text>
+            )}
+          </View>
+        </View>
 
-              <View style={styles.divider} />
-              <Text style={styles.contentLabel}>
-                REQUIRED Transfer Content:
-              </Text>
-
-              {/* --- Update Copy Button UI (Disabled) --- */}
-              <View style={styles.contentBox}>
-                <Text style={styles.valueCode} selectable>
-                  {params.paymentCode}
-                </Text>
-                <Pressable
-                  onPress={() =>
-                    copyToClipboard(params.paymentCode, "Transfer Content")
-                  }
-                >
-                  <MaterialCommunityIcons
-                    name="content-copy"
-                    size={24}
-                    color="#d9534f"
-                  />
-                </Pressable>
-              </View>
-
-              <Text style={styles.note}>
-                Please use the exact code above as the transfer content.
-              </Text>
+        {/* Banking Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bank Account Details</Text>
+          <View style={styles.bankingCard}>
+            <View style={styles.bankingRow}>
+              <Text style={styles.bankingLabel}>Bank</Text>
+              <Text style={styles.bankingValue}>{bankName}</Text>
             </View>
-
-            <View style={styles.statusContainer}>
-              {isChecking && <ActivityIndicator size="small" />}
-              <Text style={styles.statusText}>
-                {isChecking
-                  ? "Checking payment status..."
-                  : "Waiting for payment confirmation..."}
-              </Text>
+            <View style={styles.bankingRow}>
+              <Text style={styles.bankingLabel}>Account Number</Text>
+              <Text style={styles.bankingValue}>{accountNumber}</Text>
             </View>
-          </>
-        )}
+            <View style={styles.bankingRow}>
+              <Text style={styles.bankingLabel}>Account Name</Text>
+              <Text style={styles.bankingValue}>{accountName}</Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
-      <CustomAlert
-        visible={isAlertVisible}
-        title="Leave Payment Page?"
-        message="If you leave now, this reservation will be cancelled to free up the slot for others."
-        confirmText="Leave & Cancel"
-        cancelText="Stay"
-        onConfirm={handleAlertConfirm}
-        onCancel={handleAlertCancel}
-      />
-      {isCancelling && (
+
+      {/* Loading Overlay */}
+      {loading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.loadingText}>Cancelling...</Text>
+          <ActivityIndicator size="large" color={primaryColor} />
+          <Text style={styles.loadingText}>Checking payment status...</Text>
         </View>
       )}
     </View>
@@ -337,154 +273,197 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5ff",
+    backgroundColor: '#F8F9FA',
   },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: "center",
-    padding: 20,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  instructions: {
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  qrCode: {
-    width: 250,
-    height: 250,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 8,
-  },
-  timerBox: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  timerText: {
-    fontSize: 40,
-    fontWeight: "bold",
-    color: "#d9534f",
-  },
-  timerLabel: {
-    fontSize: 14,
-    color: "#d9534f",
-  },
-  infoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    width: "100%",
-    marginTop: 20,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 6,
-  },
-  label: {
-    fontSize: 15,
-    color: "#666",
-  },
-  value: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  valueAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#007bff",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 8,
-  },
-  contentLabel: {
-    fontSize: 15,
-    color: "#666",
-    marginTop: 8,
-  },
-  contentBox: {
-    backgroundColor: "#f5f5f5",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 4,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  valueCode: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#d9534f",
-  },
-  note: {
-    fontSize: 13,
-    color: "#888",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  statusContainer: {
-    flexDirection: "row",
-    marginTop: 20,
-    marginBottom: 40,
-    alignItems: "center",
-  },
-  statusText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#555",
-  },
-  expiredContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   backButton: {
-    backgroundColor: "#007bff",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginTop: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backButtonText: {
-    color: "#fff",
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 12,
   },
-  copyableValueContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  qrContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
-  copyButton: {
-    marginLeft: 8,
-    padding: 4,
+  qrCode: {
+    width: 200,
+    height: 200,
   },
-
+  qrSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  detailsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    fontSize: 15,
+    color: '#666',
+  },
+  detailValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  detailValueUrgent: {
+    color: '#FF3B30',
+  },
+  instructionsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  
+  instructionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  bankingCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  bankingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  bankingLabel: {
+    fontSize: 15,
+    color: '#666',
+  },
+  bankingValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#34C759',
+    marginTop: 16,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginTop: 16,
+  },
+  errorSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 8,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    color: "#fff",
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 16,
+    color: '#FFF',
+  },
+  qrPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 200,
+    height: 200,
+  },
+  qrPlaceholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 });

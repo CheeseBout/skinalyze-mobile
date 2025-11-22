@@ -38,9 +38,6 @@ export default function WelcomeScreen() {
 
       {/* Content Section with Cards */}
       <View style={styles.contentContainer}>
-        <Text style={styles.welcomeTitle}>
-          Start Your Skin{'\n'}Care Journey
-        </Text>
         <Text style={styles.welcomeDescription}>
           Get instant AI-powered analysis and personalized recommendations tailored to your unique skin needs
         </Text>
@@ -194,6 +191,7 @@ const styles = StyleSheet.create({
     gap: 12,
     flexWrap: 'wrap',
     justifyContent: 'center',
+    marginBottom: 40,
   },
   pill: {
     borderWidth: 1,
