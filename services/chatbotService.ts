@@ -1,5 +1,8 @@
-import apiService from "./apiService";
+import apiService from "./apiService"; // Kept for other methods
 import tokenService from "./tokenService";
+// We need the BASE_URL. Usually it's in apiService or config. 
+// Assuming a standard location or hardcoding for safety based on your logs:
+const BASE_URL = "http://192.168.1.35:3000/api/v1"; 
 
 export interface ChatMessage {
   messageId: string;
@@ -23,11 +26,6 @@ interface CreateChatPayload {
   userId: string;
 }
 
-interface SendMessagePayload {
-  chatId: string;
-  messageContent: string;
-}
-
 interface SendMessageResponse {
   userMessage: ChatMessage;
   aiMessage: ChatMessage;
@@ -40,26 +38,14 @@ interface DeleteResponse {
 class ChatbotService {
   /**
    * Create a new chat session
-   * Automatically generates an AI greeting message with "New chat" title
    */
   async createChatSession(userId: string): Promise<ChatSession> {
     try {
-      console.log('💬 Creating new chat session for user:', userId);
       const token = await tokenService.getToken();
-
-      if (!token) {
-        throw new Error("Authentication is required");
-      }
+      if (!token) throw new Error("Authentication is required");
 
       const payload: CreateChatPayload = { userId };
-
-      const response = await apiService.post<ChatSession>(
-        "/chat-sessions",
-        payload,
-      );
-
-      console.log('✅ Chat session created:', response.chatId);
-      console.log('🤖 AI greeting included:', response.messages?.[0]?.messageContent);
+      const response = await apiService.post<ChatSession>("/chat-sessions", payload);
       return response;
     } catch (error) {
       console.error('❌ Error creating chat session:', error);
@@ -69,22 +55,13 @@ class ChatbotService {
 
   /**
    * Get all chat sessions for a specific user
-   * Returns sessions ordered by most recent (updatedAt DESC)
    */
   async getChatSessionsByUserId(userId: string): Promise<ChatSession[]> {
     try {
-      console.log('📋 Fetching chat sessions for user:', userId);
       const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication is required");
 
-      if (!token) {
-        throw new Error("Authentication is required");
-      }
-
-      const response = await apiService.get<ChatSession[]>(
-        `/chat-sessions/user/${userId}`,
-      );
-
-      console.log(`✅ Loaded ${response.length} chat sessions`);
+      const response = await apiService.get<ChatSession[]>(`/chat-sessions/user/${userId}`);
       return response;
     } catch (error) {
       console.error('❌ Error fetching chat sessions:', error);
@@ -94,22 +71,13 @@ class ChatbotService {
 
   /**
    * Get a specific chat session with all messages
-   * Messages are sorted chronologically (oldest first)
    */
   async getChatSessionById(chatId: string): Promise<ChatSession> {
     try {
-      console.log('📋 Fetching chat session:', chatId);
       const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication is required");
 
-      if (!token) {
-        throw new Error("Authentication is required");
-      }
-
-      const response = await apiService.get<ChatSession>(
-        `/chat-sessions/${chatId}`,
-      );
-
-      console.log(`✅ Chat session loaded with ${response.messages?.length || 0} messages`);
+      const response = await apiService.get<ChatSession>(`/chat-sessions/${chatId}`);
       return response;
     } catch (error) {
       console.error('❌ Error fetching chat session:', error);
@@ -118,55 +86,33 @@ class ChatbotService {
   }
 
   /**
-   * Delete a chat session and all associated messages (CASCADE)
+   * Delete a chat session
    */
   async deleteChatSession(chatId: string): Promise<void> {
     try {
-      console.log('🗑️ Deleting chat session:', chatId);
       const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication is required");
 
-      if (!token) {
-        throw new Error("Authentication is required");
-      }
-
-      // API returns { message: "Chat session deleted successfully" }
-      const response = await apiService.delete<DeleteResponse>(
-        `/chat-sessions/${chatId}`, 
-      );
-
+      const response = await apiService.delete<DeleteResponse>(`/chat-sessions/${chatId}`);
       console.log('✅ Chat session deleted:', response.message);
     } catch (error: any) {
       console.error('❌ Error deleting chat session:', error);
-      
-      // Check if it's a 404 (already deleted) - don't throw error
       if (error?.message?.includes('not found') || error?.message?.includes('404')) {
-        console.log('ℹ️ Chat session already deleted or not found');
-        return; // Return successfully
+        return; 
       }
-      
-      // For other errors, throw
       throw new Error("Failed to delete chat session");
     }
   }
 
   /**
    * Get all messages in a chat session
-   * Returns messages ordered chronologically (oldest first)
    */
   async getMessagesByChatId(chatId: string): Promise<ChatMessage[]> {
     try {
-      console.log('📥 Fetching messages for chat:', chatId);
       const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication is required");
 
-      if (!token) {
-        throw new Error("Authentication is required");
-      }
-
-      const response = await apiService.get<ChatMessage[]>(
-        `/chat-messages/chat/${chatId}`,
-      );
-
-      console.log(`✅ Loaded ${response.length} messages`);
+      const response = await apiService.get<ChatMessage[]>(`/chat-messages/chat/${chatId}`);
       return response;
     } catch (error) {
       console.error('❌ Error fetching messages:', error);
@@ -175,44 +121,60 @@ class ChatbotService {
   }
 
   /**
-   * Send user message and get AI response using Gemini 2.0 Flash
-   * Automatically:
-   * 1. Saves user message
-   * 2. Generates AI response with conversation context
-   * 3. Updates chat title on first user message (if title is "New chat")
-   * 4. Returns both user and AI messages
+   * Send user message (Text + Optional Image)
+   * Uses native fetch to handle FormData correctly
    */
   async sendMessage(
     chatId: string,
-    messageContent: string
+    messageContent: string,
+    imageUri?: string | null
   ): Promise<SendMessageResponse> {
     try {
-      console.log('🤖 Sending message and generating AI response...');
-      console.log('📝 Message:', messageContent);
-      console.log('💬 Chat ID:', chatId);
-      
+      console.log('🤖 Sending message...');
       const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication is required");
 
-      if (!token) {
-        throw new Error("Authentication is required");
+      // 1. Create FormData
+      const formData = new FormData();
+      formData.append('chatId', chatId);
+      formData.append('messageContent', messageContent);
+
+      if (imageUri) {
+        const filename = imageUri.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+        // @ts-ignore: React Native FormData requires this specific shape
+        formData.append('image', {
+          uri: imageUri,
+          name: filename,
+          type: type,
+        });
+        console.log('📸 Attaching image:', filename);
       }
 
-      const payload: SendMessagePayload = {
-        chatId,
-        messageContent,
-      };
+      // 2. Use Native Fetch instead of apiService/Axios
+      // This avoids issues where Axios interceptors might force Content-Type: application/json
+      const response = await fetch(`${BASE_URL}/chat-messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // IMPORTANT: Do NOT set Content-Type here. 
+          // Fetch will automatically set 'multipart/form-data; boundary=...'
+        },
+        body: formData,
+      });
 
-      const response = await apiService.post<SendMessageResponse>(
-        "/chat-messages",
-        payload,
-      );
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('🔥 API Error Details:', responseData);
+        throw new Error(responseData.message || "Failed to send message");
+      }
 
       console.log('✅ Message sent successfully');
-      console.log('👤 User message ID:', response.userMessage.messageId);
-      console.log('🤖 AI response ID:', response.aiMessage.messageId);
-      console.log('📖 AI response preview:', response.aiMessage.messageContent.substring(0, 100) + '...');
+      return responseData as SendMessageResponse;
 
-      return response;
     } catch (error) {
       console.error('❌ Error sending message:', error);
       throw error instanceof Error ? error : new Error("Failed to send message");

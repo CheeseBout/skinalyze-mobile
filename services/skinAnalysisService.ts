@@ -14,7 +14,7 @@ export interface SkinAnalysisResult {
   aiDetectedDisease: string | null;
   aiDetectedCondition: string | null;
   aiRecommendedProducts: string[] | null;
-  mask: string | string[] | null; // Can be string or array
+  mask: string | string[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,11 +58,13 @@ class SkinAnalysisService {
    * Perform disease detection analysis
    * @param userId - User UUID from auth token
    * @param imageUri - Local image URI from camera
+   * @param note - Optional note indicating the area ('facial' or 'other')
    * @returns Analysis result with detected disease
    */
   async detectDisease(
     userId: string,
-    imageUri: string
+    imageUri: string,
+    note?: string
   ): Promise<SkinAnalysisResult> {
     try {
       const token = await tokenService.getToken();
@@ -87,7 +89,12 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
-      console.log("📤 Uploading disease detection image...");
+      // Add the note (facial or other) if provided
+      if (note) {
+        formData.append("notes", note);
+      }
+
+      console.log(`📤 Uploading disease detection image (Area: ${note || 'unspecified'})...`);
 
       // Use apiService.uploadFile instead of fetch
       const result = await apiService.uploadFile<SkinAnalysisResponse>(

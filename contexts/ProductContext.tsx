@@ -49,8 +49,6 @@ export function ProductProvider({ children }: ProductProviderProps) {
       setIsLoading(true);
       setError(null);
 
-      console.log('📦 Fetching products data...');
-
       // Fetch products and categories in parallel
       const [productsData, categoriesData] = await Promise.all([
         productService.getAllProducts(),
@@ -74,11 +72,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
         (product) => parseFloat(product.salePercentage) > 0
       );
       setSaleProducts(onSaleProducts);
-
-      console.log('✅ Products data loaded successfully');
-      console.log(`📊 Loaded ${productsData.length} products, ${categoriesData.length} categories, ${onSaleProducts.length} on sale`);
     } catch (err: any) {
-      console.error('❌ Error fetching products:', err);
       setError(err.message || 'Failed to load products');
     } finally {
       setIsLoading(false);
@@ -86,7 +80,6 @@ export function ProductProvider({ children }: ProductProviderProps) {
   };
 
   const refreshProducts = async () => {
-    console.log('🔄 Refreshing products...');
     await fetchAllData();
   };
 

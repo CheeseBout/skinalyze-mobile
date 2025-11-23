@@ -34,9 +34,11 @@ export default function AnalyzeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    // Reset values
     fadeAnim.setValue(0);
     slideAnim.setValue(30);
     
+    // Play animation on state change
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -97,15 +99,21 @@ export default function AnalyzeScreen() {
       let result;
       
       if (detectionType === 'skinCondition') {
+        // 1. Skin Condition Analysis
         result = await skinAnalysisService.detectCondition(user.userId, imageUri);
+      
       } else if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
-        result = await skinAnalysisService.detectDisease(user.userId, imageUri);
+        // 2. Disease Detection (With Note)
+        const note = detectionType === 'facialDisease' ? 'facial' : 'other';
+        result = await skinAnalysisService.detectDisease(user.userId, imageUri, note);
       }
 
+      // Reset State
       setScreenState('options');
       setDetectionType(null);
       setIsAnalyzing(false);
       
+      // Navigate to Results
       router.push({
         pathname: '/(stacks)/AnalysisDetailScreen',
         params: {
@@ -129,7 +137,7 @@ export default function AnalyzeScreen() {
     }
   };
 
-  // Camera Screen with Loading Overlay
+  // --- RENDER: Camera Screen with Loading Overlay ---
   if (screenState === 'camera') {
     if (detectionType === 'skinCondition' || detectionType === 'facialDisease') {
       const title = detectionType === 'skinCondition' 
@@ -159,12 +167,13 @@ export default function AnalyzeScreen() {
       );
     }
 
+    // Back camera for "Other" areas
     return (
       <>
         <OtherAreaCamera 
           onCapture={handleCapture}
           onClose={handleBack}
-          title="Hold the camera close for best image quality and detection accuracy"
+          title="Hold the camera close for best image quality"
         />
         {isAnalyzing && (
           <View style={styles.loadingOverlay}>
@@ -181,7 +190,7 @@ export default function AnalyzeScreen() {
     );
   }
 
-  // Options Screen
+  // --- RENDER: Main Options Screen ---
   if (screenState === 'options') {
     return (
       <View style={styles.container}>
@@ -201,10 +210,7 @@ export default function AnalyzeScreen() {
           <Animated.View 
             style={[
               styles.header,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
             ]}
           >
             <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
@@ -218,12 +224,10 @@ export default function AnalyzeScreen() {
           <Animated.View 
             style={[
               styles.cardsContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
             ]}
           >
+            {/* Card 1: Skin Condition */}
             <TouchableOpacity 
               style={styles.featureCard}
               onPress={handleSkinConditionDetection}
@@ -263,6 +267,7 @@ export default function AnalyzeScreen() {
               </View>
             </TouchableOpacity>
 
+            {/* Card 2: Disease Detection */}
             <TouchableOpacity 
               style={styles.featureCard}
               onPress={handleDiseaseDetection}
@@ -307,10 +312,7 @@ export default function AnalyzeScreen() {
           <Animated.View 
             style={[
               styles.disclaimer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
             ]}
           >
             <View style={styles.disclaimerIconWrapper}>
@@ -328,12 +330,11 @@ export default function AnalyzeScreen() {
     );
   }
 
-  // Disease Options Screen
+  // --- RENDER: Disease Options Screen (Sub-menu) ---
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
       
-      {/* Decorative Background */}
       <View style={styles.backgroundPattern}>
         <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
         <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
@@ -347,10 +348,7 @@ export default function AnalyzeScreen() {
         <Animated.View 
           style={[
             styles.backButtonContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
           <TouchableOpacity 
@@ -366,10 +364,7 @@ export default function AnalyzeScreen() {
         <Animated.View 
           style={[
             styles.header,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
           <View style={[styles.headerIcon, { backgroundColor: '#FFE8F0' }]}>
@@ -383,10 +378,7 @@ export default function AnalyzeScreen() {
         <Animated.View 
           style={[
             styles.cardsContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
           <TouchableOpacity 
@@ -428,10 +420,7 @@ export default function AnalyzeScreen() {
         <Animated.View 
           style={[
             styles.disclaimer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
           <View style={styles.disclaimerIconWrapper}>

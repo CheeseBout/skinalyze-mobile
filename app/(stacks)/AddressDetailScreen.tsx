@@ -135,25 +135,29 @@ export default function AddressDetailScreen() {
       return
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const token = await tokenService.getToken()
+      const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Error', 'Please login again')
-        return
+        Alert.alert('Error', 'Please login again');
+        return;
       }
 
       if (isEditMode && addressId) {
-        await userService.updateAddress(token, addressId as string, formData as any)
+        await userService.updateAddress(token, addressId as string, formData as any);
         Alert.alert('Success', 'Address updated successfully', [
           {
             text: 'OK',
             onPress: async () => {
-              await refreshUser()
-              router.back()
+              try {
+                await refreshUser(); // Ensure it completes
+              } catch (error) {
+                console.error('Failed to refresh user after update:', error);
+              }
+              router.back();
             }
           }
-        ])
+        ]);
       } else {
         if (!user?.userId) {
           Alert.alert('Error', 'User information not found')
@@ -168,16 +172,20 @@ export default function AddressDetailScreen() {
           {
             text: 'OK',
             onPress: async () => {
-              await refreshUser()
-              router.back()
+              try {
+                await refreshUser(); // Ensure it completes
+              } catch (error) {
+                console.error('Failed to refresh user after create:', error);
+              }
+              router.back();
             }
           }
-        ])
+        ]);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || `Failed to ${isEditMode ? 'update' : 'create'} address`)
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -192,24 +200,28 @@ export default function AddressDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true)
-              const token = await tokenService.getToken()
-              if (!token || !addressId) return
+              setLoading(true);
+              const token = await tokenService.getToken();
+              if (!token || !addressId) return;
 
-              await userService.deleteAddress(token, addressId as string)
+              await userService.deleteAddress(token, addressId as string);
               Alert.alert('Success', 'Address deleted successfully', [
                 {
                   text: 'OK',
                   onPress: async () => {
-                    await refreshUser()
-                    router.back()
+                    try {
+                      await refreshUser(); // Ensure it completes
+                    } catch (error) {
+                      console.error('Failed to refresh user after delete:', error);
+                    }
+                    router.back();
                   }
                 }
-              ])
+              ]);
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete address')
             } finally {
-              setLoading(false)
+              setLoading(false);
             }
           }
         }

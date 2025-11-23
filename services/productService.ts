@@ -67,25 +67,20 @@ class ProductService {
       
       // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {
-        console.log(`All categories: `, response)
         return response;
       }
       if (response.data && Array.isArray(response.data)) {
-        console.log(`All categories: `, response.data)
         return response.data;
       }
       
-      console.error('Unexpected categories response structure:', response);
       return [];
     } catch (error) {
-      console.error('❌ Error fetching categories:', error);
       throw new Error('Failed to fetch categories');
     }
   }
 
   async getCategoryById(categoryId: string): Promise<Category> {
     try {
-      console.log(`📦 Fetching category ${categoryId}...`);
       const response = await apiService.get<CategoryResponse>(`/categories/${categoryId}`);
       
       if (response.data) {
@@ -94,7 +89,6 @@ class ProductService {
       
       throw new Error('Invalid category response structure');
     } catch (error) {
-      console.error('❌ Error fetching category by ID:', error);
       throw new Error('Failed to fetch category by ID');
     }
   }
@@ -103,27 +97,21 @@ class ProductService {
     try {
       const response = await apiService.get<ProductListResponse>('/products');
       
-      // The response might be directly the data array or wrapped in response.data
       if (Array.isArray(response)) {
-        // console.log(`📊 Loaded ${response.length} products`);
         return response;
       }
       if (response.data && Array.isArray(response.data)) {
-        // console.log(`📊 Loaded ${response.data.length} products`);
         return response.data;
       }
       
-      console.error('Unexpected products response structure:', response);
       return [];
     } catch (error) {
-      console.error('❌ Error fetching all products:', error);
       throw new Error('Failed to fetch products');
     }
   }
 
   async getProductById(productId: string): Promise<Product> {
     try {
-      console.log(`🛍️ Fetching product ${productId}...`);
       const response = await apiService.get<ProductResponse>(`/products/${productId}`);
       
       if (response.data) {
@@ -132,14 +120,12 @@ class ProductService {
       
       throw new Error('Invalid product response structure');
     } catch (error) {
-      console.error('❌ Error fetching product by ID:', error);
       throw new Error('Failed to fetch product by ID');
     }
   }
 
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
     try {
-      console.log(`🛍️ Fetching products for category ${categoryId}...`);
       const response = await apiService.get<ProductListResponse>(`/products/category/${categoryId}`);
       
       if (Array.isArray(response)) {
@@ -151,7 +137,6 @@ class ProductService {
       
       return [];
     } catch (error) {
-      console.error('❌ Error fetching products by category:', error);
       throw new Error('Failed to fetch products by category');
     }
   }
@@ -161,13 +146,10 @@ class ProductService {
    */
   async getProductsOnSale(): Promise<Product[]> {
     try {
-      console.log('💰 Fetching sale products...');
       const allProducts = await this.getAllProducts();
       const saleProducts = allProducts.filter(product => parseFloat(product.salePercentage) > 0);
-      console.log(`✅ Found ${saleProducts.length} products on sale`);
       return saleProducts;
     } catch (error) {
-      console.error('❌ Error fetching sale products:', error);
       // Gracefully handle error by returning empty array
       return [];
     }
@@ -178,7 +160,6 @@ class ProductService {
    */
   async searchProducts(query: string): Promise<Product[]> {
     try {
-      console.log(`🔍 Searching products with query: ${query}...`);
       const allProducts = await this.getAllProducts();
       
       if (!query.trim()) {
@@ -193,10 +174,8 @@ class ProductService {
           product.brand.toLowerCase().includes(lowerQuery)
       );
       
-      console.log(`✅ Found ${results.length} products matching "${query}"`);
       return results;
     } catch (error) {
-      console.error('❌ Error searching products:', error);
       throw new Error('Failed to search products');
     }
   }
