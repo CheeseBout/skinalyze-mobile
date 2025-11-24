@@ -20,50 +20,50 @@ export function useNotificationWebSocket() {
   // Kết nối WebSocket khi user đăng nhập
   useEffect(() => {
     if (user) {
-      console.log("╔══════════════════════════════════════════════════╗");
-      console.log("║  � USER LOGGED IN - CONNECTING WEBSOCKET       ║");
-      console.log("╚══════════════════════════════════════════════════╝");
-      console.log("👤 User ID:", user.userId);
-      console.log("📧 Email:", user.email);
+      ("╔══════════════════════════════════════════════════╗");
+      ("║  � USER LOGGED IN - CONNECTING WEBSOCKET       ║");
+      ("╚══════════════════════════════════════════════════╝");
+      ("👤 User ID:", user.userId);
+      ("📧 Email:", user.email);
 
       // Xin permission thông báo trước khi kết nối WebSocket
       requestNotificationPermission().then((granted) => {
         if (granted) {
-          console.log("✅ Notification permission granted");
+          ("✅ Notification permission granted");
         } else {
-          console.log("⚠️ Notification permission denied");
+          ("⚠️ Notification permission denied");
         }
       });
 
       // Request permission cho local notifications
       localNotificationService.requestPermissions().then((granted) => {
         if (granted) {
-          console.log("✅ Local notification permission granted");
+          ("✅ Local notification permission granted");
           // Configure notification channels
           localNotificationService.configure();
         } else {
-          console.log("⚠️ Local notification permission denied");
+          ("⚠️ Local notification permission denied");
         }
       });
 
-      console.log("🔌 Initiating WebSocket connection...");
+      ("🔌 Initiating WebSocket connection...");
       notificationWebSocketService.connect();
     } else {
-      console.log("╔══════════════════════════════════════════════════╗");
-      console.log("║  � USER LOGGED OUT - DISCONNECTING WEBSOCKET   ║");
-      console.log("╚══════════════════════════════════════════════════╝");
-      console.log("🔌 Closing WebSocket connection...");
+      ("╔══════════════════════════════════════════════════╗");
+      ("║  � USER LOGGED OUT - DISCONNECTING WEBSOCKET   ║");
+      ("╚══════════════════════════════════════════════════╝");
+      ("🔌 Closing WebSocket connection...");
       notificationWebSocketService.disconnect();
-      console.log("🧹 Clearing notifications list...");
+      ("🧹 Clearing notifications list...");
       setNotifications([]);
-      console.log("🧹 Resetting unread count...");
+      ("🧹 Resetting unread count...");
       setUnreadCount(0);
-      console.log("✅ Cleanup completed!");
+      ("✅ Cleanup completed!");
     }
 
     return () => {
       // Cleanup khi unmount
-      console.log("🧹 Hook unmounting, disconnecting WebSocket...");
+      ("🧹 Hook unmounting, disconnecting WebSocket...");
       notificationWebSocketService.disconnect();
     };
   }, [user]);
@@ -72,20 +72,20 @@ export function useNotificationWebSocket() {
   useEffect(() => {
     const unsubscribe = notificationWebSocketService.onConnectionChange(
       (connected) => {
-        console.log("╔══════════════════════════════════════════════════╗");
+        ("╔══════════════════════════════════════════════════╗");
         if (connected) {
-          console.log("║  ✅ HOOK: WEBSOCKET CONNECTED!                  ║");
-          console.log("╚══════════════════════════════════════════════════╝");
-          console.log("🟢 Status: CONNECTED");
+          ("║  ✅ HOOK: WEBSOCKET CONNECTED!                  ║");
+          ("╚══════════════════════════════════════════════════╝");
+          ("🟢 Status: CONNECTED");
         } else {
-          console.log("║  ❌ HOOK: WEBSOCKET DISCONNECTED!               ║");
-          console.log("╚══════════════════════════════════════════════════╝");
-          console.log("🔴 Status: DISCONNECTED");
+          ("║  ❌ HOOK: WEBSOCKET DISCONNECTED!               ║");
+          ("╚══════════════════════════════════════════════════╝");
+          ("🔴 Status: DISCONNECTED");
         }
-        console.log("⏰ Status changed at:", new Date().toLocaleString());
-        console.log("🔄 Updating state...");
+        ("⏰ Status changed at:", new Date().toLocaleString());
+        ("🔄 Updating state...");
         setIsConnected(connected);
-        console.log("✅ State updated! isConnected =", connected);
+        ("✅ State updated! isConnected =", connected);
       }
     );
 
@@ -96,19 +96,19 @@ export function useNotificationWebSocket() {
   useEffect(() => {
     const unsubscribe = notificationWebSocketService.onNewNotification(
       (notification) => {
-        console.log("╔══════════════════════════════════════════════════╗");
-        console.log("║  📱 HOOK: NEW NOTIFICATION RECEIVED!            ║");
-        console.log("╚══════════════════════════════════════════════════╝");
-        console.log("📝 Title:", notification.title);
-        console.log("💬 Message:", notification.message);
-        console.log("🏷️  Type:", notification.type);
-        console.log("⚠️  Priority:", notification.priority);
-        console.log("🆔 ID:", notification.notificationId);
-        console.log(
+        ("╔══════════════════════════════════════════════════╗");
+        ("║  📱 HOOK: NEW NOTIFICATION RECEIVED!            ║");
+        ("╚══════════════════════════════════════════════════╝");
+        ("📝 Title:", notification.title);
+        ("💬 Message:", notification.message);
+        ("🏷️  Type:", notification.type);
+        ("⚠️  Priority:", notification.priority);
+        ("🆔 ID:", notification.notificationId);
+        (
           "⏰ Created:",
           new Date(notification.createdAt).toLocaleString()
         );
-        console.log("🔄 Adding to notifications list...");
+        ("🔄 Adding to notifications list...");
 
         // Hiển thị local notification popup
         localNotificationService.showNotification(notification);
@@ -116,7 +116,7 @@ export function useNotificationWebSocket() {
         // Thêm vào đầu danh sách
         setNotifications((prev) => {
           const updated = [notification, ...prev];
-          console.log(
+          (
             `✅ List updated! Total: ${updated.length} notifications`
           );
           return updated;
@@ -130,17 +130,17 @@ export function useNotificationWebSocket() {
   // Lắng nghe unread count
   useEffect(() => {
     const unsubscribe = notificationWebSocketService.onUnreadCount((data) => {
-      console.log("╔══════════════════════════════════════════════════╗");
-      console.log("║  📊 HOOK: UNREAD COUNT UPDATED!                 ║");
-      console.log("╚══════════════════════════════════════════════════╝");
-      console.log("🔢 New count:", data.count);
-      console.log("⏰ Updated at:", new Date().toLocaleString());
+      ("╔══════════════════════════════════════════════════╗");
+      ("║  📊 HOOK: UNREAD COUNT UPDATED!                 ║");
+      ("╚══════════════════════════════════════════════════╝");
+      ("🔢 New count:", data.count);
+      ("⏰ Updated at:", new Date().toLocaleString());
       setUnreadCount(data.count);
 
       // Cập nhật badge count cho iOS
       localNotificationService.setBadgeCount(data.count);
 
-      console.log("✅ State updated successfully!");
+      ("✅ State updated successfully!");
     });
 
     return unsubscribe;
@@ -150,12 +150,12 @@ export function useNotificationWebSocket() {
   useEffect(() => {
     const unsubscribe = notificationWebSocketService.onNotificationsRead(
       (data) => {
-        console.log("╔══════════════════════════════════════════════════╗");
-        console.log("║  ✅ HOOK: NOTIFICATIONS MARKED AS READ!         ║");
-        console.log("╚══════════════════════════════════════════════════╝");
-        console.log("📋 IDs:", data.notificationIds);
-        console.log("🔢 Count:", data.notificationIds.length);
-        console.log("🔄 Updating notification states...");
+        ("╔══════════════════════════════════════════════════╗");
+        ("║  ✅ HOOK: NOTIFICATIONS MARKED AS READ!         ║");
+        ("╚══════════════════════════════════════════════════╝");
+        ("📋 IDs:", data.notificationIds);
+        ("🔢 Count:", data.notificationIds.length);
+        ("🔄 Updating notification states...");
 
         // Cập nhật trạng thái đã đọc trong danh sách
         setNotifications((prev) => {
@@ -167,7 +167,7 @@ export function useNotificationWebSocket() {
           const readCount = updated.filter((n) =>
             data.notificationIds.includes(n.notificationId)
           ).length;
-          console.log(`✅ ${readCount} notifications marked as read in list!`);
+          (`✅ ${readCount} notifications marked as read in list!`);
           return updated;
         });
       }
@@ -188,14 +188,14 @@ export function useNotificationWebSocket() {
 
   // Hàm refresh notifications (get latest from server)
   const refreshNotifications = useCallback(async () => {
-    console.log("🔄 Refreshing notifications...");
+    ("🔄 Refreshing notifications...");
     await refreshUnreadCount();
     // Có thể thêm API call để fetch notifications history từ server
   }, [refreshUnreadCount]);
 
   // Hàm mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
-    console.log("✅ Marking notification as read:", notificationId);
+    ("✅ Marking notification as read:", notificationId);
     notificationWebSocketService.markAsRead([notificationId]);
     // Update local state
     setNotifications((prev) =>
@@ -209,7 +209,7 @@ export function useNotificationWebSocket() {
 
   // Hàm mark all notifications as read
   const markAllAsRead = useCallback(async () => {
-    console.log("✅ Marking all notifications as read");
+    ("✅ Marking all notifications as read");
     const unreadIds = notifications
       .filter((n) => !n.isRead)
       .map((n) => n.notificationId);

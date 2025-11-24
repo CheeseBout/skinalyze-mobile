@@ -308,6 +308,33 @@ export default function AnalyzeScreen() {
             </TouchableOpacity>
           </Animated.View>
 
+          {/* Manual Entry Card */}
+          <Animated.View 
+            style={[
+              styles.manualEntryCard,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <View style={styles.manualEntryHeader}>
+              <View style={styles.manualEntryLeft}>
+                <View style={[styles.manualIconWrapper, { backgroundColor: `${primaryColor}15` }]}>
+                  <Ionicons name="create" size={24} color={primaryColor} />
+                </View>
+                <View style={styles.manualEntryContent}>
+                  <Text style={styles.manualEntryTitle}>Manual Entry</Text>
+                  <Text style={styles.manualEntryDescription}>Record without camera</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.manualEntryButton, { backgroundColor: primaryColor }]}
+                onPress={() => router.push('/ManualEntryScreen')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
           {/* Disclaimer */}
           <Animated.View 
             style={[
@@ -722,5 +749,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  manualEntryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  manualEntryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  manualEntryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  manualIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  manualEntryContent: {
+    flex: 1,
+  },
+  manualEntryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  manualEntryDescription: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  manualEntryButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });

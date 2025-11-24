@@ -33,7 +33,7 @@ export function useOrderTracking({
         throw new Error('Vui lòng đăng nhập để xem thông tin giao hàng');
       }
 
-      console.log(`🔍 Fetching tracking for order: ${orderId}`);
+      (`🔍 Fetching tracking for order: ${orderId}`);
       const data = await trackingService.getOrderTracking(orderId, token);
       
       setTrackingData(data);
@@ -53,7 +53,7 @@ export function useOrderTracking({
         onETAUpdate(data.eta);
       }
 
-      console.log('✅ Tracking data updated:', {
+      ('✅ Tracking data updated:', {
         status: data.shippingLog.status,
         hasShipper: !!data.shipper,
         hasLocation: !!data.currentLocation,
@@ -77,7 +77,7 @@ export function useOrderTracking({
 
   useEffect(() => {
     if (!enabled || !orderId) {
-      console.log('⏸️ Tracking disabled or no orderId');
+      ('⏸️ Tracking disabled or no orderId');
       return;
     }
 
@@ -86,20 +86,20 @@ export function useOrderTracking({
 
     // Then poll at intervals
     intervalRef.current = setInterval(() => {
-      console.log(`🔄 Polling tracking (interval: ${intervalMs}ms)`);
+      (`🔄 Polling tracking (interval: ${intervalMs}ms)`);
       fetchTracking();
     }, intervalMs);
 
     return () => {
       if (intervalRef.current) {
-        console.log('🛑 Stopping tracking polling');
+        ('🛑 Stopping tracking polling');
         clearInterval(intervalRef.current);
       }
     };
   }, [orderId, enabled, intervalMs, fetchTracking]);
 
   const refresh = useCallback(() => {
-    console.log('🔄 Manual refresh tracking');
+    ('🔄 Manual refresh tracking');
     setIsLoading(true);
     fetchTracking();
   }, [fetchTracking]);

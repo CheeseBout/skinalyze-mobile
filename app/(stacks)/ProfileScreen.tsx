@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
-    gap: 3,
+    gap: 2,
   },
   statusPillText: {
     fontSize: 10,
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: 24,
-    gap: 12,
+    gap: 8,
     marginBottom: 20,
   },
   quickActionButton: {
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   quickActionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
     color: '#1A1A1A',
   },

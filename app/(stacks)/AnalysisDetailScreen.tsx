@@ -1,10 +1,10 @@
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Image, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
   Dimensions,
   StatusBar,
   Animated
@@ -42,15 +42,15 @@ export default function AnalysisDetailScreen() {
     ]).start();
   }, []);
 
-  const result: SkinAnalysisResult = params.result 
-    ? JSON.parse(params.result as string) 
+  const result: SkinAnalysisResult = params.result
+    ? JSON.parse(params.result as string)
     : null;
 
   if (!result) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
+
         {/* Decorative Background */}
         <View style={styles.backgroundPattern}>
           <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
@@ -63,8 +63,8 @@ export default function AnalysisDetailScreen() {
           </View>
           <Text style={styles.errorTitle}>No Data Available</Text>
           <Text style={styles.errorText}>Unable to load analysis details</Text>
-          <TouchableOpacity 
-            style={[styles.errorButton, { backgroundColor: primaryColor }]} 
+          <TouchableOpacity
+            style={[styles.errorButton, { backgroundColor: primaryColor }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
@@ -79,15 +79,19 @@ export default function AnalysisDetailScreen() {
   const isConditionDetection = result.aiDetectedCondition !== null;
   const isDiseaseDetection = result.aiDetectedDisease !== null;
   const imageUrl = result.imageUrls[0];
-  
-  let maskBase64: string | null = null;
+
+  // --- FIX START: Handle Mask URL correctly based on logs ---
+  let maskUrl: string | null = null;
   if (result.mask) {
-    if (Array.isArray(result.mask)) {
-      maskBase64 = result.mask.find(m => m && m.length > 0) || null;
+    if (Array.isArray(result.mask) && result.mask.length > 0) {
+      // Take the first URL from the array
+      maskUrl = result.mask[0];
     } else if (typeof result.mask === 'string') {
-      maskBase64 = result.mask;
+      // Fallback if it happens to be a single string
+      maskUrl = result.mask;
     }
   }
+  // --- FIX END ---
 
   const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
 
@@ -95,30 +99,32 @@ export default function AnalysisDetailScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Image Section with Header Overlay */}
         <View style={styles.imageSection}>
           <View style={styles.imageContainer}>
-            <Image 
+            <Image
               source={{ uri: imageUrl }}
               style={styles.image}
               resizeMode="cover"
             />
-            
+
             {/* Mask Overlay */}
-            {isDiseaseDetection && maskBase64 && showMask && (
+            {/* --- FIX START: Use maskUrl and remove base64 prefix --- */}
+            {isDiseaseDetection && maskUrl && showMask && (
               <View style={styles.maskContainer}>
-                <Image 
-                  source={{ uri: `data:image/png;base64,${maskBase64}` }}
+                <Image
+                  source={{ uri: maskUrl }}
                   style={styles.maskImage}
                   resizeMode="cover"
                 />
                 <View style={styles.redTintOverlay} />
               </View>
             )}
+            {/* --- FIX END --- */}
 
             {/* Gradient Overlay for better header visibility */}
             <View style={styles.gradientOverlay} />
@@ -126,32 +132,33 @@ export default function AnalysisDetailScreen() {
 
           {/* Header Overlay */}
           <View style={styles.headerOverlay}>
-            <TouchableOpacity 
-              style={styles.overlayButton} 
+            <TouchableOpacity
+              style={styles.overlayButton}
               onPress={() => router.back()}
               activeOpacity={0.8}
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            
+
             <View style={styles.headerBadgeContainer}>
               <View style={[styles.headerBadge, { backgroundColor: detectionColor }]}>
-                <Ionicons 
-                  name={isConditionDetection ? 'water' : 'medical'} 
-                  size={16} 
-                  color="#FFFFFF" 
+                <Ionicons
+                  name={isConditionDetection ? 'water' : 'medical'}
+                  size={16}
+                  color="#FFFFFF"
                 />
               </View>
               <Text style={styles.headerTitle}>Analysis Result</Text>
             </View>
-            
+
             <View style={styles.overlayButton} />
           </View>
 
           {/* Mask Toggle Button */}
-          {isDiseaseDetection && maskBase64 && result.aiDetectedDisease.toLowerCase() !== "normal" && (
+          {/* --- FIX START: Use maskUrl variable --- */}
+          {isDiseaseDetection && maskUrl && result.aiDetectedDisease?.toLowerCase() !== "normal" && (
             <View style={styles.maskControls}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   styles.maskToggle,
                   showMask && [styles.maskToggleActive, { backgroundColor: detectionColor }]
@@ -160,10 +167,10 @@ export default function AnalysisDetailScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.maskToggleIcon, showMask && styles.maskToggleIconActive]}>
-                  <Ionicons 
-                    name={showMask ? 'eye-off' : 'eye'} 
-                    size={18} 
-                    color={showMask ? '#FFFFFF' : detectionColor} 
+                  <Ionicons
+                    name={showMask ? 'eye-off' : 'eye'}
+                    size={18}
+                    color={showMask ? '#FFFFFF' : detectionColor}
                   />
                 </View>
                 <Text style={[
@@ -175,12 +182,13 @@ export default function AnalysisDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
+           {/* --- FIX END --- */}
         </View>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
           {/* Detection Result Card */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.resultCard,
               {
@@ -192,14 +200,14 @@ export default function AnalysisDetailScreen() {
             <View style={styles.resultHeader}>
               <View style={[styles.resultIconWrapper, { backgroundColor: `${detectionColor}15` }]}>
                 <View style={[styles.resultIcon, { backgroundColor: detectionColor }]}>
-                  <Ionicons 
-                    name={isConditionDetection ? 'water' : 'medical'} 
-                    size={24} 
-                    color="#FFFFFF" 
+                  <Ionicons
+                    name={isConditionDetection ? 'water' : 'medical'}
+                    size={24}
+                    color="#FFFFFF"
                   />
                 </View>
               </View>
-              
+
               <View style={styles.resultContent}>
                 <Text style={styles.resultLabel}>
                   {isConditionDetection ? 'Skin Condition' : 'Disease Detection'}
@@ -212,7 +220,7 @@ export default function AnalysisDetailScreen() {
           </Animated.View>
 
           {/* Details Grid */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.detailsSection,
               {
@@ -222,7 +230,7 @@ export default function AnalysisDetailScreen() {
             ]}
           >
             <Text style={styles.sectionTitle}>Analysis Details</Text>
-            
+
             <View style={styles.detailsGrid}>
               <View style={styles.detailCard}>
                 <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
@@ -253,10 +261,10 @@ export default function AnalysisDetailScreen() {
 
               <View style={styles.detailCard}>
                 <View style={[styles.detailIconWrapper, { backgroundColor: '#F0FDF4' }]}>
-                  <Ionicons 
-                    name={result.source === 'AI_SCAN' ? 'sparkles' : 'create'} 
-                    size={20} 
-                    color="#34C759" 
+                  <Ionicons
+                    name={result.source === 'AI_SCAN' ? 'sparkles' : 'create'}
+                    size={20}
+                    color="#34C759"
                   />
                 </View>
                 <Text style={styles.detailLabel}>Source</Text>
@@ -278,7 +286,7 @@ export default function AnalysisDetailScreen() {
           </Animated.View>
 
           {/* Disclaimer */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.disclaimer,
               {
@@ -299,13 +307,13 @@ export default function AnalysisDetailScreen() {
           </Animated.View>
 
           {/* Action Button */}
-          <Animated.View 
+          <Animated.View
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
             }}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
               activeOpacity={0.8}
@@ -372,11 +380,14 @@ const styles = StyleSheet.create({
   maskImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.15,
+    opacity: 0.6, // Increased opacity slightly to make mask more visible
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    // Changed to a more standard red overlay tint for segmentation masks
+    backgroundColor: 'rgba(255, 0, 50, 0.3)',
+    // Use multiply blend mode if supported by your RN version/platform for better effect,
+    // otherwise the simple opacity above works reasonably well.
   },
   gradientOverlay: {
     position: 'absolute',

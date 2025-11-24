@@ -14,7 +14,7 @@ class ApiService {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    console.log("🔗 API Base URL:", this.baseURL);
+    ("🔗 API Base URL:", this.baseURL);
   }
 
   private getHeaders(options?: RequestOptions): HeadersInit {
@@ -49,7 +49,7 @@ class ApiService {
           url += `?${query}`;
         }
       }
-      console.log(`📡 ${method} ${url}`);
+      (`📡 ${method} ${url}`);
       // Get auth token and set Authorization header
       const headers = this.getHeaders(options) as Record<string, string>;
       const token = await tokenService.getToken();
@@ -64,11 +64,11 @@ class ApiService {
 
       if (body) {
         config.body = JSON.stringify(body);
-        console.log("Request body:", body);
+        ("Request body:", body);
       }
 
       const response = await fetch(url, config);
-      console.log(`Response status: ${response.status}`);
+      (`Response status: ${response.status}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("API Error:", errorData);
@@ -78,7 +78,7 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log("Response data at apiService:", data);
+      ("Response data at apiService:", data);
       return data;
     } catch (error) {
       console.error(`API ${method} Error:`, error);
@@ -96,7 +96,7 @@ class ApiService {
   ): Promise<T> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      console.log(`📡 POST (multipart) ${url}`);
+      (`📡 POST (multipart) ${url}`);
 
       const headers: Record<string, string> = {};
 
@@ -113,7 +113,7 @@ class ApiService {
       };
 
       const response = await fetch(url, config);
-      console.log(`Response status: ${response.status}`);
+      (`Response status: ${response.status}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -124,7 +124,7 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log("Response data file upload at apiService:", data);
+      ("Response data file upload at apiService:", data);
       return data;
     } catch (error) {
       console.error("API Upload Error:", error);

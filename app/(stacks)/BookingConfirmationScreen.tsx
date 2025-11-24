@@ -104,7 +104,7 @@ export default function BookingConfirmationScreen() {
             params.dermatologistId
           ),
         ]);
-        console.log("❤️MY PLAN", subsData);
+        ("❤️MY PLAN", subsData);
 
         setDoctor(doctorData);
         setSubscriptions(subsData);

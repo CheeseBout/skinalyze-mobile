@@ -19,6 +19,13 @@ export interface SkinAnalysisResult {
   updatedAt: string;
 }
 
+export interface ManualEntryPayload {
+  chiefComplaint: string;
+  patientSymptoms: string;
+  notes?: string;
+  imageUri?: string | null;
+}
+
 interface SkinAnalysisResponse {
   statusCode: number;
   message: string;
@@ -188,6 +195,7 @@ class SkinAnalysisService {
       const response = await apiService.get<SkinAnalysisResult[]>(
         `/skin-analysis/customer/${customerId}`
       );
+      console.log("Analysis: ", response);
 
       // The API returns the array directly, not wrapped in { data: [...] }
       return Array.isArray(response) ? response : [];
@@ -217,6 +225,51 @@ class SkinAnalysisService {
     } catch (error) {
       console.error("❌ Error fetching analysis:", error);
       throw new Error("Failed to fetch analysis result");
+    }
+  }
+
+  /**
+   * Create a manual skin analysis entry
+   */
+  async createManualEntry(userId: string, payload: ManualEntryPayload): Promise<any> {
+    try {
+      const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication required");
+
+      const customerId = await this.getCustomerId(userId);
+
+      const formData = new FormData();
+      
+      // Append Text Data
+      formData.append('chiefComplaint', payload.chiefComplaint);
+      formData.append('patientSymptoms', payload.patientSymptoms);
+      if (payload.notes) formData.append('notes', payload.notes);
+
+      // Append Image if exists
+      if (payload.imageUri) {
+        const filename = payload.imageUri.split('/').pop() || 'manual_entry.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+        formData.append('file', {
+          uri: payload.imageUri,
+          name: filename,
+          type: type,
+        } as any);
+      }
+
+      console.log('📤 Creating manual entry...');
+
+      const result = await apiService.uploadFile(
+        `/skin-analysis/manual-entry/${customerId}`,
+        formData
+      );
+
+      console.log('✅ Manual entry created');
+      return result;
+    } catch (error) {
+      console.error("❌ Error creating manual entry:", error);
+      throw new Error("Failed to save manual entry");
     }
   }
 }

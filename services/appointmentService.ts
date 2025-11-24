@@ -45,7 +45,7 @@ class AppointmentService {
       const response = await apiService.get<
         ApiResponse<AppointmentWithRelations>
       >(`/appointments/${appointmentId}`);
-      console.log("Appointment", response);
+      ("Appointment", response);
 
       return response.data;
     } catch (error) {
