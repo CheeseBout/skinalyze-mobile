@@ -14,8 +14,11 @@ import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 import appointmentService from "@/services/appointmentService";
 import customerService from "@/services/customerService";
-import { AppointmentWithRelations } from "@/types/appointment.type";
-import { AppointmentStatus } from "@/types/appointment.type";
+import {
+  AppointmentWithRelations,
+  AppointmentStatus,
+  TerminationReason,
+} from "@/types/appointment.type";
 import { AuthContext } from "@/contexts/AuthContext";
 import { useIsFocused } from "@react-navigation/native";
 
@@ -46,7 +49,13 @@ const formatTime = (isoDate: string) => {
   });
 };
 
-const getEventIcon = (status: AppointmentStatus) => {
+const isSettledStatus = (status: AppointmentStatus | string) =>
+  (status as string) === "SETTLED";
+
+const getEventIcon = (status: AppointmentStatus | string) => {
+  if (isSettledStatus(status)) {
+    return "checkmark-circle";
+  }
   switch (status) {
     case AppointmentStatus.SCHEDULED:
     case AppointmentStatus.IN_PROGRESS:
@@ -61,7 +70,10 @@ const getEventIcon = (status: AppointmentStatus) => {
   }
 };
 
-const getEventColor = (status: AppointmentStatus) => {
+const getEventColor = (status: AppointmentStatus | string) => {
+  if (isSettledStatus(status)) {
+    return "#4CAF50";
+  }
   switch (status) {
     case AppointmentStatus.SCHEDULED:
     case AppointmentStatus.IN_PROGRESS:
@@ -76,11 +88,13 @@ const getEventColor = (status: AppointmentStatus) => {
   }
 };
 
-const getEventBadgeText = (status: AppointmentStatus) => {
+const getEventBadgeText = (status: AppointmentStatus | string) => {
+  if (isSettledStatus(status) || status === AppointmentStatus.COMPLETED) {
+    return "Completed";
+  }
   // (Xóa 'AppointmentStatus.' và thay '_' bằng ' ')
-  return status.replace("APPOINTMENT_", "").replace("_", " ");
+  return (status as string).replace("APPOINTMENT_", "").replace(/_/g, " ");
 };
-// ========================================================
 
 export default function ScheduleScreen() {
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -96,7 +110,21 @@ export default function ScheduleScreen() {
   >([]);
   const isFocused = useIsFocused();
 
-  // (Logic 'useEffect' lấy data theo "thác nước")
+  const visibleAppointments = useMemo(() => {
+    return apiAppointments.filter((appointment) => {
+      if (appointment.appointmentStatus === AppointmentStatus.PENDING_PAYMENT) {
+        return false;
+      }
+      if (
+        appointment.appointmentStatus === AppointmentStatus.CANCELLED &&
+        appointment.terminatedReason === TerminationReason.PAYMENT_TIMEOUT
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [apiAppointments]);
+
   useEffect(() => {
     if (!user?.userId || !isFocused) {
       return;
@@ -106,7 +134,6 @@ export default function ScheduleScreen() {
       try {
         setIsLoading(true);
 
-        // BƯỚC 1: Lấy customerId
         const customerData = await customerService.getCustomerProfile(
           user.userId
         );
@@ -114,7 +141,6 @@ export default function ScheduleScreen() {
           throw new Error("Customer profile not found.");
         }
 
-        // BƯỚC 2: Dùng customerId để lấy lịch hẹn
         const appointmentData =
           await appointmentService.getCustomerAppointments(
             customerData.customerId
@@ -131,11 +157,10 @@ export default function ScheduleScreen() {
     fetchScheduleData();
   }, [user, isFocused]);
 
-  // (useMemo chuyển đổi data - Giữ nguyên)
   const eventsByDate = useMemo(() => {
     const eventMap: { [date: string]: Event[] } = {};
 
-    apiAppointments.forEach((app) => {
+    visibleAppointments.forEach((app) => {
       const dateKey = app.startTime.split("T")[0]; // (YYYY-MM-DD)
       const event: Event = {
         id: app.appointmentId,
@@ -152,9 +177,8 @@ export default function ScheduleScreen() {
       eventMap[dateKey].push(event);
     });
     return eventMap;
-  }, [apiAppointments]);
+  }, [visibleAppointments]);
 
-  // (markedDates - Giữ nguyên, bây giờ nó đã thấy 'getEventColor')
   const markedDates: MarkedDates = useMemo(() => {
     const marks: MarkedDates = {};
     Object.keys(eventsByDate).forEach((date) => {
@@ -175,9 +199,7 @@ export default function ScheduleScreen() {
     return marks;
   }, [eventsByDate, selectedDate, primaryColor]);
 
-  // === THAY ĐỔI 2: Đảm bảo 'selectedEvents' được định nghĩa ===
   const selectedEvents = eventsByDate[selectedDate] || [];
-  // ========================================================
 
   const handleNavigation = (path: string) => {
     router.push(path as any);
@@ -195,14 +217,12 @@ export default function ScheduleScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Calendar (Không đổi) */}
         <View style={styles.calendarContainer}>
           <Calendar
             current={selectedDate}
             onDayPress={(day) => setSelectedDate(day.dateString)}
             markedDates={markedDates}
             theme={{
-              // ... (style theme của bạn)
               selectedDayBackgroundColor: primaryColor,
             }}
           />
@@ -220,7 +240,6 @@ export default function ScheduleScreen() {
             })}
           </Text>
 
-          {/* (Dùng 'selectedEvents' đã được định nghĩa ở trên) */}
           {selectedEvents.length === 0 ? (
             <View style={styles.noEventsContainer}>
               <Ionicons name="calendar-outline" size={48} color="#ccc" />
@@ -280,7 +299,7 @@ export default function ScheduleScreen() {
           )}
         </View>
 
-        {/* Add Event Button (Không đổi) */}
+        {/* Add Event Button  */}
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: primaryColor }]}
           activeOpacity={0.8}
@@ -294,8 +313,6 @@ export default function ScheduleScreen() {
   );
 }
 
-// --- STYLES ---
-// (Toàn bộ styles giữ nguyên như cũ)
 const styles = StyleSheet.create({
   container: {
     flex: 1,

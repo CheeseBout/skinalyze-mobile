@@ -8,6 +8,9 @@ import {
   Appointment,
   AppointmentWithRelations,
   AppointmentStatus,
+  InterruptAppointmentDto,
+  ReportNoShowDto,
+  AppointmentDetailDto,
 } from "@/types/appointment.type";
 
 class AppointmentService {
@@ -53,11 +56,13 @@ class AppointmentService {
       throw error;
     }
   }
-  async getAppointmentById(appointmentId: string) {
+  async getAppointmentById(
+    appointmentId: string
+  ): Promise<AppointmentDetailDto> {
     try {
-      const response = await apiService.get<
-        ApiResponse<AppointmentWithRelations>
-      >(`/appointments/${appointmentId}`);
+      const response = await apiService.get<ApiResponse<AppointmentDetailDto>>(
+        `/appointments/${appointmentId}`
+      );
       console.log("Appointment", response);
 
       return response.data;
@@ -125,6 +130,38 @@ class AppointmentService {
       return (response as ApiResponse<any>).data;
     } catch (error) {
       console.error("Error cancelling appointment:", error);
+      throw error;
+    }
+  }
+
+  async reportDoctorNoShow(
+    appointmentId: string,
+    dto: ReportNoShowDto
+  ): Promise<any> {
+    try {
+      const response = await apiService.patch(
+        `/appointments/my/${appointmentId}/report-no-show`,
+        dto
+      );
+      return (response as any).data;
+    } catch (error) {
+      console.error("Error reporting no-show:", error);
+      throw error;
+    }
+  }
+
+  async reportInterrupt(
+    appointmentId: string,
+    dto: InterruptAppointmentDto
+  ): Promise<any> {
+    try {
+      const response = await apiService.patch(
+        `/appointments/my/${appointmentId}/report-interrupt`,
+        dto
+      );
+      return (response as any).data;
+    } catch (error) {
+      console.error("Error reporting interruption:", error);
       throw error;
     }
   }

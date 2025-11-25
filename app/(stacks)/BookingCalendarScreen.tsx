@@ -10,8 +10,9 @@ import {
   Pressable,
   Image,
 } from "react-native";
-import React, { useState, useEffect, useMemo } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router"; // === THÊM MỚI: useFocusEffect ===
 import { Calendar, DateData } from "react-native-calendars";
 import dermatologistService from "@/services/dermatologistService";
 import { AvailabilitySlot } from "@/types/availability-slot.type";
@@ -89,7 +90,9 @@ export default function BookingCalendarScreen() {
 
   const loadAvailabilitySummary = async (date: Date) => {
     if (!dermatologistId) return;
-    setIsLoadingSummary(true);
+    // Không set Loading true ở đây để tránh nháy màn hình khi focus lại,
+    // hoặc xử lý khéo léo hơn nếu muốn
+    // setIsLoadingSummary(true);
     try {
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
@@ -107,9 +110,10 @@ export default function BookingCalendarScreen() {
         const localDateString = `${year}-${month}-${day}`;
         newMarkedDates[localDateString] = { marked: true, dotColor: "orange" };
       });
+
       setMarkedDates((prev) => {
-        const updated = { ...prev, ...newMarkedDates };
-        if (selectedDate && updated[selectedDate]) {
+        const updated = { ...newMarkedDates };
+        if (selectedDate && prev[selectedDate]?.selected) {
           updated[selectedDate] = {
             ...updated[selectedDate],
             selected: true,
@@ -119,50 +123,19 @@ export default function BookingCalendarScreen() {
         return updated;
       });
     } catch (error: any) {
-      Alert.alert("Error", "Failed to load availability summary.");
+      console.error("Failed to load summary", error);
     } finally {
       setIsLoadingSummary(false);
     }
   };
 
-  useEffect(() => {
-    loadAvailabilitySummary(currentMonth);
-  }, [currentMonth, dermatologistId]);
-
-  // Handle day press event
-  const handleDayPress = async (day: DateData) => {
-    const dateStr = day.dateString;
-    if (dateStr === selectedDate) {
-      setSelectedDate(null);
-      setSelectedSlot(null);
-      setSlots([]);
-      setMarkedDates((prev) => ({
-        ...prev,
-        [dateStr]: { ...prev[dateStr], selected: false },
-      }));
-      return;
-    }
-    if (!markedDates[dateStr]?.marked) {
-      return;
-    }
+  const fetchSlotsForDate = async (dateStr: string) => {
+    if (!dermatologistId) return;
     setIsLoadingSlots(true);
-    setSelectedDate(dateStr);
-    setSelectedSlot(null);
     setSlots([]);
-    setMarkedDates((prev) => {
-      const newMarks = { ...prev };
-      if (selectedDate && newMarks[selectedDate]) {
-        newMarks[selectedDate] = { ...newMarks[selectedDate], selected: false };
-      }
-      newMarks[dateStr] = {
-        ...newMarks[dateStr],
-        selected: true,
-        selectedColor: "#007bff",
-      };
-      return newMarks;
-    });
+    setSelectedSlot(null); // Reset slot đã chọn để tránh book nhầm slot cũ
+
     try {
-      if (!dermatologistId) throw new Error("Missing ID");
       const daySlots = await dermatologistService.getAvailabilityForDay(
         dermatologistId,
         dateStr
@@ -173,6 +146,66 @@ export default function BookingCalendarScreen() {
     } finally {
       setIsLoadingSlots(false);
     }
+  };
+
+  // Use focus effect to reload availability and slots when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      // 1. Reload the dots on the calendar (in case the day runs out of slots and loses the dot)
+      loadAvailabilitySummary(currentMonth);
+
+      // 2. If a day is selected, reload the slots for that day (in case a slot was just booked and removed)
+      if (selectedDate) {
+        fetchSlotsForDate(selectedDate);
+      }
+    }, [currentMonth, dermatologistId, selectedDate])
+  );
+
+  // Handle day press event
+  const handleDayPress = async (day: DateData) => {
+    const dateStr = day.dateString;
+
+    // If the selected day is pressed again -> Deselect
+    if (dateStr === selectedDate) {
+      setSelectedDate(null);
+      setSelectedSlot(null);
+      setSlots([]);
+      setMarkedDates((prev) => {
+        const newMarks = { ...prev };
+        if (prev[dateStr]) {
+          // Keep the mark if the day has availability, just remove the select
+          newMarks[dateStr] = { ...prev[dateStr], selected: false };
+        }
+        return newMarks;
+      });
+      return;
+    }
+
+    // If the day has no availability (no dot) -> Ignore
+    if (!markedDates[dateStr]?.marked) {
+      return;
+    }
+
+    setSelectedDate(dateStr);
+
+    setMarkedDates((prev) => {
+      const newMarks = { ...prev };
+      // Remove highlight from the old selected day
+      if (selectedDate && newMarks[selectedDate]) {
+        newMarks[selectedDate] = { ...newMarks[selectedDate], selected: false };
+      }
+      // Highlight the new day
+      if (newMarks[dateStr]) {
+        newMarks[dateStr] = {
+          ...newMarks[dateStr],
+          selected: true,
+          selectedColor: "#007bff",
+        };
+      }
+      return newMarks;
+    });
+
+    fetchSlotsForDate(dateStr);
   };
 
   // Handle confirm booking
@@ -190,7 +223,7 @@ export default function BookingCalendarScreen() {
     });
   };
 
-  // Format time from ISO string to HH:mm format
+  // Format time helper
   const formatTime = (isoDate: string) => {
     return new Date(isoDate).toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -199,7 +232,7 @@ export default function BookingCalendarScreen() {
     });
   };
 
-  // Render slot chip for reuse
+  // Render slot chip
   const renderSlotChip = (slot: AvailabilitySlot) => (
     <Pressable
       key={slot.slotId}

@@ -1,52 +1,78 @@
 import React from "react";
 import { Modal, View, Text, StyleSheet, Pressable } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 type Props = {
   visible: boolean;
   title: string;
   message: string;
-  confirmText: string;
-  cancelText: string;
+  confirmText?: string; // (Optional, default "OK")
+  cancelText?: string; // (Optional. Cancel button)
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void; // (Optional)
+  type?: "success" | "error" | "warning" | "info";
 };
-
 export default function CustomAlert({
   visible,
   title,
   message,
-  confirmText,
+  confirmText = "OK",
   cancelText,
   onConfirm,
   onCancel,
+  type = "warning",
 }: Props) {
+  const { primaryColor } = useThemeColor();
+  const getConfig = () => {
+    switch (type) {
+      case "success":
+        return { color: "#4CAF50", icon: "check-circle-outline" };
+      case "error":
+        return { color: "#d9534f", icon: "alert-circle-outline" };
+      case "warning":
+        return { color: "#FF9800", icon: "alert-outline" };
+      case "info":
+      default:
+        return { color: primaryColor, icon: "information-outline" };
+    }
+  };
+
+  const config = getConfig();
+
   return (
     <Modal
       animationType="fade"
       transparent={true}
       visible={visible}
-      onRequestClose={onCancel}
+      onRequestClose={onCancel || onConfirm}
     >
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
           <MaterialCommunityIcons
-            name="alert-circle-outline"
+            name={config.icon as any}
             size={50}
-            color="#d9534f"
+            color={config.color}
           />
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
           <View style={styles.buttonRow}>
+            {cancelText && onCancel && (
+              <Pressable
+                style={[styles.button, styles.buttonCancel]}
+                onPress={onCancel}
+              >
+                <Text style={styles.textStyleCancel}>{cancelText}</Text>
+              </Pressable>
+            )}
+
             <Pressable
-              style={[styles.button, styles.buttonCancel]}
-              onPress={onCancel}
-            >
-              <Text style={styles.textStyleCancel}>{cancelText}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.button, styles.buttonConfirm]}
+              style={[
+                styles.button,
+                { backgroundColor: config.color },
+                !cancelText && { width: "100%" }, // If 1 button then full width
+              ]}
               onPress={onConfirm}
             >
               <Text style={styles.textStyleConfirm}>{confirmText}</Text>
@@ -72,14 +98,11 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    width: "90%",
+    width: "85%",
   },
   modalTitle: {
     marginTop: 10,
@@ -87,9 +110,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
+    color: "#333",
   },
   modalText: {
-    marginBottom: 20,
+    marginBottom: 24,
     fontSize: 15,
     textAlign: "center",
     color: "#555",
@@ -99,30 +123,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
+    gap: 10,
   },
   button: {
     flex: 1,
     borderRadius: 8,
     padding: 12,
     elevation: 2,
-    marginHorizontal: 5,
+    alignItems: "center",
   },
   buttonCancel: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ccc",
   },
-  buttonConfirm: {
-    backgroundColor: "#d9534f", 
-  },
   textStyleCancel: {
     color: "#333",
     fontWeight: "bold",
-    textAlign: "center",
   },
   textStyleConfirm: {
     color: "white",
     fontWeight: "bold",
-    textAlign: "center",
   },
 });

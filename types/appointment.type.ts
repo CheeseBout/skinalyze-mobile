@@ -34,6 +34,8 @@ export enum AppointmentStatus {
   CANCELLED = "CANCELLED",
   NO_SHOW = "NO_SHOW",
   INTERRUPTED = "INTERRUPTED",
+  DISPUTED = "DISPUTED",
+  SETTLED = "SETTLED",
 }
 
 // Payment as GO Appointment Reservation
@@ -47,6 +49,15 @@ export interface CreateAppointmentDto {
   trackingRoutineId?: string;
 
   note?: string;
+}
+
+export interface ReportNoShowDto {
+  note?: string;
+}
+
+export interface InterruptAppointmentDto {
+  reason: TerminationReason;
+  terminationNote?: string;
 }
 
 export interface CreateSubscriptionAppointmentDto extends CreateAppointmentDto {
@@ -92,6 +103,8 @@ export type Appointment = {
   terminatedReason: TerminationReason | null;
   terminationNote: string | null;
 
+  adminNote: string | null;
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -104,3 +117,7 @@ export interface AppointmentWithRelations extends Appointment {
   createdRoutine: TreatmentRoutine | null;
   trackingRoutine: TreatmentRoutine | null;
 }
+
+export type AppointmentDetailDto = AppointmentWithRelations & {
+  statusMessage: string | null;
+};
