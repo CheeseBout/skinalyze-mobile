@@ -8,15 +8,20 @@ import {
   Alert,
   Image,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import dermatologistService from "@/services/dermatologistService";
 import { Dermatologist } from "@/types/dermatologist.type";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
+import ToTopButton from "@/components/ToTopButton";
 
 export default function DermatologistListScreen() {
   const [dermatologists, setDermatologists] = useState<Dermatologist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showToTop, setShowToTop] = useState(false);
+  const flatListRef = useRef(null);
+  const { primaryColor } = useThemeColor();
 
   const router = useRouter();
 
@@ -38,6 +43,11 @@ export default function DermatologistListScreen() {
 
     fetchDermatologists();
   }, []);
+
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowToTop(offsetY > 200);
+  };
 
   const handlePressDermatologist = (id: string) => {
     router.push({
@@ -94,13 +104,23 @@ export default function DermatologistListScreen() {
   return (
     <View style={styles.container}>
       <FlatList
+        ref={flatListRef}
         data={dermatologists}
         renderItem={renderItem}
         keyExtractor={(item) => item.dermatologistId}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           <View style={styles.center}>
             <Text>No Dermatologist founded</Text>
           </View>
+        }
+      />
+
+      <ToTopButton
+        visible={showToTop}
+        onPress={() =>
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
         }
       />
     </View>

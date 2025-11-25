@@ -8,8 +8,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  Animated,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,18 +18,42 @@ import skinAnalysisService, { SkinAnalysisResult } from '@/services/skinAnalysis
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import ToTopButton from '@/components/ToTopButton';  // Add this import
 
-export default function AnalysisListScreen() {
+export function AnalysisListScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showToTop, setShowToTop] = useState(false);  
+  const flatListRef = useRef(null);  
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadAnalyses();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loading]);
 
   const loadAnalyses = async () => {
     if (!user?.userId) {
@@ -44,20 +69,16 @@ export default function AnalysisListScreen() {
         return;
       }
 
-      // Get customer data first to retrieve customerId
       const customerData = await userService.getCustomerByUserId(user.userId, token);
-      
-      // Use customerId to fetch analyses
       const data = await skinAnalysisService.getUserAnalyses(customerData.customerId);
       
-      // Sort by most recent first
       const sortedData = data.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setAnalyses(sortedData);
     } catch (error) {
       console.error('Error loading analyses:', error);
-      setAnalyses([]); // Set empty array on error to prevent undefined
+      setAnalyses([]);
     } finally {
       setLoading(false);
     }
@@ -69,6 +90,12 @@ export default function AnalysisListScreen() {
     setRefreshing(false);
   };
 
+  // Add scroll handler to show/hide button
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowToTop(offsetY > 200);  // Show button when scrolled more than 200px
+  };
+
   const handleAnalysisPress = (analysis: SkinAnalysisResult) => {
     router.push({
       pathname: '/(stacks)/AnalysisDetailScreen',
@@ -78,70 +105,91 @@ export default function AnalysisListScreen() {
     });
   };
 
-  const renderAnalysisItem = ({ item }: { item: SkinAnalysisResult }) => {
+  const renderAnalysisItem = ({ item, index }: { item: SkinAnalysisResult; index: number }) => {
     const isConditionDetection = item.aiDetectedCondition !== null;
     const isDiseaseDetection = item.aiDetectedDisease !== null;
     const detectedValue = isConditionDetection
       ? item.aiDetectedCondition
       : item.aiDetectedDisease;
     const iconName = isConditionDetection ? 'water' : 'medical';
-    const iconColor = isConditionDetection ? '#2196F3' : '#E91E63';
+    const badgeColor = isConditionDetection ? '#2196F3' : '#E91E63';
 
     return (
-      <TouchableOpacity
-        style={styles.analysisCard}
-        onPress={() => handleAnalysisPress(item)}
-        activeOpacity={0.7}
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
       >
-        <Image
-          source={{ uri: item.imageUrls[0] }}
-          style={styles.thumbnail}
-          resizeMode="cover"
-        />
-        <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <View style={styles.typeContainer}>
-              <Ionicons name={iconName} size={20} color={iconColor} />
-              <Text style={[styles.typeText, { color: iconColor }]}>
-                {isConditionDetection ? 'Condition' : 'Disease'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </View>
-          <Text style={styles.detectedValue} numberOfLines={2}>
-            {detectedValue}
-          </Text>
-          <View style={styles.cardFooter}>
-            <View style={styles.dateContainer}>
-              <Ionicons name="calendar-outline" size={14} color="#666" />
-              <Text style={styles.dateText}>
-                {new Date(item.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Text>
-            </View>
-            <View style={styles.sourceContainer}>
-              <Ionicons
-                name={item.source === 'AI_SCAN' ? 'sparkles' : 'create'}
-                size={14}
-                color="#666"
-              />
-              <Text style={styles.sourceText}>
-                {item.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
-              </Text>
+        <TouchableOpacity
+          style={styles.analysisCard}
+          onPress={() => handleAnalysisPress(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.cardImageContainer}>
+            <Image
+              source={{ uri: item.imageUrls[0] }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.typeBadge, { backgroundColor: badgeColor }]}>
+              <Ionicons name={iconName} size={14} color="#FFFFFF" />
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+
+          <View style={styles.cardContent}>
+            <View style={styles.cardTop}>
+              <View style={[styles.typeChip, { backgroundColor: `${badgeColor}15` }]}>
+                <Ionicons name={iconName} size={14} color={badgeColor} />
+                <Text style={[styles.typeChipText, { color: badgeColor }]}>
+                  {isConditionDetection ? 'Condition' : 'Disease'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward-circle" size={22} color="#E0E0E0" />
+            </View>
+
+            <Text style={styles.detectedText} numberOfLines={2}>
+              {detectedValue}
+            </Text>
+
+            <View style={styles.cardFooter}>
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar" size={14} color="#999" />
+                <Text style={styles.metaText}>
+                  {new Date(item.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name={item.source === 'AI_SCAN' ? 'sparkles' : 'create'}
+                  size={14}
+                  color="#999"
+                />
+                <Text style={styles.metaText}>
+                  {item.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
@@ -149,8 +197,11 @@ export default function AnalysisListScreen() {
           <Text style={styles.headerTitle}>Analysis History</Text>
           <View style={styles.backButton} />
         </View>
+        
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={primaryColor} />
+          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </View>
           <Text style={styles.loadingText}>Loading analyses...</Text>
         </View>
       </View>
@@ -159,24 +210,84 @@ export default function AnalysisListScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
       
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
+
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Analysis History</Text>
+        
+        <View style={styles.headerCenter}>
+          <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <Ionicons name="analytics" size={20} color={primaryColor} />
+          </View>
+          <Text style={styles.headerTitle}>Analysis History</Text>
+        </View>
+        
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/AnalyzeScreen')}
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: `${primaryColor}15` }]}
+          activeOpacity={0.7}
         >
-          <Ionicons name="add-circle" size={24} color={primaryColor} />
+          <Ionicons name="add" size={20} color={primaryColor} />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
+
+      {/* Stats Card */}
+      {analyses.length > 0 && (
+        <Animated.View 
+          style={[
+            styles.statsCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.statItem}>
+            <View style={[styles.statIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="document-text" size={20} color={primaryColor} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{analyses.length}</Text>
+              <Text style={styles.statLabel}>Total Scans</Text>
+            </View>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <View style={[styles.statIcon, { backgroundColor: '#F0F9FF' }]}>
+              <Ionicons name="calendar" size={20} color="#2196F3" />
+            </View>
+            <View>
+              <Text style={styles.statValue}>
+                {new Date(analyses[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Text>
+              <Text style={styles.statLabel}>Latest</Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Analysis List */}
       <FlatList
+        ref={flatListRef}  // Add ref
         data={analyses}
         renderItem={renderAnalysisItem}
         keyExtractor={(item) => item.analysisId}
@@ -184,23 +295,42 @@ export default function AnalysisListScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
         }
+        onScroll={handleScroll}  // Add scroll handler
+        scrollEventThrottle={16}  // Optimize scroll events
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="analytics-outline" size={80} color="#ccc" />
+          <Animated.View 
+            style={[
+              styles.emptyContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="analytics-outline" size={56} color={primaryColor} />
+            </View>
             <Text style={styles.emptyTitle}>No Analysis Yet</Text>
             <Text style={styles.emptySubtitle}>
-              Start analyzing your skin to see your history here
+              Start analyzing your skin to track your history and improvements
             </Text>
             <TouchableOpacity
               style={[styles.emptyButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
+              activeOpacity={0.8}
             >
-              <Ionicons name="camera" size={20} color="#fff" />
+              <Ionicons name="camera" size={20} color="#FFFFFF" />
               <Text style={styles.emptyButtonText}>Start Analysis</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Add ToTopButton as overlay */}
+      <ToTopButton
+        visible={showToTop}
+        onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
       />
     </View>
   );
@@ -209,54 +339,149 @@ export default function AnalysisListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  addButton: {
-    width: 40,
-    height: 40,
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#1A1A1A',
+    letterSpacing: -0.3,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
+    fontWeight: '500',
+  },
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#F0F0F0',
+    marginHorizontal: 16,
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     flexGrow: 1,
   },
   analysisCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -265,98 +490,124 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
-  thumbnail: {
-    width: 120,
-    height: 140,
-    backgroundColor: '#f0f0f0',
+  cardImageContainer: {
+    position: 'relative',
+    width: 110,
+    height: 130,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F0F0F0',
+  },
+  typeBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardContent: {
     flex: 1,
     padding: 16,
     justifyContent: 'space-between',
   },
-  cardHeader: {
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  typeContainer: {
+  typeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 10,
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
   },
-  typeText: {
-    fontSize: 12,
-    fontWeight: '600',
+  typeChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  detectedValue: {
-    fontSize: 16,
-    fontWeight: '600',
+  detectedText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 8,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
-  dateContainer: {
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  dateText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  sourceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sourceText: {
-    fontSize: 12,
-    color: '#666',
+  metaText: {
+    fontSize: 11,
+    color: '#999',
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 100,
+    paddingVertical: 80,
     paddingHorizontal: 40,
   },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginTop: 24,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 22,
+    marginBottom: 28,
+    lineHeight: 20,
   },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF', // Will be overridden
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
     gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   emptyButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
+
+export default AnalysisListScreen;

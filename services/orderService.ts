@@ -105,15 +105,15 @@ class OrderService {
    */
   async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
     try {
-      console.log('🛒 Creating checkout order...');
-      console.log('Payload:', payload);
+      ('🛒 Creating checkout order...');
+      ('Payload:', payload);
       
       const response = await apiService.post<CheckoutResponse>(
         '/orders/checkout',
         payload,
       );
       
-      console.log('✅ Order created successfully:', response.data.orderId);
+      ('✅ Order created successfully:', response.data.orderId);
       return response.data;
     } catch (error) {
       console.error('❌ Checkout error:', error);

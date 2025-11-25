@@ -6,8 +6,10 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  StatusBar,
+  Animated,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { router } from "expo-router";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +19,25 @@ export default function SettingsScreen() {
   const { themeColor, setThemeColor, primaryColor, customColor, setCustomColor } = useThemeColor();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState(customColor || '#007AFF');
+  
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
   
   const themeOptions: Array<{ color: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "custom"; label: string; hex: string }> = [
     { color: 'red', label: 'Red', hex: '#FF3B30' },
@@ -40,92 +61,213 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: primaryColor }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🧪 Developer Tools</Text>
-
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={() => router.push("../(tabs)/NotificationScreen")}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
         >
-          <Text style={styles.settingIcon}>🔔</Text>
-          <View style={styles.settingContent}>
-            <Text style={styles.settingTitle}>Notification Test</Text>
-            <Text style={styles.settingDescription}>
-              Test WebSocket real-time notifications
-            </Text>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <View style={[styles.headerIcon, { backgroundColor: `#fff` }]}>
+              <Ionicons name="settings" size={50} color={primaryColor} />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>Settings</Text>
+              <Text style={styles.headerSubtitle}>Customize your experience</Text>
+            </View>
           </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-      </View>
+        </Animated.View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🎨 Theme Color</Text>
-        
-        <View style={styles.themeContainer}>
-          {themeOptions.map((option) => (
+        {/* Theme Color Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
+              <Ionicons name="color-palette" size={18} color="#A855F7" />
+            </View>
+            <Text style={styles.sectionTitle}>Theme Color</Text>
+          </View>
+          
+          <View style={styles.themeCard}>
+            <View style={styles.themeGrid}>
+              {themeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.color}
+                  style={styles.themeOption}
+                  onPress={() => {
+                    if (option.color === 'custom') {
+                      handleCustomColorSelect();
+                    } else {
+                      setThemeColor(option.color);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: option.color === 'custom' ? (customColor || option.hex) : option.hex },
+                      themeColor === option.color && [styles.colorCircleSelected, { borderColor: option.color === 'custom' ? (customColor || option.hex) : option.hex }],
+                    ]}
+                  >
+                    {themeColor === option.color && (
+                      <View style={styles.checkmarkWrapper}>
+                        <Ionicons name="checkmark" size={20} color="#fff" />
+                      </View>
+                    )}
+                    {option.color === 'custom' && themeColor !== 'custom' && (
+                      <Ionicons name="color-palette" size={22} color="#fff" />
+                    )}
+                  </View>
+                  <Text style={[
+                    styles.themeLabel,
+                    themeColor === option.color && styles.themeLabelActive
+                  ]}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Developer Tools Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: '#F0F9FF' }]}>
+              <Ionicons name="code-slash" size={18} color="#2196F3" />
+            </View>
+            <Text style={styles.sectionTitle}>Developer Tools</Text>
+          </View>
+
+          <View style={styles.settingsCard}>
             <TouchableOpacity
-              key={option.color}
-              style={styles.themeOption}
-              onPress={() => {
-                if (option.color === 'custom') {
-                  handleCustomColorSelect();
-                } else {
-                  setThemeColor(option.color);
-                }
-              }}
+              style={styles.settingItem}
+              onPress={() => router.push("../(tabs)/NotificationScreen")}
+              activeOpacity={0.7}
             >
-              <View
-                style={[
-                  styles.colorCircle,
-                  { backgroundColor: option.color === 'custom' ? (customColor || option.hex) : option.hex },
-                  themeColor === option.color && styles.colorCircleSelected,
-                ]}
-              >
-                {themeColor === option.color && (
-                  <Ionicons name="checkmark" size={24} color="#fff" />
-                )}
-                {option.color === 'custom' && themeColor !== 'custom' && (
-                  <Ionicons name="color-palette" size={24} color="#fff" />
-                )}
+              <View style={[styles.settingIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+                <Ionicons name="notifications" size={20} color="#FF9800" />
               </View>
-              <Text style={styles.themeLabel}>{option.label}</Text>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Notification Test</Text>
+                <Text style={styles.settingDescription}>
+                  Test WebSocket real-time notifications
+                </Text>
+              </View>
+              <View style={[styles.settingArrow, { backgroundColor: `${primaryColor}10` }]}>
+                <Ionicons name="chevron-forward" size={18} color={primaryColor} />
+              </View>
             </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📱 App Settings</Text>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingIcon}>🌐</Text>
-          <View style={styles.settingContent}>
-            <Text style={styles.settingTitle}>Language</Text>
-            <Text style={styles.settingDescription}>English</Text>
           </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-      </View>
+        </Animated.View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>ℹ️ About</Text>
-
-        <View style={styles.settingItem}>
-          <Text style={styles.settingIcon}>📦</Text>
-          <View style={styles.settingContent}>
-            <Text style={styles.settingTitle}>Version</Text>
-            <Text style={styles.settingDescription}>1.0.0</Text>
+        {/* App Settings Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="apps" size={18} color="#34C759" />
+            </View>
+            <Text style={styles.sectionTitle}>App Settings</Text>
           </View>
+
+          <View style={styles.settingsCard}>
+            <TouchableOpacity 
+              style={styles.settingItem}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.settingIconWrapper, { backgroundColor: '#F0F9FF' }]}>
+                <Ionicons name="language" size={20} color="#2196F3" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Language</Text>
+                <Text style={styles.settingDescription}>English</Text>
+              </View>
+              <View style={[styles.settingArrow, { backgroundColor: `${primaryColor}10` }]}>
+                <Ionicons name="chevron-forward" size={18} color={primaryColor} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* About Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: '#FFE8F0' }]}>
+              <Ionicons name="information-circle" size={18} color="#E91E63" />
+            </View>
+            <Text style={styles.sectionTitle}>About</Text>
+          </View>
+
+          <View style={styles.settingsCard}>
+            <View style={styles.settingItem}>
+              <View style={[styles.settingIconWrapper, { backgroundColor: '#F3E8FF' }]}>
+                <Ionicons name="cube" size={20} color="#A855F7" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Version</Text>
+                <Text style={styles.settingDescription}>1.0.0</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Made with ❤️ by Skinalyze Team</Text>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Color Picker Modal */}
       <Modal
@@ -143,9 +285,18 @@ export default function SettingsScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Custom Color</Text>
-              <TouchableOpacity onPress={() => setShowColorPicker(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+              <View style={styles.modalHeaderLeft}>
+                <View style={[styles.modalHeaderIcon, { backgroundColor: `${selectedColor}15` }]}>
+                  <Ionicons name="color-palette" size={20} color={selectedColor} />
+                </View>
+                <Text style={styles.modalTitle}>Choose Custom Color</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setShowColorPicker(false)}
+                style={styles.modalCloseButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={28} color="#999" />
               </TouchableOpacity>
             </View>
 
@@ -164,140 +315,277 @@ export default function SettingsScreen() {
 
             <View style={styles.colorPreview}>
               <Text style={styles.previewLabel}>Selected Color</Text>
-              <View
-                style={[
-                  styles.previewCircle,
-                  { backgroundColor: selectedColor }
-                ]}
-              />
-              <Text style={styles.hexText}>{selectedColor.toUpperCase()}</Text>
+              <View style={styles.previewRow}>
+                <View
+                  style={[
+                    styles.previewCircle,
+                    { backgroundColor: selectedColor }
+                  ]}
+                >
+                  <Ionicons name="checkmark" size={32} color="#fff" />
+                </View>
+                <View style={styles.hexContainer}>
+                  <Text style={styles.hexLabel}>HEX Code</Text>
+                  <Text style={styles.hexText}>{selectedColor.toUpperCase()}</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setShowColorPicker(false)}
+                activeOpacity={0.8}
               >
+                <Ionicons name="close" size={20} color="#666" />
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: selectedColor }]}
                 onPress={handleSaveCustomColor}
+                activeOpacity={0.8}
               >
+                <Ionicons name="checkmark-circle" size={20} color="#fff" />
                 <Text style={styles.saveButtonText}>Apply Color</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#FAFAFA",
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 30,
+    paddingBottom: 32,
+    gap: 16,
   },
   backButton: {
-    marginRight: 16,
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+    marginTop: 2,
   },
   section: {
-    marginTop: 20,
-    backgroundColor: "#fff",
-    paddingVertical: 10,
+    marginBottom: 24,
+    paddingHorizontal: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#7f8c8d",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    textTransform: "uppercase",
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
-  themeContainer: {
+  themeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  themeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
     gap: 16,
+    justifyContent: 'space-between',
   },
   themeOption: {
     alignItems: 'center',
-    width: 80,
+    width: '22%',
   },
   colorCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   colorCircleSelected: {
-    borderWidth: 3,
-    borderColor: '#000',
+    borderWidth: 4,
+    transform: [{ scale: 1.05 }],
+  },
+  checkmarkWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   themeLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: '#666',
+    textAlign: 'center',
+  },
+  themeLabelActive: {
+    color: '#1A1A1A',
+  },
+  settingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   settingItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ecf0f1",
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
-  settingIcon: {
-    fontSize: 24,
-    marginRight: 15,
+  settingIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   settingContent: {
     flex: 1,
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontWeight: '700',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   settingDescription: {
-    fontSize: 14,
-    color: "#7f8c8d",
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
   },
-  arrow: {
-    fontSize: 24,
-    color: "#bdc3c7",
-    fontWeight: "300",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  settingArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  footer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     padding: 24,
-    width: '90%',
+    width: '100%',
     maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -305,38 +593,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#1A1A1A',
+    letterSpacing: -0.3,
+  },
+  modalCloseButton: {
+    padding: 4,
   },
   pickerContainer: {
-    height: 350,
-    marginBottom: 20,
+    height: 300,
+    marginBottom: 24,
   },
   colorPreview: {
-    alignItems: 'center',
     marginBottom: 24,
   },
   previewLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#666',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   previewCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#E0E0E0',
-    marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  hexContainer: {
+    flex: 1,
+  },
+  hexLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#999',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   hexText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: '#1A1A1A',
     fontFamily: 'monospace',
+    letterSpacing: 1,
   },
   modalActions: {
     flexDirection: 'row',
@@ -344,25 +670,36 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    backgroundColor: '#F5F5F5',
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#666',
   },
   saveButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

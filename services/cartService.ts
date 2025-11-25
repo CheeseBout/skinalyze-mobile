@@ -51,9 +51,9 @@ interface UpdateCartItemPayload {
 class CartService {
   async getUserCart(): Promise<Cart> {
     try {
-      console.log("🛒 Fetching user cart...");
+      ("🛒 Fetching user cart...");
       const response = await apiService.get<CartResponse>("/cart");
-      console.log("✅ Cart retrieved successfully");
+      ("✅ Cart retrieved successfully");
       return response.data;
     } catch (error) {
       console.error("❌ Error fetching cart:", error);
@@ -63,12 +63,12 @@ class CartService {
 
   async addToCart(token: string, payload: AddToCartPayload): Promise<Cart> {
     try {
-      console.log(`🛒 Adding product ${payload.productId} to cart...`);
+      (`🛒 Adding product ${payload.productId} to cart...`);
       const response = await apiService.post<CartResponse>(
         "/cart/add",
         payload
       );
-      console.log("✅ Product added to cart successfully");
+      ("✅ Product added to cart successfully");
       return response.data;
     } catch (error: any) {
       console.error("❌ Error adding to cart:", error);
@@ -89,12 +89,12 @@ class CartService {
     payload: UpdateCartItemPayload
   ): Promise<Cart> {
     try {
-      console.log(`🛒 Updating cart item ${productId}...`);
+      (`🛒 Updating cart item ${productId}...`);
       const response = await apiService.patch<CartResponse>(
         `/cart/item/${productId}`,
         payload
       );
-      console.log("✅ Cart item updated successfully");
+      ("✅ Cart item updated successfully");
       return response.data;
     } catch (error) {
       console.error("❌ Error updating cart item:", error);
@@ -104,11 +104,11 @@ class CartService {
 
   async removeFromCart(token: string, productId: string): Promise<Cart> {
     try {
-      console.log(`🛒 Removing product ${productId} from cart...`);
+      (`🛒 Removing product ${productId} from cart...`);
       const response = await apiService.delete<CartResponse>(
         `/cart/item/${productId}`
       );
-      console.log("✅ Product removed from cart successfully");
+      ("✅ Product removed from cart successfully");
       return response.data;
     } catch (error) {
       console.error("❌ Error removing from cart:", error);
@@ -118,9 +118,9 @@ class CartService {
 
   async clearCart(token: string): Promise<void> {
     try {
-      console.log("🛒 Clearing cart...");
+      ("🛒 Clearing cart...");
       await apiService.delete<ClearCartResponse>("/cart");
-      console.log("✅ Cart cleared successfully");
+      ("✅ Cart cleared successfully");
     } catch (error) {
       console.error("❌ Error clearing cart:", error);
       throw new Error("Failed to clear cart");
@@ -129,9 +129,9 @@ class CartService {
 
   async getCartCount(token: string): Promise<number> {
     try {
-      console.log("🛒 Fetching cart count...");
+      ("🛒 Fetching cart count...");
       const response = await apiService.get<CartCountResponse>("/cart/count");
-      console.log(`✅ Cart count: ${response.data.count}`);
+      (`✅ Cart count: ${response.data.count}`);
       return response.data.count;
     } catch (error) {
       console.error("❌ Error fetching cart count:", error);

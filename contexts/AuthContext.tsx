@@ -40,7 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (token) {
         const userData = await userService.getProfile(token);
-        setUser(userData);
+        setUser({ ...userData }); // Force new object reference
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
@@ -55,9 +55,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await tokenService.saveToken(token);
       
-      setUser(userData);
+      setUser({ ...userData }); // Force new object reference
       
-      console.log('User logged in successfully');
+      ('User logged in successfully');
     } catch (error) {
       console.error('Error during login:', error);
       throw error;
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       setUser(null);
       
-      console.log('User logged out successfully');
+      ('User logged out successfully');
     } catch (error) {
       console.error('Error during logout:', error);
       throw error;
@@ -83,11 +83,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (token) {
         const userData = await userService.getProfile(token);
-        setUser(userData);
+        // Merge with existing user to avoid overwriting with partial data
+        setUser((prevUser) => ({ ...(prevUser || {}), ...userData }));  // Force new object reference
       }
     } catch (error) {
-      console.error('Error refreshing user:', error);
-      throw error;
+      console.error('Error refreshing user (non-blocking):', error);
     }
   };
 

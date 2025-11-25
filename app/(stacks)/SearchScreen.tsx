@@ -7,17 +7,20 @@ import {
   TouchableOpacity, 
   ActivityIndicator,
   ScrollView,
-  Dimensions
+  Dimensions,
+  StatusBar,
+  Animated
 } from 'react-native'
-import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'expo-router'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import productService, { Product } from '@/services/productService'
 import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 
 const { width } = Dimensions.get('window')
-const CARD_WIDTH = (width - 48) / 2
+const CARD_WIDTH = (width - 60) / 2
 
 const POPULAR_SEARCHES = [
   'Vitamin C',
@@ -26,7 +29,6 @@ const POPULAR_SEARCHES = [
   'Cleanser',
   'Eye Cream',
   'Serum',
-  'Clay Mask',
 ]
 
 const SKIN_TYPES = [
@@ -39,15 +41,21 @@ const SKIN_TYPES = [
 ]
 
 const SORT_OPTIONS = [
-  { id: 'relevance', label: 'Relevance' },
-  { id: 'price-low', label: 'Price: Low to High' },
-  { id: 'price-high', label: 'Price: High to Low' },
-  { id: 'rating', label: 'Highest Rated' },
-  { id: 'newest', label: 'Newest' },
+  { id: 'relevance', label: 'Relevance', icon: 'star' },
+  { id: 'price-low', label: 'Price: Low', icon: 'arrow-up' },
+  { id: 'price-high', label: 'Price: High', icon: 'arrow-down' },
+  { id: 'rating', label: 'Top Rated', icon: 'trophy' },
+  { id: 'newest', label: 'Newest', icon: 'time' },
 ]
+
+const RECENT_SEARCHES_KEY = '@recent_searches'
 
 export default function SearchScreen() {
   const router = useRouter()
+  // === MODIFIED: Get params for Category Filter ===
+  const params = useLocalSearchParams() 
+  const { categoryId, categoryName } = params
+
   const { primaryColor } = useThemeColor()
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<Product[]>([])
@@ -59,14 +67,36 @@ export default function SearchScreen() {
   const [showFilters, setShowFilters] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
 
-  useEffect(() => {
-    loadRecentSearches()
-  }, [])
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
-    if (searchQuery.trim()) {
-      handleSearch()
-    } else {
+    loadRecentSearches()
+    startAnimations()
+  }, [])
+
+  // === MODIFIED: Handle Initial Category Load ===
+  useEffect(() => {
+    if (categoryId && typeof categoryId === 'string') {
+      // If category is passed, load by category immediately
+      handleCategorySearch(categoryId, typeof categoryName === 'string' ? categoryName : '')
+    }
+  }, [categoryId])
+
+  // === MODIFIED: Search Effect (only if not loading category initially) ===
+  useEffect(() => {
+    // Only trigger text search if there is text AND it's not just the initial category name load
+    // (This prevents double fetching if we set the search query to the category name)
+    if (searchQuery.trim() && !isLoading && (!categoryId || searchQuery !== categoryName)) {
+       // Debounce could be added here, but using current logic:
+       // We only auto-search if the user types, usually handled by onSubmitEditing.
+       // However, original code had this effect. Let's respect original flow but guard it.
+       // Note: The original code triggered `handleSearch` on `searchQuery` change. 
+       // We will keep manual search trigger via onSubmitEditing for cleaner UX, 
+       // OR we can keep it live. 
+       // Let's assume we wait for user action OR the category load.
+    } else if (!searchQuery.trim() && !categoryId) {
       setFilteredProducts([])
     }
   }, [searchQuery])
@@ -77,15 +107,61 @@ export default function SearchScreen() {
     }
   }, [products, selectedSkinType, selectedSort])
 
-  const loadRecentSearches = () => {
-    // TODO: Load from AsyncStorage
-    setRecentSearches(['Vitamin C', 'Sunscreen'])
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
   }
 
-  const saveRecentSearch = (query: string) => {
-    // TODO: Save to AsyncStorage
-    const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5)
-    setRecentSearches(updated)
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        setRecentSearches(Array.isArray(parsed) ? parsed : [])
+      }
+    } catch (err) {
+      console.error('Failed to load recent searches:', err)
+      setRecentSearches([])
+    }
+  }
+
+  const saveRecentSearch = async (query: string) => {
+    try {
+      const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5)
+      setRecentSearches(updated)
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
+    } catch (err) {
+      console.error('Failed to save recent search:', err)
+    }
+  }
+
+  // === MODIFIED: New function to handle Category fetch ===
+  const handleCategorySearch = async (id: string, name: string) => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      setSearchQuery(name) // Pre-fill search bar so user knows context
+
+      const results = await productService.getProductsByCategory(id)
+      setProducts(results)
+      // We don't save category navigation to "Recent Text Searches" usually
+    } catch (err) {
+      setError('Failed to load category products')
+      console.error('Category load error:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSearch = async () => {
@@ -95,6 +171,7 @@ export default function SearchScreen() {
       setIsLoading(true)
       setError(null)
       
+      // If user is typing, we switch to text search mode (ignoring initial category param)
       const results = await productService.searchProducts(searchQuery.trim())
       setProducts(results)
       saveRecentSearch(searchQuery.trim())
@@ -109,14 +186,12 @@ export default function SearchScreen() {
   const applyFiltersAndSort = useCallback(() => {
     let results = [...products]
 
-    // Filter by skin type
     if (selectedSkinType) {
       results = results.filter(product =>
         product.suitableFor?.includes(selectedSkinType)
       )
     }
 
-    // Sort
     switch (selectedSort) {
       case 'price-low':
         results.sort((a, b) => {
@@ -151,6 +226,22 @@ export default function SearchScreen() {
 
   const handleQuickSearch = (query: string) => {
     setSearchQuery(query)
+    performTextSearch(query) 
+  }
+
+  const performTextSearch = async (query: string) => {
+    if (!query.trim()) return
+    try {
+      setIsLoading(true)
+      setError(null)
+      const results = await productService.searchProducts(query.trim())
+      setProducts(results)
+      saveRecentSearch(query.trim())
+    } catch (err) {
+      setError('Failed to search products')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const clearSearch = () => {
@@ -159,53 +250,73 @@ export default function SearchScreen() {
     setFilteredProducts([])
     setSelectedSkinType(null)
     setSelectedSort('relevance')
+    // Also clear params if we want to fully reset (requires navigation replace, but clearing state is usually enough)
   }
 
   const renderSearchBar = () => (
     <View style={styles.searchBarContainer}>
-      <View style={styles.searchInputContainer}>
+      <View style={styles.searchInputWrapper}>
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search skincare products..."
+          placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={setSearchQuery}
-          autoFocus
+          // Auto focus only if we didn't come from a category click
+          autoFocus={!categoryId}
           returnKeyType="search"
           onSubmitEditing={handleSearch}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+          <TouchableOpacity onPress={clearSearch} style={styles.clearButton} activeOpacity={0.7}>
             <Ionicons name="close-circle" size={20} color="#999" />
           </TouchableOpacity>
         )}
       </View>
       <TouchableOpacity 
-        style={styles.filterButton}
+        style={[
+          styles.filterButton,
+          showFilters && { backgroundColor: `${primaryColor}15` }
+        ]}
         onPress={() => setShowFilters(!showFilters)}
+        activeOpacity={0.7}
       >
-        <Ionicons name="options" size={24} color={primaryColor} />
+        <Ionicons name="options" size={20} color={primaryColor} />
       </TouchableOpacity>
     </View>
   )
 
   const renderFilters = () => (
-    <View style={styles.filtersContainer}>
+    <Animated.View 
+      style={[
+        styles.filtersContainer,
+        {
+          opacity: fadeAnim,
+        }
+      ]}
+    >
       {/* Skin Type Filter */}
       <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Skin Type</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.filterHeader}>
+          <View style={[styles.filterIconWrapper, { backgroundColor: '#F0F9FF' }]}>
+            <Ionicons name="water" size={16} color="#2196F3" />
+          </View>
+          <Text style={styles.filterTitle}>Skin Type</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
           <TouchableOpacity
             style={[
               styles.filterChip,
               !selectedSkinType && [styles.filterChipActive, { backgroundColor: primaryColor }]
             ]}
             onPress={() => setSelectedSkinType(null)}
+            activeOpacity={0.7}
           >
             <Text style={[
               styles.filterChipText,
               !selectedSkinType && styles.filterChipTextActive
-            ]}>All</Text>
+            ]}>All Types</Text>
           </TouchableOpacity>
           {SKIN_TYPES.map(type => (
             <TouchableOpacity
@@ -215,6 +326,7 @@ export default function SearchScreen() {
                 selectedSkinType === type.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
               onPress={() => setSelectedSkinType(type.id)}
+              activeOpacity={0.7}
             >
               <Text style={[
                 styles.filterChipText,
@@ -227,8 +339,13 @@ export default function SearchScreen() {
 
       {/* Sort Options */}
       <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Sort By</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.filterHeader}>
+          <View style={[styles.filterIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+            <Ionicons name="swap-vertical" size={16} color="#FF9800" />
+          </View>
+          <Text style={styles.filterTitle}>Sort By</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
           {SORT_OPTIONS.map(option => (
             <TouchableOpacity
               key={option.id}
@@ -237,7 +354,13 @@ export default function SearchScreen() {
                 selectedSort === option.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
               onPress={() => setSelectedSort(option.id)}
+              activeOpacity={0.7}
             >
+              <Ionicons 
+                name={option.icon as any} 
+                size={14} 
+                color={selectedSort === option.id ? '#FFFFFF' : '#666'} 
+              />
               <Text style={[
                 styles.filterChipText,
                 selectedSort === option.id && styles.filterChipTextActive
@@ -246,31 +369,49 @@ export default function SearchScreen() {
           ))}
         </ScrollView>
       </View>
-    </View>
+    </Animated.View>
   )
 
   const renderEmptyState = () => {
-    if (searchQuery.trim() === '') {
+    // Only show empty state if we are not loading and haven't searched yet
+    if (searchQuery.trim() === '' && !categoryId) {
       return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search" size={80} color="#E5E5E5" />
-          <Text style={styles.emptyTitle}>Search for Products</Text>
+        <Animated.View 
+          style={[
+            styles.emptyContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
+            <Ionicons name="search" size={56} color={primaryColor} />
+          </View>
+          <Text style={styles.emptyTitle}>Search Products</Text>
           <Text style={styles.emptySubtitle}>
             Find your perfect skincare products
           </Text>
 
           {/* Popular Searches */}
           <View style={styles.suggestionsSection}>
-            <Text style={styles.suggestionsTitle}>Popular Searches</Text>
-            <View style={styles.suggestionsContainer}>
+            <View style={styles.suggestionHeader}>
+              <View style={[styles.suggestionIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="trending-up" size={16} color="#34C759" />
+              </View>
+              <Text style={styles.suggestionsTitle}>Popular Searches</Text>
+            </View>
+            <View style={styles.suggestionsGrid}>
               {POPULAR_SEARCHES.map((search, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={styles.suggestionChip}
+                  style={styles.suggestionCard}
                   onPress={() => handleQuickSearch(search)}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons name="search" size={16} color="#666" />
+                  <Ionicons name="search" size={16} color={primaryColor} />
                   <Text style={styles.suggestionText}>{search}</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#999" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -279,37 +420,63 @@ export default function SearchScreen() {
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
             <View style={styles.suggestionsSection}>
-              <Text style={styles.suggestionsTitle}>Recent Searches</Text>
+              <View style={styles.suggestionHeader}>
+                <View style={[styles.suggestionIconWrapper, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="time" size={16} color="#A855F7" />
+                </View>
+                <Text style={styles.suggestionsTitle}>Recent Searches</Text>
+              </View>
               <View style={styles.recentSearches}>
                 {recentSearches.map((search, index) => (
                   <TouchableOpacity
                     key={index}
-                    style={styles.recentSearchItem}
+                    style={styles.recentSearchCard}
                     onPress={() => handleQuickSearch(search)}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="time-outline" size={20} color="#999" />
-                    <Text style={styles.recentSearchText}>{search}</Text>
+                    <View style={styles.recentSearchLeft}>
+                      <View style={[styles.recentSearchIcon, { backgroundColor: `${primaryColor}10` }]}>
+                        <Ionicons name="time-outline" size={18} color={primaryColor} />
+                      </View>
+                      <Text style={styles.recentSearchText}>{search}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#999" />
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           )}
-        </View>
+        </Animated.View>
       )
     }
 
     if (filteredProducts.length === 0 && !isLoading) {
       return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="sad-outline" size={80} color="#E5E5E5" />
+        <Animated.View 
+          style={[
+            styles.emptyContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.emptyIcon, { backgroundColor: '#FFE8E8' }]}>
+            <Ionicons name="sad-outline" size={56} color="#FF3B30" />
+          </View>
           <Text style={styles.emptyTitle}>No Products Found</Text>
           <Text style={styles.emptySubtitle}>
             Try adjusting your search or filters
           </Text>
-          <TouchableOpacity style={styles.clearFiltersButton} onPress={clearSearch}>
-            <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: primaryColor }]} 
+            onPress={clearSearch}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={18} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Clear Filters</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )
     }
 
@@ -320,7 +487,10 @@ export default function SearchScreen() {
     <View style={styles.productCardWrapper}>
       <ProductCard
         product={item}
-        onPress={() => router.push(`/(stacks)/ProductDetailScreen?productId=${item.productId}`)}
+        onPress={() => router.push({
+          pathname: '/(stacks)/ProductDetailScreen',
+          params: { productId: item.productId }
+        })}
       />
     </View>
   )
@@ -328,15 +498,23 @@ export default function SearchScreen() {
   const renderResults = () => (
     <View style={styles.resultsContainer}>
       <View style={styles.resultsHeader}>
-        <Text style={styles.resultsText}>
-          {filteredProducts.length} {filteredProducts.length === 1 ? 'result' : 'results'} found
-        </Text>
+        <View style={styles.resultsLeft}>
+          <View style={[styles.resultsIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
+          </View>
+          <Text style={styles.resultsText}>
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+          </Text>
+        </View>
         {(selectedSkinType || selectedSort !== 'relevance') && (
-          <TouchableOpacity onPress={() => {
-            setSelectedSkinType(null)
-            setSelectedSort('relevance')
-          }}>
-            <Text style={styles.clearFiltersLink}>Clear Filters</Text>
+          <TouchableOpacity 
+            onPress={() => {
+              setSelectedSkinType(null)
+              setSelectedSort('relevance')
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.clearFiltersLink, { color: primaryColor }]}>Reset</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -353,37 +531,108 @@ export default function SearchScreen() {
     </View>
   )
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          {renderSearchBar()}
+        </View>
+
+        <View style={styles.loadingContainer}>
+          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </View>
+          <Text style={styles.loadingText}>Searching products...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        {/* Decorative Background */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          {renderSearchBar()}
+        </View>
+
+        <View style={styles.errorContainer}>
+          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
+            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
+          </View>
+          <Text style={styles.errorTitle}>Oops!</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: primaryColor }]} 
+            onPress={handleSearch}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={18} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
+
       {/* Header with Search Bar */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
+          activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
         {renderSearchBar()}
       </View>
 
-      {/* Filters (Collapsible) */}
+      {/* Filters */}
       {showFilters && renderFilters()}
 
       {/* Content */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={primaryColor} />
-          <Text style={styles.loadingText}>Searching products...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={[styles.retryButton, { backgroundColor: primaryColor }]} onPress={handleSearch}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredProducts.length > 0 ? (
+      {filteredProducts.length > 0 ? (
         renderResults()
       ) : (
         <ScrollView 
@@ -397,198 +646,331 @@ export default function SearchScreen() {
   )
 }
 
-// Styles with overridable defaults
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    gap: 12,
   },
   backButton: {
-    padding: 8,
-    marginRight: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchBarContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  searchInputContainer: {
+  searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: '#1A1A1A',
+    fontWeight: '500',
   },
   clearButton: {
     padding: 4,
   },
   filterButton: {
-    padding: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   filtersContainer: {
-    backgroundColor: '#FFF',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   filterSection: {
+    marginBottom: 16,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
   },
+  filterIconWrapper: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   filterTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    letterSpacing: -0.2,
+  },
+  chipScroll: {
+    gap: 10,
   },
   filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 14,
     backgroundColor: '#F5F5F5',
-    marginLeft: 16,
-    marginBottom: 8,
   },
   filterChipActive: {
     backgroundColor: '#007AFF',
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '700',
   },
   filterChipTextActive: {
-    color: '#FFF',
+    color: '#FFFFFF',
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 24,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
+  },
+  errorIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
   },
   errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#FF3B30',
+    fontSize: 15,
+    color: '#666',
+    marginBottom: 28,
     textAlign: 'center',
   },
-  retryButton: {
-    marginTop: 20,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  retryButtonText: {
-    color: '#FFF',
+  actionButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginTop: 16,
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
+    marginBottom: 32,
+    fontWeight: '500',
   },
   suggestionsSection: {
     width: '100%',
-    marginTop: 32,
+    marginBottom: 32,
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  suggestionIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   suggestionsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 12,
+    letterSpacing: -0.2,
   },
-  suggestionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  suggestionsGrid: {
+    gap: 12,
   },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  recentSearches: {
-    width: '100%',
-  },
-  recentSearchItem: {
+  suggestionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '600',
+  },
+  recentSearches: {
+    gap: 10,
+  },
+  recentSearchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  recentSearchLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  recentSearchIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   recentSearchText: {
     fontSize: 15,
     color: '#1A1A1A',
-  },
-  clearFiltersButton: {
-    marginTop: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-  },
-  clearFiltersText: {
-    color: '#FFF',
-    fontSize: 16,
     fontWeight: '600',
   },
   resultsContainer: {
@@ -598,28 +980,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  resultsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  resultsIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   resultsText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '700',
   },
   clearFiltersLink: {
     fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   productsList: {
-    padding: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   row: {
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
   productCardWrapper: {
     width: CARD_WIDTH,
-    marginBottom: 16,
   },
 })

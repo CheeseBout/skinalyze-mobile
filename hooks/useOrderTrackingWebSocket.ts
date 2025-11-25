@@ -42,17 +42,17 @@ export function useOrderTrackingWebSocket({
         throw new Error('Vui lòng đăng nhập để xem thông tin giao hàng');
       }
 
-      console.log(`🔍 [ONE-TIME] Fetching initial tracking for order: ${orderId}`);
+      (`🔍 [ONE-TIME] Fetching initial tracking for order: ${orderId}`);
       const data = await trackingService.getOrderTracking(orderId, token);
 
       // Helpful debug payload
-      console.log('📦 Backend tracking data:');
-      console.log('  - Order ID:', data.orderId);
-      console.log('  - Shipper location:', data.currentLocation);
-      console.log('  - Customer location:', data.customer?.location);
-      console.log('  - Customer address:', data.customer?.address);
-      console.log('  - Has ETA:', !!data.eta);
-      console.log('  - Full data:', JSON.stringify(data, null, 2));
+      ('📦 Backend tracking data:');
+      ('  - Order ID:', data.orderId);
+      ('  - Shipper location:', data.currentLocation);
+      ('  - Customer location:', data.customer?.location);
+      ('  - Customer address:', data.customer?.address);
+      ('  - Has ETA:', !!data.eta);
+      ('  - Full data:', JSON.stringify(data, null, 2));
 
       setTrackingData(data);
       setError(null);
@@ -70,7 +70,7 @@ export function useOrderTrackingWebSocket({
         onETAUpdateRef.current(data.eta);
       }
 
-      console.log('✅ Initial tracking data loaded');
+      ('✅ Initial tracking data loaded');
       isFirstLoad.current = false;
     } catch (err: any) {
       console.error('❌ Error fetching initial tracking:', err);
@@ -99,7 +99,7 @@ export function useOrderTrackingWebSocket({
         if (isMounted) await fetchInitialTracking();
 
         // Connect socket
-        console.log('🔌 Connecting to tracking WebSocket...');
+        ('🔌 Connecting to tracking WebSocket...');
         const socket = io(`${config.WEBSOCKET_URL}/tracking`, {
           transports: ['websocket', 'polling'],
           timeout: 20000,
@@ -118,17 +118,17 @@ export function useOrderTrackingWebSocket({
 
         // Connection events
         socket.on('connect', () => {
-          console.log('✅ WebSocket connected');
+          ('✅ WebSocket connected');
           setIsConnected(true);
           setError(null);
 
           // Join room - send orderId as string directly
           socket.emit('joinRoom', orderId);
-          console.log(`📍 Joined tracking room for order: ${orderId}`);
+          (`📍 Joined tracking room for order: ${orderId}`);
         });
 
         socket.on('disconnect', (reason: any) => {
-          console.log('❌ WebSocket disconnected:', reason);
+          ('❌ WebSocket disconnected:', reason);
           setIsConnected(false);
           // socket.io will try reconnect automatically according to options
         });
@@ -140,7 +140,7 @@ export function useOrderTrackingWebSocket({
 
         // Real-time events
         socket.on('shipperMoved', (data: any) => {
-          console.log('📍 shipperMoved', data);
+          ('📍 shipperMoved', data);
           setTrackingData(prev => {
             if (!prev) return prev;
             return {
@@ -157,14 +157,14 @@ export function useOrderTrackingWebSocket({
         });
 
         socket.on('updateETA', (data: any) => {
-          console.log('⏱️ updateETA', data);
+          ('⏱️ updateETA', data);
           setTrackingData(prev => (prev ? { ...prev, eta: data.eta } : prev));
           setLastUpdate(new Date());
           if (onETAUpdateRef.current) onETAUpdateRef.current(data.eta);
         });
 
         socket.on('statusChanged', (data: any) => {
-          console.log('🔄 statusChanged', data);
+          ('🔄 statusChanged', data);
           setTrackingData(prev => {
             if (!prev) return prev;
             return { ...prev, shippingLog: { ...prev.shippingLog, status: data.status } };
@@ -173,7 +173,7 @@ export function useOrderTrackingWebSocket({
         });
 
         socket.on('trackingUpdate', (data: any) => {
-          console.log('🔄 trackingUpdate', data);
+          ('🔄 trackingUpdate', data);
           setTrackingData(data);
           setLastUpdate(new Date());
         });

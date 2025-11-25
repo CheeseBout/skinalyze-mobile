@@ -16,11 +16,11 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
     }
 
     if (finalStatus !== "granted") {
-      console.log("❌ Notification permission denied");
+      ("❌ Notification permission denied");
       return false;
     }
 
-    console.log("✅ Notification permission granted");
+    ("✅ Notification permission granted");
 
     // Cấu hình cách hiển thị notification
     if (Platform.OS === "android") {

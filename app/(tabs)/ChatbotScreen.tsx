@@ -10,26 +10,39 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  Image,
+  SafeAreaView,
 } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/hooks/useAuth';
 import chatbotService, { ChatMessage, ChatSession } from '@/services/chatbotService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 
 export default function ChatbotScreen() {
   const { user } = useAuth();
+  const { primaryColor } = useThemeColor();
+
+  // --- State Management ---
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  
+  // Input State
   const [inputMessage, setInputMessage] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // UI State
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+  // Refs
   const flatListRef = useRef<FlatList>(null);
   const hasLoadedRef = useRef(false);
-  const { primaryColor } = useThemeColor();
+
+  // --- Effects ---
 
   useEffect(() => {
     if (user?.userId && !hasLoadedRef.current) {
@@ -44,53 +57,34 @@ export default function ChatbotScreen() {
     }
   }, [currentChatId]);
 
-  // Keyboard listeners
+  // Auto-scroll when messages change or keyboard opens
   useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        // Scroll to bottom when keyboard shows
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => flatListRef.current?.scrollToEnd({ animated: true })
     );
-
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-      }
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
-    };
+    return () => keyboardDidShowListener.remove();
   }, []);
+
+  // --- Data Loading ---
 
   const loadChatSessions = async () => {
     if (!user?.userId) return;
-
     try {
       setIsLoading(true);
       const sessions = await chatbotService.getChatSessionsByUserId(user.userId);
-      
-      const validSessions = sessions.filter(s => s.messages && s.messages.length > 0);
-      setChatSessions(validSessions);
+      setChatSessions(sessions);
 
-      if (validSessions.length > 0) {
-        const mostRecentChat = validSessions.sort(
+      if (sessions.length > 0) {
+        const mostRecent = sessions.sort(
           (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         )[0];
-        setCurrentChatId(mostRecentChat.chatId);
+        setCurrentChatId(mostRecent.chatId);
       } else {
         await createNewChat();
       }
     } catch (error) {
-      console.error('Error loading chat sessions:', error);
-      Alert.alert('Error', 'Failed to load chat sessions. Please try again.');
+      console.error('Error loading chats:', error);
     } finally {
       setIsLoading(false);
     }
@@ -100,376 +94,276 @@ export default function ChatbotScreen() {
     try {
       const chatMessages = await chatbotService.getMessagesByChatId(chatId);
       setMessages(chatMessages);
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
   };
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => {
-    const isUser = item.sender === 'user';
-    const isAI = item.sender === 'ai';
-
-    return (
-      <View style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.aiMessageContainer]}>
-        {isAI && (
-          <View style={styles.aiAvatar}>
-            <Ionicons name="sparkles" size={16} color="#fff" />
-          </View>
-        )}
-        <View style={[styles.messageBubble, isUser ? [styles.userBubble, { backgroundColor: primaryColor }] : styles.aiBubble]}>
-          <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.aiMessageText]}>
-            {item.messageContent}
-          </Text>
-          <Text style={[styles.messageTime, isUser ? styles.userTimeText : styles.aiTimeText]}>
-            {new Date(item.createdAt).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-        </View>
-        {isUser && (
-          <View style={[styles.userAvatar, { backgroundColor: primaryColor }]}>
-            <Ionicons name="person" size={16} color="#fff" />
-          </View>
-        )}
-      </View>
-    );
-  };
+  // --- Actions ---
 
   const createNewChat = async () => {
-    if (!user?.userId) {
-      Alert.alert('Error', 'Please log in to use chat');
-      return;
-    }
-
+    if (!user?.userId) return;
     try {
       setIsLoading(true);
-      
       const newChat = await chatbotService.createChatSession(user.userId);
-      
-      if (!newChat.messages || newChat.messages.length === 0) {
-        throw new Error('Chat created without greeting message');
-      }
-
       setChatSessions([newChat, ...chatSessions]);
       setCurrentChatId(newChat.chatId);
-      setMessages(newChat.messages);
+      setMessages(newChat.messages || []);
       setShowChatList(false);
-      
-      console.log('✅ New chat created successfully');
     } catch (error) {
-      console.error('Error creating chat:', error);
-      Alert.alert('Error', 'Failed to create new chat. Please try again.');
+      Alert.alert('Error', 'Failed to start new chat');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const deleteChat = async (chatId: string) => {
+    Alert.alert('Delete Chat', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await chatbotService.deleteChatSession(chatId);
+            const updated = chatSessions.filter(c => c.chatId !== chatId);
+            setChatSessions(updated);
+            if (currentChatId === chatId) {
+              updated.length > 0 ? setCurrentChatId(updated[0].chatId) : createNewChat();
+            }
+          } catch (e) { console.error(e); }
+        }
+      }
+    ]);
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
+      if (!result.canceled) setSelectedImage(result.assets[0].uri);
+    } catch (error) {
+      Alert.alert('Error', 'Could not select image');
+    }
+  };
+
   const sendMessage = async () => {
-    if (!inputMessage.trim() || !currentChatId || isSending) return;
+    if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending) return;
 
-    const messageText = inputMessage.trim();
+    const textToSend = inputMessage.trim();
+    const imageToSend = selectedImage;
+
     setInputMessage('');
+    setSelectedImage(null);
     setIsSending(true);
-
-    // Scroll to bottom immediately when sending
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
 
     try {
       const { userMessage, aiMessage } = await chatbotService.sendMessage(
         currentChatId,
-        messageText
+        textToSend,
+        imageToSend
       );
 
-      if (aiMessage.messageContent.includes('I apologize, but I encountered an error')) {
-        Alert.alert(
-          'AI Error',
-          'The AI assistant encountered an error. This may be due to API limits or connectivity. Please try again.',
-          [{ text: 'OK' }]
-        );
+      setMessages(prev => [...prev, userMessage, aiMessage]);
+      
+      // Update title if needed
+      const session = chatSessions.find(s => s.chatId === currentChatId);
+      if (session?.title === 'New chat') {
+        // Ideally fetch updated session here to get AI generated title
+        loadChatSessions(); 
       }
-
-      setMessages((prev) => [...prev, userMessage, aiMessage]);
-
-      const currentSession = chatSessions.find(s => s.chatId === currentChatId);
-      if (currentSession?.title === 'New chat') {
-        try {
-          const updatedSession = await chatbotService.getChatSessionById(currentChatId);
-          setChatSessions(prev => 
-            prev.map(s => s.chatId === currentChatId ? { ...s, title: updatedSession.title } : s)
-          );
-        } catch (error) {
-          console.error('Error updating chat title:', error);
-        }
-      }
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message. Please check your connection and try again.');
-      setInputMessage(messageText);
+      Alert.alert('Error', 'Failed to send message');
+      setInputMessage(textToSend);
+      setSelectedImage(imageToSend);
     } finally {
       setIsSending(false);
     }
   };
 
-  const selectChat = (chatId: string) => {
-    setCurrentChatId(chatId);
-    setShowChatList(false);
-  };
+  // --- Render Helpers ---
 
-  const deleteChat = async (chatId: string) => {
-    Alert.alert(
-      'Delete Chat',
-      'Are you sure you want to delete this chat? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await chatbotService.deleteChatSession(chatId);
-              
-              const updatedSessions = chatSessions.filter((chat) => chat.chatId !== chatId);
-              setChatSessions(updatedSessions);
-
-              if (currentChatId === chatId) {
-                if (updatedSessions.length > 0) {
-                  setCurrentChatId(updatedSessions[0].chatId);
-                } else {
-                  setCurrentChatId(null);
-                  setMessages([]);
-                  await createNewChat();
-                }
-              }
-            } catch (error: any) {
-              console.error('Error deleting chat:', error);
-              
-              if (error?.message?.includes('not found') || error?.message?.includes('404')) {
-                const updatedSessions = chatSessions.filter((chat) => chat.chatId !== chatId);
-                setChatSessions(updatedSessions);
-                
-                if (currentChatId === chatId && updatedSessions.length > 0) {
-                  setCurrentChatId(updatedSessions[0].chatId);
-                } else if (currentChatId === chatId) {
-                  await createNewChat();
-                }
-              } else {
-                Alert.alert('Error', 'Failed to delete chat. Please try again.');
-              }
-            }
-          },
-        },
-      ]
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
+    const isUser = item.sender === 'user';
+    return (
+      <View style={[
+        styles.messageRow, 
+        isUser ? styles.messageRowUser : styles.messageRowAi
+      ]}>
+        {!isUser && (
+          <View style={[styles.avatar, { backgroundColor: '#fff', borderColor: primaryColor, borderWidth: 1 }]}>
+            <Ionicons name="sparkles" size={14} color={primaryColor} />
+          </View>
+        )}
+        
+        <View style={[
+          styles.bubble,
+          isUser ? [styles.bubbleUser, { backgroundColor: primaryColor }] : styles.bubbleAi
+        ]}>
+          <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
+            {item.messageContent}
+          </Text>
+          <Text style={[styles.timestamp, isUser ? { color: 'rgba(255,255,255,0.7)' } : { color: '#999' }]}>
+            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      </View>
     );
   };
 
   const renderChatItem = ({ item }: { item: ChatSession }) => {
     const isActive = item.chatId === currentChatId;
-    
-    const lastMessage = item.messages && item.messages.length > 0 
-      ? item.messages[item.messages.length - 1].messageContent.substring(0, 50) + '...'
-      : 'No messages';
-    
     return (
-      <TouchableOpacity
-        style={[
-          styles.chatItem, 
-          isActive && styles.activeChatItem, 
-          { 
-            borderColor: isActive ? primaryColor : '#E5E5E5',
-            backgroundColor: isActive ? `${primaryColor}15` : '#fff'
-          }
-        ]}
-        onPress={() => selectChat(item.chatId)}
+      <TouchableOpacity 
+        style={[styles.chatItem, isActive && { backgroundColor: `${primaryColor}15`, borderColor: primaryColor }]}
+        onPress={() => { setCurrentChatId(item.chatId); setShowChatList(false); }}
       >
-        <View style={styles.chatItemContent}>
-          <View style={styles.chatIconContainer}>
-            <Ionicons name="chatbubble-ellipses" size={24} color={isActive ? primaryColor : '#666'} />
-          </View>
-          <View style={styles.chatItemText}>
-            <Text style={[styles.chatTitle, isActive && styles.activeChatTitle, { color: isActive ? primaryColor : '#000' }]} numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text style={styles.chatPreview} numberOfLines={1}>
-              {lastMessage}
-            </Text>
-            <Text style={styles.chatDate}>
-              {new Date(item.updatedAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </View>
+        <View style={styles.chatItemIcon}>
+          <Ionicons name="chatbubble-ellipses" size={24} color={isActive ? primaryColor : '#666'} />
         </View>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            deleteChat(item.chatId);
-          }}
-        >
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.chatItemTitle, isActive && { color: primaryColor }]} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.chatItemDate}>
+            {new Date(item.updatedAt).toLocaleDateString()}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => deleteChat(item.chatId)} style={{ padding: 8 }}>
           <Ionicons name="trash-outline" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
-  if (!user) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Ionicons name="person-circle-outline" size={80} color="#ccc" />
-        <Text style={styles.emptyMessagesText}>Please log in to use AI Chat</Text>
-        <Text style={styles.emptyMessagesSubtext}>
-          Sign in to start chatting with our AI assistant
-        </Text>
-      </View>
-    );
-  }
+  // --- Views ---
 
-  if (isLoading && chatSessions.length === 0) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading chats...</Text>
-      </View>
-    );
-  }
+  if (!user) return (
+    <View style={[styles.container, styles.center]}>
+      <Text style={{ color: '#666' }}>Please log in to use the chatbot.</Text>
+    </View>
+  );
 
   if (showChatList) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowChatList(false)}>
-            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          <TouchableOpacity onPress={() => setShowChatList(false)} style={styles.iconButton}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>All Chats</Text>
-          <TouchableOpacity onPress={createNewChat} disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={primaryColor} />
-            ) : (
-              <Ionicons name="add-circle" size={24} color={primaryColor} />
-            )}
+          <Text style={styles.headerTitle}>History</Text>
+          <TouchableOpacity onPress={createNewChat} style={styles.iconButton}>
+            <Ionicons name="add" size={24} color={primaryColor} />
           </TouchableOpacity>
         </View>
-
-        <FlatList
-          data={chatSessions}
-          renderItem={renderChatItem}
-          keyExtractor={(item) => item.chatId}
-          contentContainerStyle={styles.chatListContent}
+        <FlatList 
+          data={chatSessions} 
+          renderItem={renderChatItem} 
+          keyExtractor={item => item.chatId}
+          contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyStateText}>No chats yet</Text>
-              <Text style={styles.emptyMessagesSubtext}>
-                Start a conversation with our AI assistant
-              </Text>
-              <TouchableOpacity 
-                style={[styles.createButton, { backgroundColor: primaryColor }]} 
-                onPress={createNewChat}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.createButtonText}>Start New Chat</Text>
-                )}
-              </TouchableOpacity>
+            <View style={styles.center}>
+              <Text style={{ color: '#999', marginTop: 40 }}>No chat history</Text>
             </View>
           }
         />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
+      {/* Header - Fixed at top */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setShowChatList(true)}>
-          <Ionicons name="menu" size={24} color="#1A1A1A" />
+        <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
+          <Ionicons name="menu" size={24} color="#333" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Ionicons name="sparkles" size={20} color={primaryColor} />
-          <Text style={styles.headerTitle}>AI Assistant</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="sparkles" size={18} color={primaryColor} />
+          <Text style={styles.headerTitle}>Assistant</Text>
         </View>
-        <TouchableOpacity onPress={createNewChat} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator size="small" color={primaryColor} />
-          ) : (
-            <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
-          )}
+        <TouchableOpacity onPress={createNewChat} style={styles.iconButton}>
+          <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.messageId}
-        contentContainerStyle={styles.messagesContent}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          <View style={styles.emptyMessages}>
-            <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyMessagesText}>Start a conversation</Text>
-            <Text style={styles.emptyMessagesSubtext}>
-              Ask me anything about skincare, products, or skin conditions!
-            </Text>
-          </View>
-        }
-      />
-
-      {/* Input Area */}
-      <KeyboardAvoidingView
+      {/* Keyboard Avoiding View Wrapper */}
+      <KeyboardAvoidingView 
+        style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
+        {/* Chat Area */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={item => item.messageId}
+          contentContainerStyle={styles.chatContent}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          onLayout={() => flatListRef.current?.scrollToEnd()}
+          ListEmptyComponent={
+            <View style={[styles.center, { marginTop: 100 }]}>
+              <Ionicons name="chatbubbles-outline" size={64} color="#ddd" />
+              <Text style={{ color: '#999', marginTop: 16 }}>Start a new conversation</Text>
+            </View>
+          }
+        />
+
+        {/* Input Area */}
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type your message..."
-            placeholderTextColor="#999"
-            value={inputMessage}
-            onChangeText={setInputMessage}
-            multiline
-            maxLength={500}
-            editable={!isSending}
-            blurOnSubmit={false}
-            onFocus={() => {
-              setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }, 300);
-            }}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!inputMessage.trim() || isSending) && styles.sendButtonDisabled, { backgroundColor: (!inputMessage.trim() || isSending) ? '#ccc' : primaryColor }]}
-            onPress={sendMessage}
-            disabled={!inputMessage.trim() || isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="send" size={20} color="#fff" />
-            )}
-          </TouchableOpacity>
+          {/* Image Preview Card (Pops up above input) */}
+          {selectedImage && (
+            <View style={styles.imagePreviewCard}>
+              <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.previewLabel}>Image Attached</Text>
+                <Text style={styles.previewSub}>Ready to send</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.closePreview}>
+                <Ionicons name="close" size={16} color="#666" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Input Row */}
+          <View style={styles.inputRow}>
+            <TouchableOpacity onPress={pickImage} style={styles.attachBtn}>
+              <Ionicons name="image-outline" size={24} color={primaryColor} />
+            </TouchableOpacity>
+
+            <View style={styles.textInputWrapper}>
+              <TextInput
+                style={styles.textInput}
+                placeholder={selectedImage ? "Ask about this image..." : "Type a message..."}
+                placeholderTextColor="#999"
+                multiline
+                value={inputMessage}
+                onChangeText={setInputMessage}
+                maxLength={1000}
+              />
+            </View>
+
+            <TouchableOpacity 
+              onPress={sendMessage} 
+              disabled={(!inputMessage.trim() && !selectedImage) || isSending}
+              style={[
+                styles.sendBtn, 
+                { backgroundColor: (!inputMessage.trim() && !selectedImage) || isSending ? '#E0E0E0' : primaryColor }
+              ]}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="arrow-up" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -478,247 +372,189 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  centerContent: {
+  flex1: {
+    flex: 1,
+  },
+  center: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
+  
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    borderBottomColor: '#f0f0f0',
+    zIndex: 10,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#333',
   },
-  messagesContent: {
-    padding: 16,
-    flexGrow: 1,
-    paddingBottom: 20,
+  iconButton: {
+    padding: 8,
   },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 8,
-  },
-  userMessageContainer: {
-    justifyContent: 'flex-end',
-  },
-  aiMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    borderRadius: 16,
-    padding: 12,
-  },
-  userBubble: {
-    backgroundColor: '#007AFF', // This will be overridden by inline style
-    borderBottomRightRadius: 4,
-  },
-  aiBubble: {
-    backgroundColor: '#fff',
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  userMessageText: {
-    color: '#fff',
-  },
-  aiMessageText: {
-    color: '#1A1A1A',
-  },
-  messageTime: {
-    fontSize: 11,
-  },
-  userTimeText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  aiTimeText: {
-    color: '#999',
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#007AFF', // This will be overridden by inline style
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FF9500',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    maxHeight: 100,
-    minHeight: 40,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    fontSize: 15,
-    color: '#1A1A1A',
-    textAlignVertical: 'center',
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  emptyMessages: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyMessagesText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptyMessagesSubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  chatListContent: {
-    padding: 16,
-    flexGrow: 1,
-  },
+
+  // Chat List (Sidebar)
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#fff',
+    padding: 12,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  activeChatItem: {
-    backgroundColor: '#E3F2FD', // This will be overridden by inline style
-    borderWidth: 2,
-    borderColor: '#007AFF', // This will be overridden by inline style
-  },
-  chatItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  chatIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F8F9FA',
+  chatItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
-  chatItemText: {
-    flex: 1,
-  },
-  chatTitle: {
+  chatItemTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#333',
     marginBottom: 2,
   },
-  activeChatTitle: {
-    color: '#007AFF', // This will be overridden by inline style
-  },
-  chatPreview: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 4,
-  },
-  chatDate: {
-    fontSize: 11,
+  chatItemDate: {
+    fontSize: 12,
     color: '#999',
   },
-  deleteButton: {
-    padding: 8,
+
+  // Messages
+  chatContent: {
+    padding: 16,
+    paddingBottom: 20,
   },
-  emptyState: {
-    flex: 1,
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-end',
+  },
+  messageRowUser: {
+    justifyContent: 'flex-end',
+  },
+  messageRowAi: {
+    justifyContent: 'flex-start',
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
+    marginRight: 8,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  createButton: {
-    backgroundColor: '#007AFF', // This will be overridden by inline style
-    paddingHorizontal: 24,
+  bubble: {
+    maxWidth: '80%',
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
-    marginTop: 16,
-    minWidth: 150,
+  },
+  bubbleUser: {
+    borderBottomRightRadius: 4,
+  },
+  bubbleAi: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#333',
+  },
+  messageTextUser: {
+    color: '#fff',
+  },
+  timestamp: {
+    fontSize: 10,
+    marginTop: 4,
+    textAlign: 'right',
+  },
+
+  // Input Area
+  inputContainer: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 10,
+  },
+  imagePreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 10,
+  },
+  previewThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: '#ddd',
+  },
+  previewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  previewSub: {
+    fontSize: 12,
+    color: '#666',
+  },
+  closePreview: {
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  attachBtn: {
+    padding: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  createButtonText: {
+  textInputWrapper: {
+    flex: 1,
+    backgroundColor: '#F2F2F2',
+    borderRadius: 20,
+    minHeight: 40,
+    maxHeight: 100,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  textInput: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    color: '#333',
+    paddingVertical: 8,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -40,12 +40,12 @@ interface WithdrawalResponse {
 class WithdrawalService {
   async requestOTP(payload: WithdrawalRequestOTPPayload): Promise<any> {
     try {
-      console.log("📤 Requesting OTP for withdrawal:", payload.amount);
+      ("📤 Requesting OTP for withdrawal:", payload.amount);
       const response = await apiService.post<WithdrawalOTPResponse>(
         "/withdrawals/request-otp",
         payload
       );
-      console.log("✅ OTP requested successfully");
+      ("✅ OTP requested successfully");
       return response.data;
     } catch (error) {
       console.error("❌ Error requesting OTP:", error);
@@ -55,12 +55,12 @@ class WithdrawalService {
 
   async createWithdrawal(payload: WithdrawalCreatePayload): Promise<any> {
     try {
-      console.log("📤 Creating withdrawal request");
+      ("📤 Creating withdrawal request");
       const response = await apiService.post<WithdrawalResponse>(
         "/withdrawals",
         payload
       );
-      console.log("✅ Withdrawal created successfully");
+      ("✅ Withdrawal created successfully");
       return response.data;
     } catch (error) {
       console.error("❌ Error creating withdrawal:", error);
@@ -70,7 +70,7 @@ class WithdrawalService {
 
   async getWithdrawalHistory(): Promise<any[]> {
     try {
-      console.log("📋 Fetching withdrawal history");
+      ("📋 Fetching withdrawal history");
       const response = await apiService.get<any>("/withdrawals/history");
       return response.data;
     } catch (error) {

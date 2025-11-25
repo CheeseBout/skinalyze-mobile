@@ -107,7 +107,7 @@ export default function BookingConfirmationScreen() {
           ),
           userService.getBalance(),
         ]);
-        console.log("❤️MY PLAN", subsData);
+        ("❤️MY PLAN", subsData);
 
         setDoctor(doctorData);
         setSubscriptions(subsData);

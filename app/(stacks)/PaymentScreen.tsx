@@ -1,8 +1,9 @@
 import {
-  Text,
   View,
+  Text,
   StyleSheet,
   Image,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
   ScrollView,
@@ -12,13 +13,14 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 
 import paymentService, {
   PaymentStatusResponse,
 } from "@/services/paymentService";
 import appointmentService from "@/services/appointmentService";
 import CustomAlert from "@/components/CustomAlert";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 const POLLING_INTERVAL_MS = 5000;
 
@@ -40,45 +42,46 @@ type ScreenStatus =
 export default function PaymentScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const params = useLocalSearchParams();
+  const { primaryColor } = useThemeColor();
 
-  const params = useLocalSearchParams<{
-    appointmentId: string;
-    paymentCode: string;
-    expiredAt: string;
-    bankingInfo: string;
-  }>();
-
+  // ---  Parse Data ---
   const bankingInfo: BankingInfo = useMemo(() => {
     try {
-      return JSON.parse(params.bankingInfo || "{}");
+      return JSON.parse((params.bankingInfo as string) || "{}");
     } catch (e) {
+      console.error("Failed to parse bankingInfo:", e);
       return {} as BankingInfo;
     }
   }, [params.bankingInfo]);
 
+  const paymentCode = params.paymentCode as string;
+  const appointmentId = params.appointmentId as string;
+
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
-
   const [screenStatus, setScreenStatus] = useState<ScreenStatus>("WAITING");
-
   const [paidAmount, setPaidAmount] = useState<number>(0);
 
+  // QR Error Handling
+  const [qrLoadError, setQrLoadError] = useState(false);
+
+  // Popup & Cancel logic
   const [isAlertVisible, setIsAlertVisible] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [leaveAction, setLeaveAction] = useState<any>(null);
 
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // --- 1. Logic for Countdown Timer ---
+  // ---  Logic Countdown Timer ---
   useEffect(() => {
     const calculateTimeLeft = () => {
       if (!params.expiredAt) return null;
-      const expiration = new Date(params.expiredAt);
+      const expiration = new Date(params.expiredAt as string);
       const now = new Date();
       const diff = expiration.getTime() - now.getTime();
 
       if (diff <= 0) {
-        // Only transition to EXPIRED if currently WAITING
         if (screenStatus === "WAITING") {
           setScreenStatus("EXPIRED");
         }
@@ -91,9 +94,7 @@ export default function PaymentScreen() {
         .padStart(2, "0")}`;
     };
 
-    const initialTime = calculateTimeLeft();
-    if (initialTime) setTimeLeft(initialTime);
-
+    setTimeLeft(calculateTimeLeft());
     const countdownTimer = setInterval(() => {
       const newTime = calculateTimeLeft();
       if (newTime === null) {
@@ -105,7 +106,7 @@ export default function PaymentScreen() {
     return () => clearInterval(countdownTimer);
   }, [params.expiredAt, screenStatus]);
 
-  // --- 2. Logic Polling  ---
+  // ---  Logic Polling  ---
   useEffect(() => {
     const stopPolling = () => {
       if (pollingInterval.current) {
@@ -116,25 +117,24 @@ export default function PaymentScreen() {
     };
 
     const checkStatus = async () => {
-      // If the screen has transitioned to a state other than WAITING, stop
       if (screenStatus !== "WAITING") {
         stopPolling();
         return;
       }
 
-      const expiration = new Date(params.expiredAt);
+      const expiration = new Date(params.expiredAt as string);
       if (new Date() > expiration) {
         setScreenStatus("EXPIRED");
         stopPolling();
         return;
       }
 
-      if (isChecking || !params.paymentCode) return;
+      if (isChecking || !paymentCode) return;
 
       try {
         setIsChecking(true);
         const result: PaymentStatusResponse =
-          await paymentService.checkPaymentStatus(params.paymentCode);
+          await paymentService.checkPaymentStatus(paymentCode);
 
         const status = result.status.toUpperCase();
 
@@ -144,7 +144,7 @@ export default function PaymentScreen() {
           setScreenStatus("SUCCESS");
           router.replace({
             pathname: "/(stacks)/PaymentSuccessScreen",
-            params: { appointmentId: params.appointmentId },
+            params: { appointmentId: appointmentId },
           });
         }
         // === CASE 2: FAILED OR EXPIRED ===
@@ -155,7 +155,6 @@ export default function PaymentScreen() {
           const actualPaid = Number(result.paidAmount || 0);
 
           if (status === "FAILED" && actualPaid > 0) {
-            // ==> HIỂN THỊ MÀN HÌNH CAM (PARTIAL REFUND)
             setPaidAmount(actualPaid);
             setScreenStatus("PARTIAL_REFUND");
           } else {
@@ -176,12 +175,11 @@ export default function PaymentScreen() {
     checkStatus();
     pollingInterval.current = setInterval(checkStatus, POLLING_INTERVAL_MS);
     return () => stopPolling();
-  }, [params.paymentCode, params.expiredAt, router, screenStatus]);
+  }, [paymentCode, params.expiredAt, router, screenStatus]);
 
-  // --- 3. Logic to Block Back Button ---
+  // --- 5. Logic Block Back Button ---
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      // Allow exit if not waiting (done/error/expired)
       if (screenStatus !== "WAITING" || !pollingInterval.current) {
         return;
       }
@@ -193,6 +191,7 @@ export default function PaymentScreen() {
     return unsubscribe;
   }, [navigation, screenStatus]);
 
+  // --- Handlers ---
   const handleAlertCancel = () => {
     setIsAlertVisible(false);
     setLeaveAction(null);
@@ -207,7 +206,7 @@ export default function PaymentScreen() {
     }
 
     try {
-      await appointmentService.cancelMyAppointment(params.appointmentId);
+      await appointmentService.cancelPendingReservation(appointmentId);
     } catch (error) {
       console.error("Failed to cancel reservation:", error);
     }
@@ -229,9 +228,25 @@ export default function PaymentScreen() {
     }
   };
 
+  const handleQrError = () => {
+    setQrLoadError(true);
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerBackButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Bank Transfer Payment</Text>
+        <View style={styles.headerBackButton} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* CASE: PARTIAL REFUND */}
         {screenStatus === "PARTIAL_REFUND" && (
           <View style={styles.centerContainer}>
             <View style={styles.warningCard}>
@@ -244,21 +259,20 @@ export default function PaymentScreen() {
               </View>
 
               <Text style={styles.warningTitle}>Insufficient Payment</Text>
-
               <Text style={styles.warningText}>
-                The order required{" "}
+                The order required
                 <Text style={styles.boldText}>
                   {Number(bankingInfo.amount).toLocaleString("vi-VN")} VND
-                </Text>{" "}
-                but we received{" "}
+                </Text>
+                but we received
                 <Text style={styles.boldText}>
                   {paidAmount.toLocaleString("vi-VN")} VND
                 </Text>
                 .{"\n\n"}
-                Don't worry!{" "}
+                Don't worry!
                 <Text style={styles.boldText}>
                   {paidAmount.toLocaleString("vi-VN")} VND
-                </Text>{" "}
+                </Text>
                 has been refunded to your Wallet.
               </Text>
 
@@ -269,7 +283,6 @@ export default function PaymentScreen() {
                 <Text style={styles.buttonTextPrimary}>Book Again</Text>
               </Pressable>
 
-              {/* Nút outline */}
               <Pressable
                 style={[styles.button, styles.secondaryButton]}
                 onPress={() => router.push("/(stacks)/ProfileScreen")}
@@ -282,7 +295,7 @@ export default function PaymentScreen() {
           </View>
         )}
 
-        {/* === UI: EXPIRED / FAILED  === */}
+        {/* CASE: EXPIRED / FAILED */}
         {(screenStatus === "EXPIRED" || screenStatus === "FAILED") && (
           <View style={styles.centerContainer}>
             <MaterialCommunityIcons
@@ -301,19 +314,31 @@ export default function PaymentScreen() {
           </View>
         )}
 
-        {/* === UI: WAITING ( QR Code) === */}
+        {/* CASE: WAITING */}
         {screenStatus === "WAITING" && (
           <>
-            <Text style={styles.title}>Waiting for Payment</Text>
             <Text style={styles.instructions}>
               Scan the QR code to complete the payment
             </Text>
 
-            <Image
-              style={styles.qrCode}
-              source={{ uri: bankingInfo.qrCodeUrl }}
-              resizeMode="contain"
-            />
+            {/* QR Code Logic  */}
+            <View style={styles.qrContainer}>
+              {bankingInfo.qrCodeUrl && !qrLoadError ? (
+                <Image
+                  style={styles.qrCode}
+                  source={{ uri: bankingInfo.qrCodeUrl }}
+                  resizeMode="contain"
+                  onError={handleQrError}
+                />
+              ) : (
+                <View style={styles.qrPlaceholder}>
+                  <Ionicons name="qr-code-outline" size={80} color="#CCC" />
+                  <Text style={styles.qrPlaceholderText}>
+                    QR Code not available
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View style={styles.timerBox}>
               <Text style={styles.timerText}>{timeLeft || "..."}</Text>
@@ -322,6 +347,7 @@ export default function PaymentScreen() {
 
             <View style={styles.infoCard}>
               <Text style={styles.cardTitle}>Bank Transfer Details</Text>
+
               <View style={styles.row}>
                 <Text style={styles.label}>Amount:</Text>
                 <Text style={styles.valueAmount}>
@@ -369,11 +395,11 @@ export default function PaymentScreen() {
               </Text>
               <View style={styles.contentBox}>
                 <Text style={styles.valueCode} selectable>
-                  {params.paymentCode}
+                  {paymentCode}
                 </Text>
                 <Pressable
                   onPress={() =>
-                    copyToClipboard(params.paymentCode, "Transfer Content")
+                    copyToClipboard(paymentCode, "Transfer Content")
                   }
                 >
                   <MaterialCommunityIcons
@@ -424,15 +450,37 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5ff",
+    backgroundColor: "#F8F9FA",
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+  },
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1A1A1A",
+  },
+  // Content Styles
   scrollContent: {
     flexGrow: 1,
     alignItems: "center",
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 20,
   },
-
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -446,12 +494,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
-  qrCode: {
-    width: 240,
-    height: 240,
+  qrContainer: {
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    overflow: "hidden",
+  },
+  qrCode: {
+    width: 240,
+    height: 240,
+  },
+  qrPlaceholder: {
+    width: 240,
+    height: 240,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  qrPlaceholderText: {
+    marginTop: 10,
+    color: "#888",
   },
   timerBox: {
     alignItems: "center",
@@ -468,7 +535,6 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 4,
   },
-
   infoCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -533,7 +599,7 @@ const styles = StyleSheet.create({
   valueCode: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#d9534f",
     letterSpacing: 1,
   },
   note: {
@@ -543,7 +609,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontStyle: "italic",
   },
-
   statusContainer: {
     flexDirection: "row",
     marginTop: 24,
@@ -561,7 +626,7 @@ const styles = StyleSheet.create({
     color: "#4f46e5",
     fontWeight: "500",
   },
-
+  // Warning Styles
   centerContainer: {
     flex: 1,
     justifyContent: "center",
@@ -569,7 +634,6 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
   },
-
   warningCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -606,7 +670,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-
+  // Buttons
   button: {
     width: "100%",
     paddingVertical: 14,
@@ -634,15 +698,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#007bff",
   },
-
-  copyableValueContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  copyButton: {
-    marginLeft: 8,
-    padding: 4,
-  },
   backButton: {
     backgroundColor: "#007bff",
     paddingVertical: 12,
@@ -655,7 +710,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-
+  copyableValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  copyButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(255, 255, 255, 0.9)",

@@ -100,7 +100,7 @@ export default function CartScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('📱 CartScreen focused - refreshing cart and badge')
+      ('📱 CartScreen focused - refreshing cart and badge')
       loadCart()
     }, [loadCart])
   )

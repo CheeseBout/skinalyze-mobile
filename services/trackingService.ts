@@ -54,7 +54,7 @@ class TrackingService {
    */
   async getOrderTracking(orderId: string, token: string): Promise<TrackingData> {
     try {
-      console.log(`📍 Fetching tracking for order: ${orderId}`);
+      (`📍 Fetching tracking for order: ${orderId}`);
       
       const response = await axios.get<TrackingResponse>(
         `${config.API_BASE_URL}/tracking/order/${orderId}`,
@@ -66,7 +66,7 @@ class TrackingService {
         }
       );
 
-      console.log('✅ Tracking data received:', {
+      ('✅ Tracking data received:', {
         orderId: response.data.data.orderId,
         status: response.data.data.shippingLog.status,
         hasShipper: !!response.data.data.shipper,

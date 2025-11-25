@@ -39,7 +39,7 @@ export function CartCountProvider({ children }: CartCountProviderProps) {
 
       const cartCount = await cartService.getCartCount(token);
       setCount(cartCount);
-      console.log('🛒 Cart count updated:', cartCount);
+      ('🛒 Cart count updated:', cartCount);
     } catch (error) {
       console.error('❌ Error fetching cart count:', error);
       setCount(0);
@@ -53,23 +53,23 @@ export function CartCountProvider({ children }: CartCountProviderProps) {
   }, [fetchCartCount]);
 
   const refreshCount = useCallback(async () => {
-    console.log('🔄 Refreshing cart count...');
+    ('🔄 Refreshing cart count...');
     await fetchCartCount();
   }, [fetchCartCount]);
 
   const incrementCount = useCallback((amount: number = 1) => {
     setCount(prev => prev + amount);
-    console.log(`➕ Cart count incremented by ${amount}`);
+    (`➕ Cart count incremented by ${amount}`);
   }, []);
 
   const decrementCount = useCallback((amount: number = 1) => {
     setCount(prev => Math.max(0, prev - amount));
-    console.log(`➖ Cart count decremented by ${amount}`);
+    (`➖ Cart count decremented by ${amount}`);
   }, []);
 
   const resetCount = useCallback(() => {
     setCount(0);
-    console.log('🔄 Cart count reset to 0');
+    ('🔄 Cart count reset to 0');
   }, []);
 
   const value: CartCountContextType = {

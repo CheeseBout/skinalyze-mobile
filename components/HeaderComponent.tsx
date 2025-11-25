@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Animated } from 'react-native'
+import React, { useState, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth'
@@ -15,6 +15,10 @@ export default function HeaderComponent() {
   const { unreadCount } = useNotificationWebSocket();
   const { primaryColor } = useThemeColor();
 
+  // Animation refs
+  const menuOpacity = useRef(new Animated.Value(0)).current;
+  const menuScale = useRef(new Animated.Value(0.9)).current;
+
   const menuItems = [
     { name: 'Profile', icon: 'person', url: 'ProfileScreen' },
     { name: 'Settings', icon: 'settings', url: 'SettingsScreen' },
@@ -27,7 +31,20 @@ export default function HeaderComponent() {
   };
 
   const handleMenuPress = () => {
-    setMenuVisible(!menuVisible)
+    if (menuVisible) {
+      // Animate out
+      Animated.parallel([
+        Animated.timing(menuOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(menuScale, { toValue: 0.9, duration: 200, useNativeDriver: true }),
+      ]).start(() => setMenuVisible(false));
+    } else {
+      setMenuVisible(true);
+      // Animate in
+      Animated.parallel([
+        Animated.timing(menuOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(menuScale, { toValue: 1, friction: 8, useNativeDriver: true }),
+      ]).start();
+    }
   }
 
   const handleNotificationPress = () => {
@@ -35,8 +52,7 @@ export default function HeaderComponent() {
   }
 
   const handleNavigate = async (path: string) => {
-    setMenuVisible(false);
-    
+    handleMenuPress(); // Close menu with animation
     if (path === 'WelcomeScreen') {
       Alert.alert(
         'Logout',
@@ -61,11 +77,11 @@ export default function HeaderComponent() {
   return (
     <View style={styles.container}>
       <TouchableOpacity 
-        style={styles.searchContainer}
-        activeOpacity={0.7}
+        style={[styles.searchContainer, { borderColor: `${primaryColor}20` }]}
+        activeOpacity={0.8}
         onPress={handleSearchFocus}
       >
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <Ionicons name="search" size={20} color={primaryColor} style={styles.searchIcon} />
         <Text style={styles.searchPlaceholder}>Search skincare products...</Text>
       </TouchableOpacity>
       
@@ -73,19 +89,20 @@ export default function HeaderComponent() {
       <TouchableOpacity 
         style={styles.notificationButton} 
         onPress={handleNotificationPress}
+        activeOpacity={0.8}
       >
         <Ionicons name="notifications-outline" size={28} color={primaryColor} />
         {unreadCount > 0 && (
-          <View style={styles.badge}>
+          <Animated.View style={[styles.badge, { backgroundColor: primaryColor, transform: [{ scale: menuScale }] }]}>
             <Text style={styles.badgeText}>
               {unreadCount > 99 ? '99+' : unreadCount}
             </Text>
-          </View>
+          </Animated.View>
         )}
       </TouchableOpacity>
 
       {/* Profile Icon */}
-      <TouchableOpacity style={styles.profileButton} onPress={handleMenuPress}>
+      <TouchableOpacity style={styles.profileButton} onPress={handleMenuPress} activeOpacity={0.8}>
         <Ionicons name="person-circle-outline" size={32} color={primaryColor} />
       </TouchableOpacity>
 
@@ -93,14 +110,14 @@ export default function HeaderComponent() {
       <Modal
         visible={menuVisible}
         transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
+        animationType="none" // Custom animation
+        onRequestClose={handleMenuPress}
       >
         <Pressable 
           style={styles.modalOverlay} 
-          onPress={() => setMenuVisible(false)}
+          onPress={handleMenuPress}
         >
-          <View style={styles.dropdownMenu}>
+          <Animated.View style={[styles.dropdownMenu, { opacity: menuOpacity, transform: [{ scale: menuScale }] }]}>
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={index}
@@ -109,12 +126,14 @@ export default function HeaderComponent() {
                   index < menuItems.length - 1 && styles.menuItemBorder
                 ]}
                 onPress={() => handleNavigate(item.url)}
+                activeOpacity={0.7}
               >
-                <Ionicons name={item.icon as any} size={22} color={primaryColor} style={styles.menuIcon} />
+                <Ionicons name={item.icon as any} size={24} color={primaryColor} style={styles.menuIcon} />
                 <Text style={styles.menuText}>{item.name}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#ccc" />
               </TouchableOpacity>
             ))}
-          </View>
+          </Animated.View>
         </Pressable>
       </Modal>
     </View>
@@ -125,95 +144,118 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 20, 
+    paddingVertical: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingTop: 20, 
+    borderBottomColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    marginRight: 12,
-    height: 40,
+    backgroundColor: '#f8f9fa', 
+    borderRadius: 24, 
+    paddingHorizontal: 16,
+    marginRight: 16,
+    height: 44, 
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchPlaceholder: {
     flex: 1,
     fontSize: 16,
-    color: '#999',
+    color: '#666',
+    fontWeight: '500',
   },
   notificationButton: {
-    padding: 4,
+    padding: 8,
     marginRight: 8,
     position: 'relative',
+    width: 44, 
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   badge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#FF3B30',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    top: -2,
+    right: -2,
+    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     borderWidth: 2,
     borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   profileButton: {
-    padding: 4,
+    padding: 6,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', 
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 80, 
+    paddingRight: 20,
   },
   dropdownMenu: {
-    position: 'absolute',
-    top: 50,
-    right: 16,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 8,
-    minWidth: 180,
+    borderRadius: 16,
+    paddingVertical: 12,
+    minWidth: 200, 
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#f0f0f0',
   },
   menuIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   menuText: {
+    flex: 1,
     fontSize: 16,
     color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

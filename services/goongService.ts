@@ -45,7 +45,7 @@ class GoongService {
     vehicle: 'car' | 'bike' | 'taxi' | 'hd' = 'bike'
   ): Promise<GoongDirectionResponse> {
     try {
-      console.log('🗺️ Fetching directions from Goong:', {
+      ('🗺️ Fetching directions from Goong:', {
         origin,
         destination,
         vehicle,
@@ -67,7 +67,7 @@ class GoongService {
         throw new Error(`Goong API error: ${response.data.status}`);
       }
 
-      console.log('✅ Directions received:', {
+      ('✅ Directions received:', {
         routesCount: response.data.routes.length,
         hasPolyline: !!response.data.routes[0]?.overview_polyline?.points,
       });

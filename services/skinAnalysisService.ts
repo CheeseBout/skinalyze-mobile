@@ -14,9 +14,16 @@ export interface SkinAnalysisResult {
   aiDetectedDisease: string | null;
   aiDetectedCondition: string | null;
   aiRecommendedProducts: string[] | null;
-  mask: string | string[] | null; // Can be string or array
+  mask: string | string[] | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ManualEntryPayload {
+  chiefComplaint: string;
+  patientSymptoms: string;
+  notes?: string;
+  imageUri?: string | null;
 }
 
 interface SkinAnalysisResponse {
@@ -58,11 +65,13 @@ class SkinAnalysisService {
    * Perform disease detection analysis
    * @param userId - User UUID from auth token
    * @param imageUri - Local image URI from camera
+   * @param note - Optional note indicating the area ('facial' or 'other')
    * @returns Analysis result with detected disease
    */
   async detectDisease(
     userId: string,
-    imageUri: string
+    imageUri: string,
+    note?: string
   ): Promise<SkinAnalysisResult> {
     try {
       const token = await tokenService.getToken();
@@ -87,7 +96,12 @@ class SkinAnalysisService {
         type: type,
       } as any);
 
-      console.log("📤 Uploading disease detection image...");
+      // Add the note (facial or other) if provided
+      if (note) {
+        formData.append("notes", note);
+      }
+
+      console.log(`📤 Uploading disease detection image (Area: ${note || 'unspecified'})...`);
 
       // Use apiService.uploadFile instead of fetch
       const result = await apiService.uploadFile<SkinAnalysisResponse>(
@@ -181,6 +195,7 @@ class SkinAnalysisService {
       const response = await apiService.get<SkinAnalysisResult[]>(
         `/skin-analysis/customer/${customerId}`
       );
+      console.log("Analysis: ", response);
 
       // The API returns the array directly, not wrapped in { data: [...] }
       return Array.isArray(response) ? response : [];
@@ -210,6 +225,51 @@ class SkinAnalysisService {
     } catch (error) {
       console.error("❌ Error fetching analysis:", error);
       throw new Error("Failed to fetch analysis result");
+    }
+  }
+
+  /**
+   * Create a manual skin analysis entry
+   */
+  async createManualEntry(userId: string, payload: ManualEntryPayload): Promise<any> {
+    try {
+      const token = await tokenService.getToken();
+      if (!token) throw new Error("Authentication required");
+
+      const customerId = await this.getCustomerId(userId);
+
+      const formData = new FormData();
+      
+      // Append Text Data
+      formData.append('chiefComplaint', payload.chiefComplaint);
+      formData.append('patientSymptoms', payload.patientSymptoms);
+      if (payload.notes) formData.append('notes', payload.notes);
+
+      // Append Image if exists
+      if (payload.imageUri) {
+        const filename = payload.imageUri.split('/').pop() || 'manual_entry.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+        formData.append('file', {
+          uri: payload.imageUri,
+          name: filename,
+          type: type,
+        } as any);
+      }
+
+      console.log('📤 Creating manual entry...');
+
+      const result = await apiService.uploadFile(
+        `/skin-analysis/manual-entry/${customerId}`,
+        formData
+      );
+
+      console.log('✅ Manual entry created');
+      return result;
+    } catch (error) {
+      console.error("❌ Error creating manual entry:", error);
+      throw new Error("Failed to save manual entry");
     }
   }
 }
