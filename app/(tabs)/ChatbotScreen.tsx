@@ -37,7 +37,7 @@ export default function ChatbotScreen() {
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
-  const [isSending, setIsSending] = useState(false); // Controls the "Thinking..." bubble
+  const [isSending, setIsSending] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
   
   // Refs
@@ -60,7 +60,7 @@ export default function ChatbotScreen() {
     }
   }, [currentChatId]);
 
-  // Handle prefilled data from navigation params
+  // Handle prefilled data
   useEffect(() => {
     const handlePrefill = async () => {
       if (!hasPrefillAppliedRef.current && user?.userId) {
@@ -83,7 +83,14 @@ export default function ChatbotScreen() {
     handlePrefill();
   }, [params.prefillText, params.prefillImage, user?.userId]);
 
-  // Auto-scroll logic
+  useEffect(() => {
+    if ((params.prefillText || params.prefillImage) && currentChatId && hasPrefillAppliedRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 300);
+    }
+  }, [params.prefillText, params.prefillImage, currentChatId, hasPrefillAppliedRef.current]);
+
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
@@ -149,13 +156,14 @@ export default function ChatbotScreen() {
     if (!user?.userId) return;
     try {
       setIsLoading(true);
+      const existingSessions = await chatbotService.getChatSessionsByUserId(user.userId);
       const newChat = await chatbotService.createChatSession(user.userId);
-      setChatSessions([newChat, ...chatSessions]);
+      setChatSessions([newChat, ...existingSessions]);
       setCurrentChatId(newChat.chatId);
       setMessages([]);
       setShowChatList(false);
     } catch (error) {
-      console.error('Error creating chat for analysis:', error);
+      Alert.alert('Error', 'Failed to start new chat for analysis');
     } finally {
       setIsLoading(false);
     }
@@ -196,63 +204,64 @@ export default function ChatbotScreen() {
     }
   };
 
-  // --- Core Logic: Send Message with Optimistic UI ---
+  const clearInput = () => {
+    setInputMessage('');
+    setSelectedImage(null);
+  };
+
+  // --- SIMPLIFIED IMAGE HELPER ---
+  const getMessageImageSource = (imagePath: string | null | undefined) => {
+    if (!imagePath) return null;
+    // 1. Local File (file://...) used for Optimistic UI
+    // 2. Cloudinary URL (https://...) used for Backend response
+    // Both work natively in <Image source={{ uri: ... }} />
+    return { uri: imagePath };
+  };
+
   const sendMessage = async () => {
-    // 1. Validation
     if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending) return;
 
     const textToSend = inputMessage.trim();
     const imageToSend = selectedImage;
-    const tempId = `temp-${Date.now()}`; // Temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}`;
 
-    // 2. Clear inputs immediately (Responsive feel)
     setInputMessage('');
     setSelectedImage(null);
     setIsSending(true);
 
-    // 3. Create Optimistic Message
-    // Mimic the backend data structure
+    // Create Optimistic Message
     const optimisticMessage: ChatMessage = {
       messageId: tempId,
       chatId: currentChatId,
       sender: 'user',
-      messageContent: imageToSend 
-        ? `${textToSend}\n[Uploading Image...]` 
-        : textToSend,
+      messageContent: textToSend,
+      imageUrl: imageToSend, // Local "file://" path
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // 4. Update UI Immediately
     setMessages(prev => [...prev, optimisticMessage]);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      // 5. API Call
       const { userMessage, aiMessage } = await chatbotService.sendMessage(
         currentChatId,
         textToSend,
         imageToSend
       );
 
-      // 6. Swap Temp Message with Real Data
+      // Replace temp message with real response (which now has Cloudinary "https://" URL)
       setMessages(prev => {
-        // Remove the temporary message
         const filtered = prev.filter(msg => msg.messageId !== tempId);
-        // Append the actual confirmed messages from backend
         return [...filtered, userMessage, aiMessage];
       });
-
-      // Update session title if it's the first message
+      
       const session = chatSessions.find(s => s.chatId === currentChatId);
       if (session?.title === 'New chat') {
         loadChatSessions(); 
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
       Alert.alert('Error', 'Failed to send message');
-      
-      // Rollback: Remove temp message and restore input
       setMessages(prev => prev.filter(msg => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
@@ -265,6 +274,8 @@ export default function ChatbotScreen() {
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.sender === 'user';
+    const imageSource = getMessageImageSource(item.imageUrl);
+
     return (
       <View style={[
         styles.messageRow, 
@@ -280,9 +291,20 @@ export default function ChatbotScreen() {
           styles.bubble,
           isUser ? [styles.bubbleUser, { backgroundColor: primaryColor }] : styles.bubbleAi
         ]}>
-          <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
-            {item.messageContent}
-          </Text>
+          {imageSource && (
+            <Image 
+              source={imageSource} 
+              style={styles.messageImage} 
+              resizeMode="cover"
+            />
+          )}
+
+          {item.messageContent ? (
+            <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
+              {item.messageContent}
+            </Text>
+          ) : null}
+
           <Text style={[styles.timestamp, isUser ? { color: 'rgba(255,255,255,0.7)' } : { color: '#999' }]}>
             {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -291,7 +313,6 @@ export default function ChatbotScreen() {
     );
   };
 
-  // New Footer Component for "Thinking" State
   const renderFooter = () => {
     if (!isSending) return <View style={{ height: 20 }} />;
 
@@ -335,7 +356,7 @@ export default function ChatbotScreen() {
     );
   };
 
-  // --- Main Views ---
+  // --- Views ---
 
   if (!user) return (
     <View style={[styles.container, styles.center]}>
@@ -372,7 +393,6 @@ export default function ChatbotScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
           <Ionicons name="menu" size={24} color="#333" />
@@ -386,11 +406,10 @@ export default function ChatbotScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Chat Area */}
       <KeyboardAvoidingView 
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -398,8 +417,9 @@ export default function ChatbotScreen() {
           renderItem={renderMessage}
           keyExtractor={item => item.messageId}
           contentContainerStyle={styles.chatContent}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          ListFooterComponent={renderFooter} // Added Footer here
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={[styles.center, { marginTop: 100 }]}>
               <Ionicons name="chatbubbles-outline" size={64} color="#ddd" />
@@ -410,9 +430,7 @@ export default function ChatbotScreen() {
           }
         />
 
-        {/* Input Area */}
         <View style={styles.inputContainer}>
-          {/* Image Preview */}
           {selectedImage && (
             <View style={styles.imagePreviewCard}>
               <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
@@ -426,7 +444,6 @@ export default function ChatbotScreen() {
             </View>
           )}
 
-          {/* Input Row */}
           <View style={styles.inputRow}>
             <TouchableOpacity onPress={pickImage} style={styles.attachBtn}>
               <Ionicons name="image-outline" size={24} color={primaryColor} />
@@ -442,6 +459,12 @@ export default function ChatbotScreen() {
                 onChangeText={setInputMessage}
                 maxLength={1000}
               />
+              
+              {(inputMessage.length > 0 || selectedImage) && (
+                <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
+                  <Ionicons name="close-circle" size={20} color="#ccc" />
+                </TouchableOpacity>
+              )}
             </View>
 
             <TouchableOpacity 
@@ -453,7 +476,6 @@ export default function ChatbotScreen() {
               ]}
             >
               {isSending ? (
-                // Keep activity indicator here too just in case
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Ionicons name="arrow-up" size={20} color="#fff" />
@@ -478,8 +500,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -499,8 +519,6 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
   },
-
-  // Chat List (Sidebar)
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -530,8 +548,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
-
-  // Messages
   chatContent: {
     padding: 16,
     paddingBottom: 20,
@@ -573,6 +589,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   messageText: {
     fontSize: 15,
     lineHeight: 22,
@@ -586,8 +609,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'right',
   },
-
-  // Input Area
   inputContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
@@ -641,13 +662,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     minHeight: 40,
     maxHeight: 100,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textInput: {
+    flex: 1,
     fontSize: 16,
     color: '#333',
     paddingVertical: 8,
+    marginRight: 4,
+  },
+  clearBtn: {
+    padding: 4,
   },
   sendBtn: {
     width: 40,

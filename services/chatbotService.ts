@@ -1,7 +1,7 @@
-import apiService from "./apiService"; // Kept for other methods
+import apiService from "./apiService"; 
 import tokenService from "./tokenService";
-// We need the BASE_URL. Usually it's in apiService or config. 
-// Assuming a standard location or hardcoding for safety based on your logs:
+
+// Adjust this if your API URL is different
 const BASE_URL = "http://192.168.1.35:3000/api/v1"; 
 
 export interface ChatMessage {
@@ -9,6 +9,7 @@ export interface ChatMessage {
   chatId: string;
   sender: "user" | "ai";
   messageContent: string;
+  imageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,9 +37,6 @@ interface DeleteResponse {
 }
 
 class ChatbotService {
-  /**
-   * Create a new chat session
-   */
   async createChatSession(userId: string): Promise<ChatSession> {
     try {
       const token = await tokenService.getToken();
@@ -53,9 +51,6 @@ class ChatbotService {
     }
   }
 
-  /**
-   * Get all chat sessions for a specific user
-   */
   async getChatSessionsByUserId(userId: string): Promise<ChatSession[]> {
     try {
       const token = await tokenService.getToken();
@@ -69,9 +64,6 @@ class ChatbotService {
     }
   }
 
-  /**
-   * Get a specific chat session with all messages
-   */
   async getChatSessionById(chatId: string): Promise<ChatSession> {
     try {
       const token = await tokenService.getToken();
@@ -85,9 +77,6 @@ class ChatbotService {
     }
   }
 
-  /**
-   * Delete a chat session
-   */
   async deleteChatSession(chatId: string): Promise<void> {
     try {
       const token = await tokenService.getToken();
@@ -104,14 +93,10 @@ class ChatbotService {
     }
   }
 
-  /**
-   * Get all messages in a chat session
-   */
   async getMessagesByChatId(chatId: string): Promise<ChatMessage[]> {
     try {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
-
       const response = await apiService.get<ChatMessage[]>(`/chat-messages/chat/${chatId}`);
       return response;
     } catch (error) {
@@ -120,10 +105,6 @@ class ChatbotService {
     }
   }
 
-  /**
-   * Send user message (Text + Optional Image)
-   * Uses native fetch to handle FormData correctly
-   */
   async sendMessage(
     chatId: string,
     messageContent: string,
@@ -134,33 +115,33 @@ class ChatbotService {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
-      // 1. Create FormData
       const formData = new FormData();
       formData.append('chatId', chatId);
-      formData.append('messageContent', messageContent);
+      
+      // Only append text if it exists
+      if (messageContent) {
+        formData.append('messageContent', messageContent);
+      }
 
+      // Append Image
       if (imageUri) {
         const filename = imageUri.split('/').pop() || 'photo.jpg';
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-        // @ts-ignore: React Native FormData requires this specific shape
+        // @ts-ignore: React Native FormData
         formData.append('image', {
           uri: imageUri,
           name: filename,
           type: type,
         });
-        console.log('📸 Attaching image:', filename);
       }
 
-      // 2. Use Native Fetch instead of apiService/Axios
-      // This avoids issues where Axios interceptors might force Content-Type: application/json
       const response = await fetch(`${BASE_URL}/chat-messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          // IMPORTANT: Do NOT set Content-Type here. 
-          // Fetch will automatically set 'multipart/form-data; boundary=...'
+          // Do not set Content-Type, fetch sets it automatically for FormData
         },
         body: formData,
       });
@@ -168,11 +149,9 @@ class ChatbotService {
       const responseData = await response.json();
 
       if (!response.ok) {
-        console.error('🔥 API Error Details:', responseData);
         throw new Error(responseData.message || "Failed to send message");
       }
 
-      console.log('✅ Message sent successfully');
       return responseData as SendMessageResponse;
 
     } catch (error) {
