@@ -18,7 +18,7 @@ import skinAnalysisService, { SkinAnalysisResult } from '@/services/skinAnalysis
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
-import ToTopButton from '@/components/ToTopButton';  // Add this import
+import ToTopButton from '@/components/ToTopButton';  
 
 export function AnalysisListScreen() {
   const router = useRouter();
@@ -108,11 +108,16 @@ export function AnalysisListScreen() {
   const renderAnalysisItem = ({ item, index }: { item: SkinAnalysisResult; index: number }) => {
     const isConditionDetection = item.aiDetectedCondition !== null;
     const isDiseaseDetection = item.aiDetectedDisease !== null;
-    const detectedValue = isConditionDetection
-      ? item.aiDetectedCondition
-      : item.aiDetectedDisease;
-    const iconName = isConditionDetection ? 'water' : 'medical';
-    const badgeColor = isConditionDetection ? '#2196F3' : '#E91E63';
+    const isManual = item.source === 'MANUAL';
+    
+    // For manual sources, display "Manual" as the result
+    const detectedValue = isManual 
+      ? 'Manual' 
+      : (isConditionDetection ? item.aiDetectedCondition : item.aiDetectedDisease);
+    
+    // Adjust icon and color based on type
+    const iconName = isManual ? 'create' : (isConditionDetection ? 'water' : 'medical');
+    const badgeColor = isManual ? '#666' : (isConditionDetection ? '#2196F3' : '#E91E63');
 
     return (
       <Animated.View
@@ -142,7 +147,7 @@ export function AnalysisListScreen() {
               <View style={[styles.typeChip, { backgroundColor: `${badgeColor}15` }]}>
                 <Ionicons name={iconName} size={14} color={badgeColor} />
                 <Text style={[styles.typeChipText, { color: badgeColor }]}>
-                  {isConditionDetection ? 'Condition' : 'Disease'}
+                  {isManual ? 'Manual' : (isConditionDetection ? 'Condition' : 'Disease')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward-circle" size={22} color="#E0E0E0" />

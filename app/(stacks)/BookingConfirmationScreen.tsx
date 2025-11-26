@@ -40,6 +40,7 @@ import treatmentRoutineService from "@/services/treamentRoutineService";
 import { AuthContext } from "@/contexts/AuthContext";
 import userService from "@/services/userService";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
 
 const formatTime = (isoDate: string) => {
   if (!isoDate) return "N/A";
@@ -73,6 +74,7 @@ export default function BookingConfirmationScreen() {
   }>();
 
   const { user, isLoading: isAuthLoading } = useContext(AuthContext);
+  const { primaryColor } = useThemeColor();
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [doctor, setDoctor] = useState<Dermatologist | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -96,6 +98,23 @@ export default function BookingConfirmationScreen() {
   );
   const [note, setNote] = useState<string>("");
   const previousAnalysisIdsRef = useRef<string[]>([]);
+
+  const optionTint = useMemo(
+    () => hexToRgba(primaryColor, 0.12),
+    [primaryColor]
+  );
+  const optionDescActive = useMemo(
+    () => hexToRgba(primaryColor, 0.8),
+    [primaryColor]
+  );
+  const iconInactiveColor = useMemo(
+    () => hexToRgba(primaryColor, 0.6),
+    [primaryColor]
+  );
+  const confirmDisabledColor = useMemo(
+    () => hexToRgba(primaryColor, 0.4),
+    [primaryColor]
+  );
 
   const updateSelectedRoutine = useCallback(
     (routinesData: TreatmentRoutine[]) => {
@@ -329,14 +348,29 @@ export default function BookingConfirmationScreen() {
     title: string,
     description: string,
     disabled: boolean = false,
-    icon?: any
+    icon?: React.ReactElement<{ color?: string }>
   ) => {
     const isSelected = selectedOptionId === id;
+    const backgroundColor = isSelected ? optionTint : "#f5f5f5";
+    const borderColor = isSelected ? primaryColor : "#ccc";
+    const titleColor = isSelected ? primaryColor : "#333";
+    const descriptionColor = isSelected ? optionDescActive : "#666";
+    const renderedIcon =
+      icon && React.isValidElement(icon)
+        ? React.cloneElement(icon, {
+            color: disabled
+              ? "#999"
+              : isSelected
+              ? primaryColor
+              : iconInactiveColor,
+          })
+        : null;
+
     return (
       <Pressable
         style={[
           styles.option,
-          isSelected && styles.optionSelected,
+          { backgroundColor, borderColor },
           disabled && styles.optionDisabled,
         ]}
         onPress={() => !disabled && setSelectedOptionId(id)}
@@ -353,7 +387,7 @@ export default function BookingConfirmationScreen() {
             <Text
               style={[
                 styles.optionText,
-                isSelected && styles.optionTextSelected,
+                { color: titleColor },
                 disabled && styles.textDisabled,
               ]}
             >
@@ -362,14 +396,14 @@ export default function BookingConfirmationScreen() {
             <Text
               style={[
                 styles.optionDesc,
-                isSelected && styles.optionDescSelected,
+                { color: descriptionColor },
                 disabled && styles.textDisabled,
               ]}
             >
               {description}
             </Text>
           </View>
-          {icon}
+          {renderedIcon}
         </View>
       </Pressable>
     );
@@ -501,11 +535,7 @@ export default function BookingConfirmationScreen() {
               "Bank Transfer (VietQR)",
               slotDetails.priceDisplay,
               false,
-              <MaterialCommunityIcons
-                name="bank-transfer"
-                size={24}
-                color={selectedOptionId === "PAY_NOW" ? "#fff" : "#007bff"}
-              />
+              <MaterialCommunityIcons name="bank-transfer" size={24} />
             )}
 
           {/* 2. Option: Wallet */}
@@ -515,11 +545,7 @@ export default function BookingConfirmationScreen() {
               "Skinalyze Wallet",
               `Balance: ${walletBalance.toLocaleString("vi-VN")} VND`,
               walletBalance < slotDetails.price, // (Disabled nếu không đủ tiền)
-              <MaterialCommunityIcons
-                name="wallet"
-                size={24}
-                color={selectedOptionId === "WALLET" ? "#fff" : "#28a745"}
-              />
+              <MaterialCommunityIcons name="wallet" size={24} />
             )}
 
           {/* 3. Option: Subscription */}
@@ -547,9 +573,16 @@ export default function BookingConfirmationScreen() {
 
       {/* Confirm Button */}
       <View style={styles.footer}>
+        {/** highlight primary color for confirmation */}
         <Pressable
           style={[
             styles.confirmButton,
+            {
+              backgroundColor:
+                isConfirming || !selectedOptionId
+                  ? confirmDisabledColor
+                  : primaryColor,
+            },
             (isConfirming || !selectedOptionId) && styles.confirmButtonDisabled,
           ]}
           disabled={isConfirming || !selectedOptionId}
@@ -648,27 +681,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
-  optionSelected: {
-    backgroundColor: "#007bff",
-    borderColor: "#007bff",
-  },
   optionText: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
   },
-  optionTextSelected: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
-  },
   optionDesc: {
     fontSize: 14,
     color: "#666",
-  },
-  optionDescSelected: {
-    fontSize: 14,
-    color: "#e0e0e0",
   },
   infoText: {
     fontSize: 15,
@@ -682,13 +702,12 @@ const styles = StyleSheet.create({
     borderColor: "#e0e0e0",
   },
   confirmButton: {
-    backgroundColor: "#007bff",
     padding: 14,
     borderRadius: 8,
     alignItems: "center",
   },
   confirmButtonDisabled: {
-    backgroundColor: "#a0a0a0",
+    opacity: 0.8,
   },
   confirmButtonText: {
     color: "#fff",

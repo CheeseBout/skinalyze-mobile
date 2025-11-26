@@ -42,6 +42,31 @@ export default function AnalysisDetailScreen() {
     ]).start();
   }, []);
 
+  const handleAskAI = (path: any) => {
+    const analysisText = `I have a skin analysis result that I'd like to understand better:
+
+Detection Type: ${isConditionDetection ? 'Skin Condition' : 'Disease Detection'}
+Result: ${isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
+Date: ${new Date(result.createdAt).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })}
+Source: ${result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual Entry'}
+
+${result.chiefComplaint ? `Chief Complaint: ${result.chiefComplaint}\n` : ''}${result.patientSymptoms ? `Symptoms: ${result.patientSymptoms}\n` : ''}${result.notes ? `Notes: ${result.notes}\n` : ''}
+Can you provide more information about this condition and suggest what steps I should take?`;
+
+  // Navigate to chatbot with pre-filled data
+  router.push({
+    pathname: '/(tabs)/ChatbotScreen',
+    params: {
+      prefillText: analysisText,
+      prefillImage: imageUrl,
+    }
+  })
+  }
+
   const result: SkinAnalysisResult = params.result
     ? JSON.parse(params.result as string)
     : null;
@@ -80,7 +105,6 @@ export default function AnalysisDetailScreen() {
   const isDiseaseDetection = result.aiDetectedDisease !== null;
   const imageUrl = result.imageUrls[0];
 
-  // --- FIX START: Handle Mask URL correctly based on logs ---
   let maskUrl: string | null = null;
   if (result.mask) {
     if (Array.isArray(result.mask) && result.mask.length > 0) {
@@ -91,7 +115,6 @@ export default function AnalysisDetailScreen() {
       maskUrl = result.mask;
     }
   }
-  // --- FIX END ---
 
   const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
 
@@ -113,7 +136,6 @@ export default function AnalysisDetailScreen() {
             />
 
             {/* Mask Overlay */}
-            {/* --- FIX START: Use maskUrl and remove base64 prefix --- */}
             {isDiseaseDetection && maskUrl && showMask && (
               <View style={styles.maskContainer}>
                 <Image
@@ -124,7 +146,6 @@ export default function AnalysisDetailScreen() {
                 <View style={styles.redTintOverlay} />
               </View>
             )}
-            {/* --- FIX END --- */}
 
             {/* Gradient Overlay for better header visibility */}
             <View style={styles.gradientOverlay} />
@@ -313,6 +334,18 @@ export default function AnalysisDetailScreen() {
               transform: [{ translateY: slideAnim }]
             }}
           >
+
+            <TouchableOpacity
+              style={[styles.askAIButton, { backgroundColor: '#F5F5F5', borderColor: detectionColor }]}
+              onPress={handleAskAI}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}20` }]}>
+                <Ionicons name="sparkles" size={20} color={detectionColor} />
+              </View>
+              <Text style={[styles.askAIText, { color: detectionColor }]}>Ask AI for more info</Text>
+              <Ionicons name="arrow-forward" size={18} color={detectionColor} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
@@ -384,10 +417,7 @@ const styles = StyleSheet.create({
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
-    // Changed to a more standard red overlay tint for segmentation masks
-    backgroundColor: 'rgba(255, 0, 50, 0.3)',
-    // Use multiply blend mode if supported by your RN version/platform for better effect,
-    // otherwise the simple opacity above works reasonably well.
+    backgroundColor: 'rgba(255, 0, 50, 0.15)',
   },
   gradientOverlay: {
     position: 'absolute',
@@ -694,4 +724,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  askAIButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  paddingVertical: 16,
+  borderRadius: 16,
+  borderWidth: 2,
+  marginBottom: 12,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  elevation: 3,
+},
+askAIIcon: {
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+askAIText: {
+  fontSize: 16,
+  fontWeight: '700',
+  letterSpacing: 0.2,
+},
 });

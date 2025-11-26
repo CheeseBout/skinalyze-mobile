@@ -1,5 +1,3 @@
-// File: app/(stacks)/ManualSkinAnalysisScreen.tsx
-
 import {
   View,
   Text,
@@ -9,79 +7,103 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
 } from "react-native";
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import { useRouter } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 
-// Services
 import skinAnalysisService from "@/services/skinAnalysisService";
-import customerService from "@/services/customerService";
 import { AuthContext } from "@/contexts/AuthContext";
+import CustomAlert from "@/components/CustomAlert";
+import { useCustomAlert } from "@/hooks/useCustomAlert";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
 
 export default function ManualSkinAnalysisScreen() {
   const router = useRouter();
   const { user } = useContext(AuthContext);
 
-  // State cho Form
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptoms, setSymptoms] = useState("");
   const [notes, setNotes] = useState("");
-  const [imageUris, setImageUris] = useState<string[]>([]); // (Lưu mảng ảnh)
+  const [imageUris, setImageUris] = useState<string[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    alertState,
+    showAlert,
+    handleConfirm: handleAlertConfirm,
+    handleCancel: handleAlertCancel,
+  } = useCustomAlert();
+  const { primaryColor } = useThemeColor();
 
-  // 1. Logic Chọn Ảnh (Hỗ trợ nhiều ảnh)
+  const tintedPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.12),
+    [primaryColor]
+  );
+  const borderPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.35),
+    [primaryColor]
+  );
+  const disabledPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.45),
+    [primaryColor]
+  );
+
   const pickImages = async () => {
-    // Yêu cầu quyền
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "We need access to your photos to upload skin images."
-      );
+      showAlert({
+        title: "Permission Denied",
+        message: "We need access to your photos to upload skin images.",
+        type: "warning",
+      });
       return;
     }
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // Tắt edit để chọn được nhiều ảnh nhanh hơn
-        allowsMultipleSelection: true, // <-- QUAN TRỌNG: Cho phép chọn nhiều
+        mediaTypes: ["images"],
+        allowsEditing: false, // Do not allow editing to speed up multi-selection
+        allowsMultipleSelection: true, // Allow multiple selection
         quality: 0.8,
-        selectionLimit: 5, // Giới hạn 5 ảnh
+        selectionLimit: 5, // Limit images to 5
       });
 
       if (!result.canceled) {
         const newUris = result.assets.map((asset) => asset.uri);
-        setImageUris((prev) => [...prev, ...newUris]); // Thêm vào danh sách hiện có
+        setImageUris((prev) => [...prev, ...newUris]);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to pick images.");
+      showAlert({
+        title: "Error",
+        message: "Failed to pick images.",
+        type: "error",
+      });
     }
   };
 
-  // Hàm xóa ảnh khỏi danh sách
   const removeImage = (indexToRemove: number) => {
     setImageUris((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  // 2. Logic Submit Form
   const handleSubmit = async () => {
     if (!chiefComplaint.trim()) {
-      Alert.alert(
-        "Missing Information",
-        "Please enter your main concern (Chief Complaint)."
-      );
+      showAlert({
+        title: "Missing Information",
+        message: "Please enter your main concern (Chief Complaint).",
+        type: "warning",
+      });
       return;
     }
     if (!symptoms.trim()) {
-      Alert.alert("Missing Information", "Please describe your symptoms.");
+      showAlert({
+        title: "Missing Information",
+        message: "Please describe your symptoms.",
+        type: "warning",
+      });
       return;
     }
 
@@ -98,18 +120,21 @@ export default function ManualSkinAnalysisScreen() {
       });
 
       // B3: Thành công -> Quay lại
-      Alert.alert("Success", "Your skin profile has been created!", [
-        {
-          text: "Continue Booking",
-          onPress: () => router.back(), // Quay lại BookingConfirmation để reload list
-        },
-      ]);
+      showAlert({
+        title: "Success",
+        message: "Your skin profile has been created!",
+        type: "success",
+        confirmText: "Continue Booking",
+        onConfirm: () => router.back(),
+      });
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        "Submission Failed",
-        error.message || "Could not save your profile. Please try again."
-      );
+      showAlert({
+        title: "Submission Failed",
+        message:
+          error?.message || "Could not save your profile. Please try again.",
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -125,6 +150,20 @@ export default function ManualSkinAnalysisScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.topBar}>
+            <Pressable
+              style={[
+                styles.backButton,
+                { backgroundColor: tintedPrimary, borderColor: borderPrimary },
+              ]}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={22} color={primaryColor} />
+              <Text style={[styles.backButtonText, { color: primaryColor }]}>
+                Back
+              </Text>
+            </Pressable>
+          </View>
           {/* Header Section */}
           <View style={styles.headerContainer}>
             <Text style={styles.title}>Self-Report Condition</Text>
@@ -134,7 +173,7 @@ export default function ManualSkinAnalysisScreen() {
             </Text>
           </View>
 
-          {/* Card 1: Thông tin chính */}
+          {/* Card 1: Condition Details */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Condition Details</Text>
 
@@ -183,7 +222,7 @@ export default function ManualSkinAnalysisScreen() {
             </View>
           </View>
 
-          {/* Card 2: Hình ảnh */}
+          {/*  Photos */}
           <View style={styles.card}>
             <View style={styles.imageHeaderRow}>
               <Text style={styles.cardTitle}>Photos</Text>
@@ -193,21 +232,32 @@ export default function ManualSkinAnalysisScreen() {
               Upload close-up photos of the affected area.
             </Text>
 
-            {/* Danh sách ảnh ngang */}
+            {/* List of Images */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.imageList}
             >
-              {/* Nút Thêm Ảnh */}
+              {/* Add Photo Button */}
               {imageUris.length < 5 && (
-                <Pressable style={styles.addImageButton} onPress={pickImages}>
-                  <Ionicons name="camera" size={32} color="#007bff" />
-                  <Text style={styles.addImageText}>Add Photo</Text>
+                <Pressable
+                  style={[
+                    styles.addImageButton,
+                    {
+                      backgroundColor: tintedPrimary,
+                      borderColor: borderPrimary,
+                    },
+                  ]}
+                  onPress={pickImages}
+                >
+                  <Ionicons name="camera" size={32} color={primaryColor} />
+                  <Text style={[styles.addImageText, { color: primaryColor }]}>
+                    Add Photo
+                  </Text>
                 </Pressable>
               )}
 
-              {/* Render các ảnh đã chọn */}
+              {/* Render selected photos */}
               {imageUris.map((uri, index) => (
                 <View key={index} style={styles.imageWrapper}>
                   <Image source={{ uri: uri }} style={styles.thumbnail} />
@@ -226,7 +276,15 @@ export default function ManualSkinAnalysisScreen() {
         {/* Footer Button */}
         <View style={styles.footer}>
           <Pressable
-            style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+            style={[
+              styles.submitButton,
+              { backgroundColor: primaryColor, shadowColor: primaryColor },
+              isSubmitting && {
+                backgroundColor: disabledPrimary,
+                shadowColor: disabledPrimary,
+              },
+              isSubmitting && styles.disabledButton,
+            ]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
@@ -237,12 +295,22 @@ export default function ManualSkinAnalysisScreen() {
             )}
           </Pressable>
         </View>
+
+        <CustomAlert
+          visible={alertState.visible}
+          title={alertState.title}
+          message={alertState.message}
+          confirmText={alertState.confirmText}
+          cancelText={alertState.cancelText}
+          type={alertState.type}
+          onConfirm={handleAlertConfirm}
+          onCancel={alertState.cancelText ? handleAlertCancel : undefined}
+        />
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// --- STYLES ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -254,6 +322,24 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 20,
+  },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 12,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  backButtonText: {
+    marginLeft: 4,
+    fontSize: 15,
+    fontWeight: "600",
   },
   title: {
     fontSize: 26,
@@ -333,17 +419,14 @@ const styles = StyleSheet.create({
   addImageButton: {
     width: 100,
     height: 100,
-    backgroundColor: "#f0f8ff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#cce5ff",
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
   addImageText: {
-    color: "#007bff",
     fontSize: 12,
     fontWeight: "600",
     marginTop: 4,
@@ -384,19 +467,16 @@ const styles = StyleSheet.create({
     right: 0,
   },
   submitButton: {
-    backgroundColor: "#007bff",
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
-    shadowColor: "#007bff",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   disabledButton: {
-    backgroundColor: "#a0c4ff",
-    elevation: 0,
+    opacity: 0.9,
   },
   submitButtonText: {
     color: "#fff",
