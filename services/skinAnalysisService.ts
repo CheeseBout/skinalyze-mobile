@@ -23,7 +23,7 @@ export interface ManualEntryPayload {
   chiefComplaint: string;
   patientSymptoms: string;
   notes?: string;
-  imageUri?: string | null;
+  imageUris?: string[] | null;
 }
 
 interface SkinAnalysisResponse {
@@ -101,7 +101,11 @@ class SkinAnalysisService {
         formData.append("notes", note);
       }
 
-      console.log(`📤 Uploading disease detection image (Area: ${note || 'unspecified'})...`);
+      console.log(
+        `📤 Uploading disease detection image (Area: ${
+          note || "unspecified"
+        })...`
+      );
 
       // Use apiService.uploadFile instead of fetch
       const result = await apiService.uploadFile<SkinAnalysisResponse>(
@@ -231,41 +235,47 @@ class SkinAnalysisService {
   /**
    * Create a manual skin analysis entry
    */
-  async createManualEntry(userId: string, payload: ManualEntryPayload): Promise<any> {
+  async createManualEntry(payload: ManualEntryPayload): Promise<any> {
     try {
-      const token = await tokenService.getToken();
-      if (!token) throw new Error("Authentication required");
-
-      const customerId = await this.getCustomerId(userId);
-
       const formData = new FormData();
-      
+
       // Append Text Data
-      formData.append('chiefComplaint', payload.chiefComplaint);
-      formData.append('patientSymptoms', payload.patientSymptoms);
-      if (payload.notes) formData.append('notes', payload.notes);
+      formData.append("chiefComplaint", payload.chiefComplaint);
+      formData.append("patientSymptoms", payload.patientSymptoms);
+      if (payload.notes) formData.append("notes", payload.notes);
 
       // Append Image if exists
-      if (payload.imageUri) {
-        const filename = payload.imageUri.split('/').pop() || 'manual_entry.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+      if (payload.imageUris && payload.imageUris.length > 0) {
+        payload.imageUris.forEach((uri, index) => {
+          // Create unique filename for each image
+          const filename = uri.split("/").pop() || `manual_image_${index}.jpg`;
 
-        formData.append('file', {
-          uri: payload.imageUri,
-          name: filename,
-          type: type,
-        } as any);
+          // Determine file type (default to jpeg if extension not found)
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : "image/jpeg";
+
+          // Append to formData with the same key "file"
+          // Backend (FilesInterceptor('file')) will automatically group them into an array
+          formData.append("file", {
+            uri: uri,
+            name: filename,
+            type: type,
+          } as any);
+        });
       }
 
-      console.log('📤 Creating manual entry...');
+      console.log(
+        `📤 Creating manual entry with ${
+          payload.imageUris?.length || 0
+        } images...`
+      );
 
       const result = await apiService.uploadFile(
-        `/skin-analysis/manual-entry/${customerId}`,
+        `/skin-analysis/manual-entry`,
         formData
       );
 
-      console.log('✅ Manual entry created');
+      console.log("✅ Manual entry created");
       return result;
     } catch (error) {
       console.error("❌ Error creating manual entry:", error);

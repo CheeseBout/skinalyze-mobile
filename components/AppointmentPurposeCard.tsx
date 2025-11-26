@@ -1,13 +1,19 @@
-// File: components/booking/AppointmentPurposeCard.tsx
-// (Giả sử file này nằm ở: @/components/AppointmentPurposeCard.tsx)
-
-import React from "react";
-import { View, Text, StyleSheet, Pressable, TextInput } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  Modal,
+  FlatList,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { AppointmentType } from "@/types/appointment.type";
 import { SkinAnalysis } from "@/types/skin-analysis.type";
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
+import { router } from "expo-router";
 
 const formatDate = (isoDate: string) => {
   if (!isoDate) return "N/A";
@@ -46,6 +52,127 @@ export default function AppointmentPurposeCard({
   note,
   setNote,
 }: Props) {
+  const [isAnalysisModalVisible, setIsAnalysisModalVisible] = useState(false);
+  const [isRoutineModalVisible, setIsRoutineModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (analyses.length && !selectedAnalysisId) {
+      setSelectedAnalysisId(analyses[0].analysisId);
+    }
+  }, [analyses, selectedAnalysisId, setSelectedAnalysisId]);
+
+  useEffect(() => {
+    if (routines.length && !selectedRoutineId) {
+      setSelectedRoutineId(routines[0].routineId);
+    }
+  }, [routines, selectedRoutineId, setSelectedRoutineId]);
+
+  const selectedAnalysis = useMemo(() => {
+    if (!analyses.length) return null;
+    if (selectedAnalysisId) {
+      const found = analyses.find(
+        (analysis) => analysis.analysisId === selectedAnalysisId
+      );
+      if (found) return found;
+    }
+    return analyses[0];
+  }, [analyses, selectedAnalysisId]);
+
+  const renderAnalysisOption = ({ item }: { item: SkinAnalysis }) => {
+    const isSelected = selectedAnalysisId === item.analysisId;
+    const isManual = item.source === "MANUAL";
+    const headline =
+      item.chiefComplaint ||
+      item.aiDetectedDisease ||
+      item.aiDetectedCondition ||
+      "Skin Analysis";
+    const meta = `${formatDate(item.createdAt)} · ${
+      isManual ? "Self reported" : "AI assessment"
+    }`;
+
+    return (
+      <Pressable
+        style={[styles.modalItem, isSelected && styles.modalItemSelected]}
+        onPress={() => {
+          setSelectedAnalysisId(item.analysisId);
+          setIsAnalysisModalVisible(false);
+        }}
+      >
+        <View style={styles.modalItemRow}>
+          <MaterialCommunityIcons
+            name={isManual ? "file-document-edit" : "robot-excited"}
+            size={20}
+            color={isManual ? "#1b5e20" : "#1a237e"}
+          />
+          <View style={styles.modalItemTextBlock}>
+            <Text style={styles.modalItemTitle} numberOfLines={1}>
+              {headline}
+            </Text>
+            <Text style={styles.modalItemMeta} numberOfLines={1}>
+              {meta}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.analysisBadge,
+              isManual ? styles.manualBadge : styles.aiBadge,
+            ]}
+          >
+            <Text style={styles.analysisBadgeText}>
+              {isManual ? "Manual" : "AI"}
+            </Text>
+          </View>
+        </View>
+        {isSelected && (
+          <MaterialCommunityIcons
+            name="check-circle"
+            size={20}
+            color="#007bff"
+            style={styles.modalItemCheck}
+          />
+        )}
+      </Pressable>
+    );
+  };
+
+  const renderRoutineOption = ({ item }: { item: TreatmentRoutine }) => {
+    const isSelected = selectedRoutineId === item.routineId;
+
+    return (
+      <Pressable
+        style={[styles.modalItem, isSelected && styles.modalItemSelected]}
+        onPress={() => {
+          setSelectedRoutineId(item.routineId);
+          setIsRoutineModalVisible(false);
+        }}
+      >
+        <View style={styles.modalItemRow}>
+          <MaterialCommunityIcons
+            name="clipboard-text"
+            size={20}
+            color="#512da8"
+          />
+          <View style={styles.modalItemTextBlock}>
+            <Text style={styles.modalItemTitle} numberOfLines={1}>
+              {item.routineName || "Treatment Routine"}
+            </Text>
+            <Text style={styles.modalItemMeta} numberOfLines={1}>
+              {formatDate(item.createdAt)}
+            </Text>
+          </View>
+        </View>
+        {isSelected && (
+          <MaterialCommunityIcons
+            name="check-circle"
+            size={20}
+            color="#007bff"
+            style={styles.modalItemCheck}
+          />
+        )}
+      </Pressable>
+    );
+  };
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Appointment Purpose</Text>
@@ -90,68 +217,149 @@ export default function AppointmentPurposeCard({
         </Pressable>
       </View>
 
-      {/* === THAY ĐỔI 1: Luôn hiển thị Analysis Picker === */}
-      {/* (Vì cả NEW_PROBLEM và FOLLOW_UP đều cần nó) */}
+      {/* === Analysis picker (always shown) === */}
       <View style={styles.pickerContainer}>
         <Text style={styles.label}>Analysis to review:</Text>
-        <Picker
-          selectedValue={selectedAnalysisId}
-          onValueChange={(itemValue) => setSelectedAnalysisId(itemValue)}
-          style={styles.picker}
+        <Pressable
+          style={styles.createAnalysisLink}
+          onPress={() => router.push("/(stacks)/ManualSkinAnalysisScreen")}
         >
-          {analyses.length === 0 && (
-            <Picker.Item
-              label="No previous analysis found"
-              value={null}
-              enabled={false}
+          <Text style={styles.createAnalysisText}>
+            + Create new manual entry
+          </Text>
+        </Pressable>
+        {analyses.length === 0 ? (
+          <View style={styles.analysisEmptyState}>
+            <MaterialCommunityIcons
+              name="file-search"
+              size={22}
+              color="#9e9e9e"
             />
-          )}
-          {analyses.map((analysis) => (
-            <Picker.Item
-              key={analysis.analysisId}
-              label={`${formatDate(analysis.createdAt)} - ${
-                analysis.chiefComplaint ||
-                analysis.aiDetectedDisease ||
-                "AI Scan"
-              }`}
-              value={analysis.analysisId}
-            />
-          ))}
-        </Picker>
+            <Text style={styles.analysisEmptyText}>
+              No previous analysis found
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.analysisContainer}>
+            <Pressable
+              style={styles.analysisPreview}
+              onPress={() => setIsAnalysisModalVisible(true)}
+            >
+              {selectedAnalysis && (
+                <>
+                  <View style={styles.analysisRow}>
+                    <MaterialCommunityIcons
+                      name={
+                        selectedAnalysis.source === "MANUAL"
+                          ? "file-document-edit"
+                          : "robot-excited"
+                      }
+                      size={20}
+                      color={
+                        selectedAnalysis.source === "MANUAL"
+                          ? "#1b5e20"
+                          : "#1a237e"
+                      }
+                      style={styles.analysisIcon}
+                    />
+                    <View style={styles.analysisTextBlock}>
+                      <Text style={styles.analysisTitle} numberOfLines={1}>
+                        {selectedAnalysis.chiefComplaint ||
+                          selectedAnalysis.aiDetectedDisease ||
+                          selectedAnalysis.aiDetectedCondition ||
+                          "Skin Analysis"}
+                      </Text>
+                      <Text style={styles.analysisMeta} numberOfLines={1}>
+                        {`${formatDate(selectedAnalysis.createdAt)} · ${
+                          selectedAnalysis.source === "MANUAL"
+                            ? "Self reported"
+                            : "AI assessment"
+                        }`}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.analysisBadge,
+                        selectedAnalysis.source === "MANUAL"
+                          ? styles.manualBadge
+                          : styles.aiBadge,
+                      ]}
+                    >
+                      <Text style={styles.analysisBadgeText}>
+                        {selectedAnalysis.source === "MANUAL" ? "Manual" : "AI"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.previewFooter}>
+                    <Text style={styles.previewHint}>
+                      Tap to choose another analysis
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="menu-down"
+                      size={20}
+                      color="#007bff"
+                    />
+                  </View>
+                </>
+              )}
+            </Pressable>
+            {!selectedAnalysis && (
+              <Pressable
+                style={styles.modalTrigger}
+                onPress={() => setIsAnalysisModalVisible(true)}
+              >
+                <MaterialCommunityIcons
+                  name="menu-down"
+                  size={20}
+                  color="#007bff"
+                />
+                <Text style={styles.modalTriggerText}>Choose analysis</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
-      {/* ============================================== */}
 
-      {/* === THAY ĐỔI 2: Chỉ hiển thị Routine Picker khi là FOLLOW_UP === */}
+      {/* === Routine picker if FOLLOW_UP === */}
       {appointmentType === AppointmentType.FOLLOW_UP && (
         <View style={styles.pickerContainer}>
           <Text style={styles.label}>Routine to follow-up:</Text>
-          <Picker
-            selectedValue={selectedRoutineId}
-            onValueChange={(itemValue) => setSelectedRoutineId(itemValue)}
-            style={styles.picker}
-          >
-            {routines.length === 0 && (
-              <Picker.Item
-                label="No previous routine found"
-                value={null}
-                enabled={false}
+          {routines.length === 0 ? (
+            <View style={styles.analysisEmptyState}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={20}
+                color="#9e9e9e"
               />
-            )}
-            {routines.map((routine) => (
-              <Picker.Item
-                key={routine.routineId}
-                label={`${formatDate(routine.createdAt)} - ${
-                  routine.routineName
-                }`}
-                value={routine.routineId}
+              <Text style={styles.analysisEmptyText}>
+                No previous routine found
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              style={styles.modalTrigger}
+              onPress={() => setIsRoutineModalVisible(true)}
+            >
+              <MaterialCommunityIcons
+                name="clipboard-text"
+                size={20}
+                color="#512da8"
               />
-            ))}
-          </Picker>
+              <Text style={styles.modalTriggerText}>
+                {routines.find((r) => r.routineId === selectedRoutineId)
+                  ?.routineName || "Choose routine"}
+              </Text>
+              <MaterialCommunityIcons
+                name="menu-down"
+                size={20}
+                color="#512da8"
+              />
+            </Pressable>
+          )}
         </View>
       )}
-      {/* ======================================================== */}
 
-      {/* 3. Add Note (Không đổi) */}
+      {/* 3. Add Note  */}
       <View style={styles.noteContainer}>
         <Text style={styles.label}>Note (Optional):</Text>
         <TextInput
@@ -162,11 +370,57 @@ export default function AppointmentPurposeCard({
           multiline
         />
       </View>
+      <Modal
+        visible={isAnalysisModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsAnalysisModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Analysis</Text>
+            <Pressable onPress={() => setIsAnalysisModalVisible(false)}>
+              <MaterialCommunityIcons name="close" size={24} color="#444" />
+            </Pressable>
+          </View>
+          <FlatList
+            data={analyses}
+            keyExtractor={(item) => item.analysisId}
+            renderItem={renderAnalysisOption}
+            ItemSeparatorComponent={() => (
+              <View style={styles.modalSeparator} />
+            )}
+            contentContainerStyle={styles.modalListContent}
+          />
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isRoutineModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsRoutineModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Routine</Text>
+            <Pressable onPress={() => setIsRoutineModalVisible(false)}>
+              <MaterialCommunityIcons name="close" size={24} color="#444" />
+            </Pressable>
+          </View>
+          <FlatList
+            data={routines}
+            keyExtractor={(item) => item.routineId}
+            renderItem={renderRoutineOption}
+            ItemSeparatorComponent={() => (
+              <View style={styles.modalSeparator} />
+            )}
+            contentContainerStyle={styles.modalListContent}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
 
-// (Styles không đổi)
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -221,12 +475,164 @@ const styles = StyleSheet.create({
   pickerContainer: {
     marginTop: 16,
   },
-  picker: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
+  createAnalysisLink: {
     marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  createAnalysisText: {
+    color: "#007bff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  analysisContainer: {
+    marginTop: 12,
+    backgroundColor: "#f5f7fb",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e0e6f0",
+  },
+  analysisPreview: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e0e6f0",
+  },
+  analysisRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  analysisIcon: {
+    marginLeft: 2,
+  },
+  analysisTextBlock: {
+    flex: 1,
+  },
+  analysisTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  analysisMeta: {
+    fontSize: 12,
+    color: "#5f6368",
+    marginTop: 2,
+  },
+  analysisBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  manualBadge: {
+    backgroundColor: "#d1f2e8",
+  },
+  aiBadge: {
+    backgroundColor: "#dcd9ff",
+  },
+  analysisBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    color: "#333",
+  },
+  previewFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  previewHint: {
+    fontSize: 12,
+    color: "#5f6368",
+  },
+  analysisEmptyState: {
+    marginTop: 12,
+    backgroundColor: "#f7f7f7",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ececec",
+  },
+  analysisEmptyText: {
+    marginTop: 6,
+    fontSize: 14,
+    color: "#9e9e9e",
+  },
+  modalTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#c5d1eb",
+  },
+  modalTriggerText: {
+    fontSize: 14,
+    color: "#007bff",
+    fontWeight: "600",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#f5f5ff",
+    paddingTop: 50,
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  modalListContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
+  modalItem: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e0e6f0",
+  },
+  modalItemSelected: {
+    borderColor: "#007bff",
+    backgroundColor: "#eaf3ff",
+  },
+  modalItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  modalItemTextBlock: {
+    flex: 1,
+  },
+  modalItemTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  modalItemMeta: {
+    fontSize: 13,
+    color: "#5f6368",
+    marginTop: 2,
+  },
+  modalItemCheck: {
+    marginTop: 8,
+  },
+  modalSeparator: {
+    height: 12,
   },
   noteContainer: {
     marginTop: 16,

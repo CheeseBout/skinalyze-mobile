@@ -8,8 +8,15 @@ import {
   Pressable,
   Image,
 } from "react-native";
-import React, { useState, useEffect, useMemo, useContext } from "react";
+import React, {
+  useState,
+  useMemo,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 
 import AppointmentPurposeCard from "@/components/AppointmentPurposeCard";
 
@@ -88,68 +95,140 @@ export default function BookingConfirmationScreen() {
     null
   );
   const [note, setNote] = useState<string>("");
+  const previousAnalysisIdsRef = useRef<string[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!params.dermatologistId || !user?.userId) {
-        if (!isAuthLoading && !user) {
-          Alert.alert("Authentication Error", "Please log in again.");
+  const updateSelectedRoutine = useCallback(
+    (routinesData: TreatmentRoutine[]) => {
+      const newIds = routinesData.map((routine) => routine.routineId);
+      setSelectedRoutineId((current) => {
+        if (current && newIds.includes(current)) {
+          return current;
         }
-        return;
-      }
-      try {
-        setIsLoadingData(true);
+        return routinesData.length > 0 ? routinesData[0].routineId : null;
+      });
+    },
+    []
+  );
 
-        const [doctorData, subsData, walletData] = await Promise.all([
-          dermatologistService.getDermatologistById(params.dermatologistId),
-          customerSubscriptionService.getMyActiveSubscriptions(
-            params.dermatologistId
-          ),
-          userService.getBalance(),
+  const updateSelectedAnalysis = useCallback((analysesData: SkinAnalysis[]) => {
+    const newIds = analysesData.map((analysis) => analysis.analysisId);
+    const previousIds = previousAnalysisIdsRef.current;
+    const addedIds = newIds.filter((id) => !previousIds.includes(id));
+
+    setSelectedAnalysisId((current) => {
+      if (previousIds.length === 0) {
+        if (current && newIds.includes(current)) {
+          return current;
+        }
+        return analysesData.length > 0 ? analysesData[0].analysisId : null;
+      }
+
+      if (addedIds.length > 0) {
+        return addedIds[0];
+      }
+
+      if (current && newIds.includes(current)) {
+        return current;
+      }
+
+      return analysesData.length > 0 ? analysesData[0].analysisId : null;
+    });
+
+    previousAnalysisIdsRef.current = newIds;
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    if (!params.dermatologistId) {
+      return;
+    }
+
+    if (!user?.userId) {
+      if (!isAuthLoading) {
+        Alert.alert("Authentication Error", "Please log in again.");
+      }
+      setIsLoadingData(false);
+      return;
+    }
+
+    try {
+      setIsLoadingData(true);
+
+      const [doctorData, subsData, walletData] = await Promise.all([
+        dermatologistService.getDermatologistById(params.dermatologistId),
+        customerSubscriptionService.getMyActiveSubscriptions(
+          params.dermatologistId
+        ),
+        userService.getBalance(),
+      ]);
+
+      setDoctor(doctorData);
+      setSubscriptions(subsData);
+      setWalletBalance(walletData.balance);
+
+      const customerData = await customerService.getCustomerProfile(
+        user.userId
+      );
+      setCustomer(customerData);
+
+      if (customerData?.customerId) {
+        const [analysesData, routinesData] = await Promise.all([
+          skinAnalysisService.getUserAnalyses(customerData.customerId),
+          treatmentRoutineService.getCustomerRoutines(customerData.customerId),
         ]);
-        ("❤️MY PLAN", subsData);
 
-        setDoctor(doctorData);
-        setSubscriptions(subsData);
-        setWalletBalance(walletData.balance);
+        setAnalyses(analysesData);
+        updateSelectedAnalysis(analysesData);
 
-        const customerData = await customerService.getCustomerProfile(
-          user.userId
-        );
-        setCustomer(customerData);
-        if (customerData?.customerId) {
-          const [analysesData, routinesData] = await Promise.all([
-            skinAnalysisService.getUserAnalyses(customerData.customerId),
-            treatmentRoutineService.getCustomerRoutines(
-              customerData.customerId
-            ),
-          ]);
-
-          setAnalyses(analysesData);
-
-          setRoutines(routinesData);
-          if (routinesData.length > 0) {
-            setSelectedRoutineId(routinesData[0].routineId); // (Set default)
-          }
-          if (analysesData.length > 0) {
-            setSelectedAnalysisId(analysesData[0].analysisId); // (Set default)
-          }
-        }
-
-        // Set default payment option
-        if (Number(params.price || 0) > 0) {
-          setSelectedOptionId("PAY_NOW");
-        } else if (subsData.length > 0) {
-          setSelectedOptionId(subsData[0].id);
-        }
-      } catch (error: any) {
-        Alert.alert("Error", "Failed to load booking details.");
-      } finally {
-        setIsLoadingData(false);
+        setRoutines(routinesData);
+        updateSelectedRoutine(routinesData);
       }
-    };
-    fetchData();
-  }, [params.dermatologistId, user?.userId, isAuthLoading]);
+
+      setSelectedOptionId((prev) => {
+        const priceNumber = Number(params.price || 0);
+
+        const isExistingSubscription = prev
+          ? subsData.some((subscription) => subscription.id === prev)
+          : false;
+
+        if (prev === "PAY_NOW") {
+          if (priceNumber > 0) {
+            return prev;
+          }
+        } else if (prev === "WALLET") {
+          return prev;
+        } else if (prev && isExistingSubscription) {
+          return prev;
+        }
+
+        if (priceNumber > 0) {
+          return "PAY_NOW";
+        }
+
+        if (subsData.length > 0) {
+          return subsData[0].id;
+        }
+
+        return priceNumber > 0 ? prev : null;
+      });
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to load booking details.");
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [
+    params.dermatologistId,
+    params.price,
+    user?.userId,
+    isAuthLoading,
+    updateSelectedAnalysis,
+    updateSelectedRoutine,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   const slotDetails = useMemo(() => {
     const price = Number(params.price || 0);
@@ -258,7 +337,7 @@ export default function BookingConfirmationScreen() {
         style={[
           styles.option,
           isSelected && styles.optionSelected,
-          disabled && styles.optionDisabled, 
+          disabled && styles.optionDisabled,
         ]}
         onPress={() => !disabled && setSelectedOptionId(id)}
         disabled={disabled}
@@ -430,7 +509,7 @@ export default function BookingConfirmationScreen() {
             )}
 
           {/* 2. Option: Wallet */}
-          {slotDetails.price > 0 &&
+          {slotDetails.price >= 0 &&
             renderOption(
               "WALLET",
               "Skinalyze Wallet",
@@ -443,14 +522,16 @@ export default function BookingConfirmationScreen() {
               />
             )}
 
-          {/* 3. Option: Gói */}
-          {subscriptions.map((sub) =>
-            renderOption(
-              sub.id,
-              (sub.subscriptionPlan as any)?.planName || "My Subscription",
-              `${sub.sessionsRemaining} sessions remaining`
-            )
-          )}
+          {/* 3. Option: Subscription */}
+
+          {slotDetails.price > 0 &&
+            subscriptions.map((sub) =>
+              renderOption(
+                sub.id,
+                (sub.subscriptionPlan as any)?.planName || "My Subscription",
+                `${sub.sessionsRemaining} sessions remaining`
+              )
+            )}
 
           {/* Notify insufficient wallet balance */}
           {selectedOptionId === "WALLET" &&
@@ -464,7 +545,7 @@ export default function BookingConfirmationScreen() {
         </View>
       </ScrollView>
 
-      {/* Nút Xác Nhận */}
+      {/* Confirm Button */}
       <View style={styles.footer}>
         <Pressable
           style={[

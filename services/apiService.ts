@@ -97,9 +97,11 @@ class ApiService {
   ): Promise<T> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      `📡 POST (multipart) ${url}`;
+      console.log(`📡 POST (multipart) ${url}`);
 
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {
+        ...options?.headers,
+      };
 
       const token = await tokenService.getToken();
       if (token) {
@@ -114,7 +116,7 @@ class ApiService {
       };
 
       const response = await fetch(url, config);
-      `Response status: ${response.status}`;
+      console.log(`Response status: ${response.status}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
