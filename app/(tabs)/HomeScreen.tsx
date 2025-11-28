@@ -19,6 +19,7 @@ import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
+import { productService } from '@/services/productService'
 import { Product } from '@/services/productService'
 
 const { width } = Dimensions.get('window')
@@ -27,11 +28,16 @@ export default function HomeScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { primaryColor } = useThemeColor()
-  const { products, categories, saleProducts, isLoading, error, refreshProducts } = useProducts()
-  const [refreshing, setRefreshing] = useState(false)
-  const [showToTop, setShowToTop] = useState(false)  
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([])
+  const { categories, saleProducts, isLoading: isLoadingCategories, error: categoriesError, refreshProducts: refreshCategories } = useProducts()
+  
+  // New state for paginated products
+  const [products, setProducts] = useState<Product[]>([])
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null)
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showToTop, setShowToTop] = useState(false)
   
   const PRODUCTS_PER_PAGE = 50
   const flatListRef = useRef<FlatList>(null)
@@ -41,31 +47,53 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
-    if (!isLoading) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    }
-  }, [isLoading])
+    // Start animations immediately on mount
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [])
 
   useEffect(() => {
-    if (products.length > 0) {
-      setDisplayedProducts(products.slice(0, PRODUCTS_PER_PAGE))
+    if (categories.length > 0) {
+      setProducts(categories.slice(0, PRODUCTS_PER_PAGE))
     }
-  }, [products])
+  }, [categories])
+
+  // Load initial products
+  useEffect(() => {
+    loadProducts(1)
+  }, [])
+
+  const loadProducts = async (page: number) => {
+    try {
+      if (page === 1) setIsLoadingProducts(true)
+      else setLoadingMore(true)
+      
+      const result = await productService.getProductsPaginated(page, PRODUCTS_PER_PAGE)
+      setProducts(prev => page === 1 ? result.products : [...prev, ...result.products])
+      setPagination(result.pagination)
+      setError(null)
+    } catch (err) {
+      setError('Failed to load products')
+    } finally {
+      setIsLoadingProducts(false)
+      setLoadingMore(false)
+    }
+  }
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await refreshProducts()
+    await loadProducts(1)  // Reset to page 1
+    await refreshCategories()
     setRefreshing(false)
   }
 
@@ -75,17 +103,8 @@ export default function HomeScreen() {
   }
 
   const loadMoreProducts = () => {
-    if (loadingMore || displayedProducts.length >= products.length) return
-
-    setLoadingMore(true)
-    setTimeout(() => { 
-      const nextBatch = products.slice(
-        displayedProducts.length,
-        displayedProducts.length + PRODUCTS_PER_PAGE
-      )
-      setDisplayedProducts(prev => [...prev, ...nextBatch])
-      setLoadingMore(false)
-    }, 500)
+    if (loadingMore || !pagination || pagination.page >= pagination.totalPages) return
+    loadProducts(pagination.page + 1)
   }
 
   const getGreeting = () => {
@@ -207,45 +226,54 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {categories.map((category, index) => {
-            const colors = [
-              { bg: '#F0F9FF', icon: '#2196F3' },
-              { bg: '#F0FDF4', icon: '#34C759' },
-              { bg: '#FFF4E6', icon: '#FF9800' },
-              { bg: '#F3E8FF', icon: '#A855F7' },
-              { bg: '#FFE8E8', icon: '#FF3B30' },
-            ]
-            const colorSet = colors[index % colors.length]
-            
-            return (
-              <TouchableOpacity
-                key={category.categoryId}
-                style={styles.categoryCard}
-                activeOpacity={0.7}
-                // === MODIFIED: Navigation to SearchScreen with Params ===
-                onPress={() => router.push({
-                  pathname: '/(stacks)/SearchScreen',
-                  params: { 
-                    categoryId: category.categoryId,
-                    categoryName: category.categoryName
-                  }
-                })}
-              >
-                <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
-                  <Ionicons name="layers" size={28} color={colorSet.icon} />
-                </View>
-                <Text style={styles.categoryName} numberOfLines={2}>
-                  {category.categoryName}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        {isLoadingCategories ? (
+          <View style={styles.loadingContainer}>
+            <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <ActivityIndicator size="small" color={primaryColor} />
+            </View>
+            <Text style={styles.loadingText}>Loading categories...</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {categories.map((category, index) => {
+              const colors = [
+                { bg: '#F0F9FF', icon: '#2196F3' },
+                { bg: '#F0FDF4', icon: '#34C759' },
+                { bg: '#FFF4E6', icon: '#FF9800' },
+                { bg: '#F3E8FF', icon: '#A855F7' },
+                { bg: '#FFE8E8', icon: '#FF3B30' },
+              ]
+              const colorSet = colors[index % colors.length]
+              
+              return (
+                <TouchableOpacity
+                  key={category.categoryId}
+                  style={styles.categoryCard}
+                  activeOpacity={0.7}
+                  // === MODIFIED: Navigation to SearchScreen with Params ===
+                  onPress={() => router.push({
+                    pathname: '/(stacks)/SearchScreen',
+                    params: { 
+                      categoryId: category.categoryId,
+                      categoryName: category.categoryName
+                    }
+                  })}
+                >
+                  <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
+                    <Ionicons name="layers" size={28} color={colorSet.icon} />
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={2}>
+                    {category.categoryName}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {/* All Products Title (Part of Header) */}
@@ -257,30 +285,11 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>All Products</Text>
         </View>
         <View style={styles.productCount}>
-          <Text style={styles.productCountText}>{products.length}</Text>
+          <Text style={styles.productCountText}>{pagination?.total || 0}</Text>
         </View>
       </View>
     </Animated.View>
   )
-
-  // Loading State
-  if (isLoading && products.length === 0) {
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-        <View style={styles.loadingContainer}>
-          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <ActivityIndicator size="large" color={primaryColor} />
-          </View>
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
-      </View>
-    )
-  }
 
   // Error State
   if (error) {
@@ -299,7 +308,7 @@ export default function HomeScreen() {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: primaryColor }]} 
-            onPress={refreshProducts}
+            onPress={() => loadProducts(1)}
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
@@ -322,7 +331,7 @@ export default function HomeScreen() {
 
       <FlatList
         ref={flatListRef}
-        data={displayedProducts}
+        data={products}
         keyExtractor={(item, index) => `${item.productId}-${index}`}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
@@ -353,6 +362,16 @@ export default function HomeScreen() {
             colors={[primaryColor]}
           />
         }
+        ListEmptyComponent={
+          isLoadingProducts ? (
+            <View style={styles.loadingContainer}>
+              <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+                <ActivityIndicator size="large" color={primaryColor} />
+              </View>
+              <Text style={styles.loadingText}>Loading products...</Text>
+            </View>
+          ) : null
+        }
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
@@ -360,8 +379,7 @@ export default function HomeScreen() {
               <Text style={styles.loadingMoreText}>Loading more products...</Text>
             </View>
           ) : (
-             // Add some bottom padding
-             <View style={{ height: 20 }} />
+            <View style={{ height: 20 }} />
           )
         }
         showsVerticalScrollIndicator={false}
@@ -426,6 +444,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   loadingIcon: {
     width: 80,

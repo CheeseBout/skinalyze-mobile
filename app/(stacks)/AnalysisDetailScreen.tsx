@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';  
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +22,7 @@ export default function AnalysisDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();  // Add this hook
   const [showMask, setShowMask] = useState(false);
 
   // Animations
@@ -45,14 +47,14 @@ export default function AnalysisDetailScreen() {
   const handleAskAI = (path: any) => {
     const analysisText = `I have a skin analysis result that I'd like to understand better:
 
-Detection Type: ${isConditionDetection ? 'Skin Condition' : 'Disease Detection'}
-Result: ${isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
+Detection Type: ${isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')}
+Result: ${isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
 Date: ${new Date(result.createdAt).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   })}
-Source: ${result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual Entry'}
+Source: ${result.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manual')}
 
 ${result.chiefComplaint ? `Chief Complaint: ${result.chiefComplaint}\n` : ''}${result.patientSymptoms ? `Symptoms: ${result.patientSymptoms}\n` : ''}${result.notes ? `Notes: ${result.notes}\n` : ''}
 Can you provide more information about this condition and suggest what steps I should take?`;
@@ -86,15 +88,15 @@ Can you provide more information about this condition and suggest what steps I s
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>No Data Available</Text>
-          <Text style={styles.errorText}>Unable to load analysis details</Text>
+          <Text style={styles.errorTitle}>{t('analysis.noData')}</Text> 
+          <Text style={styles.errorText}>{t('analysis.unableLoad')}</Text> 
           <TouchableOpacity
             style={[styles.errorButton, { backgroundColor: primaryColor }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            <Text style={styles.errorButtonText}>Go Back</Text>
+            <Text style={styles.errorButtonText}>{t('analysis.goBack')}</Text> 
           </TouchableOpacity>
         </View>
       </View>
@@ -160,23 +162,10 @@ Can you provide more information about this condition and suggest what steps I s
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-
-            <View style={styles.headerBadgeContainer}>
-              <View style={[styles.headerBadge, { backgroundColor: detectionColor }]}>
-                <Ionicons
-                  name={isConditionDetection ? 'water' : 'medical'}
-                  size={16}
-                  color="#FFFFFF"
-                />
-              </View>
-              <Text style={styles.headerTitle}>Analysis Result</Text>
-            </View>
-
             <View style={styles.overlayButton} />
           </View>
 
           {/* Mask Toggle Button */}
-          {/* --- FIX START: Use maskUrl variable --- */}
           {isDiseaseDetection && maskUrl && result.aiDetectedDisease?.toLowerCase() !== "normal" && (
             <View style={styles.maskControls}>
               <TouchableOpacity
@@ -198,12 +187,11 @@ Can you provide more information about this condition and suggest what steps I s
                   styles.maskToggleText,
                   showMask && styles.maskToggleTextActive
                 ]}>
-                  {showMask ? 'Hide Mask' : 'Show Mask'}
+                  {showMask ? t('analysis.hideMask') : t('analysis.showMask')} 
                 </Text>
               </TouchableOpacity>
             </View>
           )}
-           {/* --- FIX END --- */}
         </View>
 
         {/* Content Section */}
@@ -231,10 +219,11 @@ Can you provide more information about this condition and suggest what steps I s
 
               <View style={styles.resultContent}>
                 <Text style={styles.resultLabel}>
-                  {isConditionDetection ? 'Skin Condition' : 'Disease Detection'}
+                  {isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')} 
                 </Text>
-                <Text style={[styles.resultValue, { color: detectionColor }]}>
-                  {isConditionDetection ? result.aiDetectedCondition : result.aiDetectedDisease}
+                <Text style={[styles.resultValue, { color: detectionColor }]}
+                >
+                  {isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
                 </Text>
               </View>
             </View>
@@ -250,14 +239,14 @@ Can you provide more information about this condition and suggest what steps I s
               }
             ]}
           >
-            <Text style={styles.sectionTitle}>Analysis Details</Text>
+            <Text style={styles.sectionTitle}>{t('analysis.analysisDetails')}</Text> 
 
             <View style={styles.detailsGrid}>
               <View style={styles.detailCard}>
                 <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
                   <Ionicons name="calendar" size={20} color="#2196F3" />
                 </View>
-                <Text style={styles.detailLabel}>Date</Text>
+                <Text style={styles.detailLabel}>{t('analysis.date')}</Text> 
                 <Text style={styles.detailValue}>
                   {new Date(result.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
@@ -271,7 +260,7 @@ Can you provide more information about this condition and suggest what steps I s
                 <View style={[styles.detailIconWrapper, { backgroundColor: '#FFF4E6' }]}>
                   <Ionicons name="time" size={20} color="#FF9800" />
                 </View>
-                <Text style={styles.detailLabel}>Time</Text>
+                <Text style={styles.detailLabel}>{t('analysis.time')}</Text> 
                 <Text style={styles.detailValue}>
                   {new Date(result.createdAt).toLocaleTimeString('en-US', {
                     hour: '2-digit',
@@ -288,9 +277,9 @@ Can you provide more information about this condition and suggest what steps I s
                     color="#34C759"
                   />
                 </View>
-                <Text style={styles.detailLabel}>Source</Text>
+                <Text style={styles.detailLabel}>{t('analysis.source')}</Text> 
                 <Text style={styles.detailValue}>
-                  {result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
+                  {result.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manual')} 
                 </Text>
               </View>
 
@@ -298,9 +287,9 @@ Can you provide more information about this condition and suggest what steps I s
                 <View style={[styles.detailIconWrapper, { backgroundColor: '#F3E8FF' }]}>
                   <Ionicons name="document-text" size={20} color="#A855F7" />
                 </View>
-                <Text style={styles.detailLabel}>Type</Text>
+                <Text style={styles.detailLabel}>{t('analysis.type')}</Text> 
                 <Text style={styles.detailValue}>
-                  {isConditionDetection ? 'Condition' : 'Disease'}
+                  {isConditionDetection ? t('analysis.condition') : t('analysis.disease')} 
                 </Text>
               </View>
             </View>
@@ -320,10 +309,10 @@ Can you provide more information about this condition and suggest what steps I s
               <View style={styles.disclaimerIconWrapper}>
                 <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
               </View>
-              <Text style={styles.disclaimerTitle}>Medical Disclaimer</Text>
+              <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text> 
             </View>
             <Text style={styles.disclaimerText}>
-              This analysis is for informational purposes only and should not replace professional medical advice. Always consult a qualified healthcare provider for diagnosis and treatment.
+              {t('analysis.disclaimerText')} 
             </Text>
           </Animated.View>
 
@@ -343,7 +332,7 @@ Can you provide more information about this condition and suggest what steps I s
               <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}20` }]}>
                 <Ionicons name="sparkles" size={20} color={detectionColor} />
               </View>
-              <Text style={[styles.askAIText, { color: detectionColor }]}>Ask AI for more info</Text>
+              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text> 
               <Ionicons name="arrow-forward" size={18} color={detectionColor} />
             </TouchableOpacity>
             <TouchableOpacity
@@ -352,7 +341,7 @@ Can you provide more information about this condition and suggest what steps I s
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Start New Analysis</Text>
+              <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -449,11 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerBadgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   headerBadge: {
     width: 32,

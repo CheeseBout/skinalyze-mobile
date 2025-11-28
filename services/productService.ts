@@ -49,7 +49,13 @@ export interface Product {
 interface ProductListResponse {
   statusCode: number;
   message: string;
-  data: Product[];
+  data: {
+    data: Product[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
   timestamp: string;
 }
 
@@ -100,8 +106,8 @@ class ProductService {
       if (Array.isArray(response)) {
         return response;
       }
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return response.data.data;
       }
       
       return [];
@@ -124,18 +130,67 @@ class ProductService {
     }
   }
 
-  async getProductsByCategory(categoryId: string): Promise<Product[]> {
+  /**
+   * Search products with filters (server-side where possible)
+   */
+  async searchProducts(query: string, filters?: { minPrice?: number; maxPrice?: number; inStock?: boolean }, page: number = 1, limit: number = 50): Promise<{ products: Product[], pagination: { total: number; page: number; limit: number; totalPages: number } }> {
     try {
-      const response = await apiService.get<ProductListResponse>(`/products/category/${categoryId}`);
+      const params = new URLSearchParams();
+      if (query.trim()) params.append('search', query.trim());
+      if (filters?.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString());
+      if (filters?.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString());
+      if (filters?.inStock !== undefined) params.append('inStock', filters.inStock.toString());
+      if (page > 1) params.append('page', page.toString());
+      if (limit !== 50) params.append('limit', limit.toString());
+      
+      const queryString = params.toString();
+      const url = `/products${queryString ? `?${queryString}` : ''}`;
+      const response = await apiService.get<ProductListResponse>(url);
+      
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return {
+          products: response.data.data,
+          pagination: {
+            total: response.data.total,
+            page: response.data.page,
+            limit: response.data.limit,
+            totalPages: response.data.totalPages
+          }
+        };
+      }
+      
+      return { products: [], pagination: { total: 0, page, limit, totalPages: 0 } };
+    } catch (error) {
+      throw new Error('Failed to search products');
+    }
+  }
+
+  async getProductsByCategory(categoryId: string, page: number = 1, limit: number = 50): Promise<{ products: Product[], pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+    try {
+      const params = new URLSearchParams();
+      if (page > 1) params.append('page', page.toString());
+      if (limit !== 50) params.append('limit', limit.toString());
+      
+      const queryString = params.toString();
+      const url = `/products/category/${categoryId}${queryString ? `?${queryString}` : ''}`;
+      const response = await apiService.get<ProductListResponse>(url);
       
       if (Array.isArray(response)) {
-        return response;
+        return { products: response, pagination: { total: response.length, page, limit, totalPages: 1 } };
       }
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return {
+          products: response.data.data,
+          pagination: {
+            total: response.data.total,
+            page: response.data.page,
+            limit: response.data.limit,
+            totalPages: response.data.totalPages
+          }
+        };
       }
       
-      return [];
+      return { products: [], pagination: { total: 0, page, limit, totalPages: 0 } };
     } catch (error) {
       throw new Error('Failed to fetch products by category');
     }
@@ -152,31 +207,6 @@ class ProductService {
     } catch (error) {
       // Gracefully handle error by returning empty array
       return [];
-    }
-  }
-
-  /**
-   * Search products (client-side filtering)
-   */
-  async searchProducts(query: string): Promise<Product[]> {
-    try {
-      const allProducts = await this.getAllProducts();
-      
-      if (!query.trim()) {
-        return allProducts;
-      }
-      
-      const lowerQuery = query.toLowerCase();
-      const results = allProducts.filter(
-        (product) =>
-          product.productName.toLowerCase().includes(lowerQuery) ||
-          product.productDescription.toLowerCase().includes(lowerQuery) ||
-          product.brand.toLowerCase().includes(lowerQuery)
-      );
-      
-      return results;
-    } catch (error) {
-      throw new Error('Failed to search products');
     }
   }
 
@@ -252,6 +282,36 @@ class ProductService {
     return usdPrice * 26243;
   }
 
+  /**
+   * Get products with pagination
+   */
+  async getProductsPaginated(page: number = 1, limit: number = 50): Promise<{ products: Product[], pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+    try {
+      const params = new URLSearchParams();
+      if (page > 1) params.append('page', page.toString());
+      if (limit !== 50) params.append('limit', limit.toString());
+      
+      const queryString = params.toString();
+      const url = `/products${queryString ? `?${queryString}` : ''}`;
+      const response = await apiService.get<ProductListResponse>(url);
+      
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return {
+          products: response.data.data,
+          pagination: {
+            total: response.data.total,
+            page: response.data.page,
+            limit: response.data.limit,
+            totalPages: response.data.totalPages
+          }
+        };
+      }
+      
+      return { products: [], pagination: { total: 0, page, limit, totalPages: 0 } };
+    } catch (error) {
+      throw new Error('Failed to fetch paginated products');
+    }
+  }
 }
 
 export const productService = new ProductService();

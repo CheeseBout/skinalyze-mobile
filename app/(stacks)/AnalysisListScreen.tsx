@@ -18,17 +18,19 @@ import skinAnalysisService, { SkinAnalysisResult } from '@/services/skinAnalysis
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
-import ToTopButton from '@/components/ToTopButton';  
+import ToTopButton from '@/components/ToTopButton';
+import { useTranslation } from 'react-i18next';  // Add this import
 
 export function AnalysisListScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();  // Add this hook
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showToTop, setShowToTop] = useState(false);  
-  const flatListRef = useRef(null);  
+  const flatListRef = useRef<FlatList>(null);  // Add <FlatList> type
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -91,7 +93,7 @@ export function AnalysisListScreen() {
   };
 
   // Add scroll handler to show/hide button
-  const handleScroll = (event) => {
+  const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     setShowToTop(offsetY > 200);  // Show button when scrolled more than 200px
   };
@@ -112,8 +114,8 @@ export function AnalysisListScreen() {
     
     // For manual sources, display "Manual" as the result
     const detectedValue = isManual 
-      ? 'Manual' 
-      : (isConditionDetection ? item.aiDetectedCondition : item.aiDetectedDisease);
+      ? t('analysis.manual')
+      : (isConditionDetection ? t('analysis.' + item.aiDetectedCondition) : t('analysis.' + item.aiDetectedDisease));
     
     // Adjust icon and color based on type
     const iconName = isManual ? 'create' : (isConditionDetection ? 'water' : 'medical');
@@ -147,7 +149,7 @@ export function AnalysisListScreen() {
               <View style={[styles.typeChip, { backgroundColor: `${badgeColor}15` }]}>
                 <Ionicons name={iconName} size={14} color={badgeColor} />
                 <Text style={[styles.typeChipText, { color: badgeColor }]}>
-                  {isManual ? 'Manual' : (isConditionDetection ? 'Condition' : 'Disease')}
+                  {isManual ? t('analysis.manual') : (isConditionDetection ? t('analysis.condition') : t('analysis.disease'))}
                 </Text>
               </View>
               <Ionicons name="chevron-forward-circle" size={22} color="#E0E0E0" />
@@ -174,7 +176,7 @@ export function AnalysisListScreen() {
                   color="#999"
                 />
                 <Text style={styles.metaText}>
-                  {item.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
+                  {item.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manual')}
                 </Text>
               </View>
             </View>
@@ -199,7 +201,7 @@ export function AnalysisListScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Analysis History</Text>
+          <Text style={styles.headerTitle}>{t('analysis.historyTitle')}</Text>
           <View style={styles.backButton} />
         </View>
         
@@ -207,7 +209,7 @@ export function AnalysisListScreen() {
           <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
             <ActivityIndicator size="large" color={primaryColor} />
           </View>
-          <Text style={styles.loadingText}>Loading analyses...</Text>
+          <Text style={styles.loadingText}>{t('analysis.loading')}</Text>
         </View>
       </View>
     );
@@ -241,7 +243,7 @@ export function AnalysisListScreen() {
           <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
             <Ionicons name="analytics" size={20} color={primaryColor} />
           </View>
-          <Text style={styles.headerTitle}>Analysis History</Text>
+          <Text style={styles.headerTitle}>{t('analysis.historyTitle')}</Text>
         </View>
         
         <TouchableOpacity
@@ -270,7 +272,7 @@ export function AnalysisListScreen() {
             </View>
             <View>
               <Text style={styles.statValue}>{analyses.length}</Text>
-              <Text style={styles.statLabel}>Total Scans</Text>
+              <Text style={styles.statLabel}>{t('analysis.totalScans')}</Text>
             </View>
           </View>
 
@@ -284,7 +286,7 @@ export function AnalysisListScreen() {
               <Text style={styles.statValue}>
                 {new Date(analyses[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </Text>
-              <Text style={styles.statLabel}>Latest</Text>
+              <Text style={styles.statLabel}>{t('analysis.latest')}</Text>
             </View>
           </View>
         </Animated.View>
@@ -315,9 +317,9 @@ export function AnalysisListScreen() {
             <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
               <Ionicons name="analytics-outline" size={56} color={primaryColor} />
             </View>
-            <Text style={styles.emptyTitle}>No Analysis Yet</Text>
+            <Text style={styles.emptyTitle}>{t('analysis.noAnalysis')}</Text>
             <Text style={styles.emptySubtitle}>
-              Start analyzing your skin to track your history and improvements
+              {t('analysis.noAnalysisDesc')}
             </Text>
             <TouchableOpacity
               style={[styles.emptyButton, { backgroundColor: primaryColor }]}
@@ -325,7 +327,7 @@ export function AnalysisListScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#FFFFFF" />
-              <Text style={styles.emptyButtonText}>Start Analysis</Text>
+              <Text style={styles.emptyButtonText}>{t('analysis.startAnalysis')}</Text>
             </TouchableOpacity>
           </Animated.View>
         }

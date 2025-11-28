@@ -5,13 +5,13 @@ import {
   TextInput, 
   FlatList, 
   TouchableOpacity, 
-  ActivityIndicator,
-  ScrollView,
-  Dimensions,
-  StatusBar,
+  ActivityIndicator, 
+  ScrollView, 
+  Dimensions, 
+  StatusBar, 
   Animated
 } from 'react-native'
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -32,12 +32,11 @@ const POPULAR_SEARCHES = [
 ]
 
 const SKIN_TYPES = [
-  { id: 'all-skin-types', label: 'All Skin' },
   { id: 'oily-skin', label: 'Oily' },
+  { id: 'normal-skin', label: 'Normal' },
   { id: 'dry-skin', label: 'Dry' },
   { id: 'sensitive-skin', label: 'Sensitive' },
   { id: 'combination-skin', label: 'Combination' },
-  { id: 'acne-prone-skin', label: 'Acne-Prone' },
 ]
 
 const SORT_OPTIONS = [
@@ -50,69 +49,99 @@ const SORT_OPTIONS = [
 
 const RECENT_SEARCHES_KEY = '@recent_searches'
 
+// Types
+interface SearchFilters {
+  minPrice?: number
+  maxPrice?: number
+  inStock?: boolean
+  skinType?: string | null
+  sortBy: string
+}
+
+interface SearchState {
+  query: string
+  products: Product[]
+  filteredProducts: Product[]
+  isLoading: boolean
+  loadingMore: boolean
+  error: string | null
+  pagination: { total: number; page: number; limit: number; totalPages: number } | null
+}
+
+type SearchMode = 'idle' | 'text' | 'category'
+
 export default function SearchScreen() {
   const router = useRouter()
-  // === MODIFIED: Get params for Category Filter ===
-  const params = useLocalSearchParams() 
+  const params = useLocalSearchParams()
   const { categoryId, categoryName } = params
-
   const { primaryColor } = useThemeColor()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedSkinType, setSelectedSkinType] = useState<string | null>(null)
-  const [selectedSort, setSelectedSort] = useState('relevance')
+
+  // Search State
+  const [searchState, setSearchState] = useState<SearchState>({
+    query: '',
+    products: [],
+    filteredProducts: [],
+    isLoading: false,
+    loadingMore: false,
+    error: null,
+    pagination: null,
+  })
+
+  // Filter State
+  const [filters, setFilters] = useState<SearchFilters>({
+    minPrice: undefined,
+    maxPrice: undefined,
+    inStock: false,
+    skinType: null,
+    sortBy: 'relevance',
+  })
+
+  // UI State
   const [showFilters, setShowFilters] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [searchMode, setSearchMode] = useState<SearchMode>('idle')
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
 
+  // Determine if we're in category mode
+  const isCategoryMode = useMemo(() => 
+    Boolean(categoryId && typeof categoryId === 'string'), 
+    [categoryId]
+  )
+
+  // Initialize
   useEffect(() => {
-    loadRecentSearches()
-    startAnimations()
+    initializeScreen()
   }, [])
 
-  // === MODIFIED: Handle Initial Category Load ===
+  // Handle category navigation
   useEffect(() => {
-    if (categoryId && typeof categoryId === 'string') {
-      // If category is passed, load by category immediately
-      handleCategorySearch(categoryId, typeof categoryName === 'string' ? categoryName : '')
+    if (isCategoryMode) {
+      const name = typeof categoryName === 'string' ? categoryName : ''
+      handleCategoryLoad(categoryId as string, name)
     }
-  }, [categoryId])
+  }, [categoryId, isCategoryMode])
 
-  // === MODIFIED: Search Effect (only if not loading category initially) ===
+  // Apply filters when products or filters change
   useEffect(() => {
-    // Only trigger text search if there is text AND it's not just the initial category name load
-    // (This prevents double fetching if we set the search query to the category name)
-    if (searchQuery.trim() && !isLoading && (!categoryId || searchQuery !== categoryName)) {
-       // Debounce could be added here, but using current logic:
-       // We only auto-search if the user types, usually handled by onSubmitEditing.
-       // However, original code had this effect. Let's respect original flow but guard it.
-       // Note: The original code triggered `handleSearch` on `searchQuery` change. 
-       // We will keep manual search trigger via onSubmitEditing for cleaner UX, 
-       // OR we can keep it live. 
-       // Let's assume we wait for user action OR the category load.
-    } else if (!searchQuery.trim() && !categoryId) {
-      setFilteredProducts([])
-    }
-  }, [searchQuery])
-
-  useEffect(() => {
-    if (products.length > 0) {
+    if (searchState.products.length > 0) {
       applyFiltersAndSort()
     }
-  }, [products, selectedSkinType, selectedSort])
+  }, [searchState.products, filters.skinType, filters.sortBy])
+
+  // ============= Initialization =============
+  const initializeScreen = async () => {
+    await loadRecentSearches()
+    startAnimations()
+  }
 
   const startAnimations = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
@@ -123,6 +152,7 @@ export default function SearchScreen() {
     ]).start()
   }
 
+  // ============= Recent Searches =============
   const loadRecentSearches = async () => {
     try {
       const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY)
@@ -132,7 +162,6 @@ export default function SearchScreen() {
       }
     } catch (err) {
       console.error('Failed to load recent searches:', err)
-      setRecentSearches([])
     }
   }
 
@@ -146,53 +175,140 @@ export default function SearchScreen() {
     }
   }
 
-  // === MODIFIED: New function to handle Category fetch ===
-  const handleCategorySearch = async (id: string, name: string) => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      setSearchQuery(name) // Pre-fill search bar so user knows context
+  // ============= Search Logic =============
+  const handleCategoryLoad = async (id: string, name: string) => {
+    setSearchMode('category')
+    setSearchState(prev => ({ 
+      ...prev, 
+      query: name, 
+      isLoading: true, 
+      error: null 
+    }))
 
-      const results = await productService.getProductsByCategory(id)
-      setProducts(results)
-      // We don't save category navigation to "Recent Text Searches" usually
+    try {
+      const result = await productService.getProductsByCategory(id, 1, 50)
+      setSearchState(prev => ({
+        ...prev,
+        products: result.products,
+        pagination: result.pagination,
+        isLoading: false,
+      }))
     } catch (err) {
-      setError('Failed to load category products')
+      setSearchState(prev => ({
+        ...prev,
+        error: 'Failed to load category products',
+        isLoading: false,
+      }))
       console.error('Category load error:', err)
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+  const performTextSearch = async (query: string, page: number = 1) => {
+    if (!query.trim()) return
+
+    const isNewSearch = page === 1
+    setSearchMode('text')
+    
+    setSearchState(prev => ({
+      ...prev,
+      query,
+      isLoading: isNewSearch,
+      loadingMore: !isNewSearch,
+      error: null,
+    }))
 
     try {
-      setIsLoading(true)
-      setError(null)
+      const serverFilters = {
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        inStock: filters.inStock,
+      }
+
+      const result = await productService.searchProducts(query.trim(), serverFilters, page, 50)
       
-      // If user is typing, we switch to text search mode (ignoring initial category param)
-      const results = await productService.searchProducts(searchQuery.trim())
-      setProducts(results)
-      saveRecentSearch(searchQuery.trim())
+      setSearchState(prev => ({
+        ...prev,
+        products: isNewSearch ? result.products : [...prev.products, ...result.products],
+        pagination: result.pagination,
+        isLoading: false,
+        loadingMore: false,
+      }))
+
+      if (isNewSearch) {
+        await saveRecentSearch(query.trim())
+      }
     } catch (err) {
-      setError('Failed to search products')
+      setSearchState(prev => ({
+        ...prev,
+        error: 'Failed to search products',
+        isLoading: false,
+        loadingMore: false,
+      }))
       console.error('Search error:', err)
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  const applyFiltersAndSort = useCallback(() => {
-    let results = [...products]
+  const handleSearchSubmit = () => {
+    if (!searchState.query.trim()) return
+    performTextSearch(searchState.query, 1)
+  }
 
-    if (selectedSkinType) {
+  const handleQuickSearch = (query: string) => {
+    setSearchState(prev => ({ ...prev, query }))
+    performTextSearch(query, 1)
+  }
+
+  const loadMoreProducts = () => {
+    const { loadingMore, pagination } = searchState
+    
+    if (loadingMore || !pagination || pagination.page >= pagination.totalPages) {
+      return
+    }
+
+    const nextPage = pagination.page + 1
+
+    if (isCategoryMode) {
+      loadMoreCategoryProducts(nextPage)
+    } else {
+      performTextSearch(searchState.query, nextPage)
+    }
+  }
+
+  const loadMoreCategoryProducts = async (page: number) => {
+    setSearchState(prev => ({ ...prev, loadingMore: true }))
+
+    try {
+      const result = await productService.getProductsByCategory(
+        categoryId as string, 
+        page, 
+        50
+      )
+      
+      setSearchState(prev => ({
+        ...prev,
+        products: [...prev.products, ...result.products],
+        pagination: result.pagination,
+        loadingMore: false,
+      }))
+    } catch (err) {
+      setSearchState(prev => ({ ...prev, loadingMore: false }))
+      console.error('Load more error:', err)
+    }
+  }
+
+  // ============= Filtering & Sorting =============
+  const applyFiltersAndSort = useCallback(() => {
+    let results = [...searchState.products]
+
+    // Apply skin type filter (client-side)
+    if (filters.skinType) {
       results = results.filter(product =>
-        product.suitableFor?.includes(selectedSkinType)
+        product.suitableFor?.includes(filters.skinType as string)
       )
     }
 
-    switch (selectedSort) {
+    // Apply sorting
+    switch (filters.sortBy) {
       case 'price-low':
         results.sort((a, b) => {
           const priceA = productService.calculateDiscountedPrice(a)
@@ -221,38 +337,41 @@ export default function SearchScreen() {
         break
     }
 
-    setFilteredProducts(results)
-  }, [products, selectedSkinType, selectedSort])
+    setSearchState(prev => ({ ...prev, filteredProducts: results }))
+  }, [searchState.products, filters.skinType, filters.sortBy])
 
-  const handleQuickSearch = (query: string) => {
-    setSearchQuery(query)
-    performTextSearch(query) 
+  const updateFilter = <K extends keyof SearchFilters>(
+    key: K, 
+    value: SearchFilters[K]
+  ) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
   }
 
-  const performTextSearch = async (query: string) => {
-    if (!query.trim()) return
-    try {
-      setIsLoading(true)
-      setError(null)
-      const results = await productService.searchProducts(query.trim())
-      setProducts(results)
-      saveRecentSearch(query.trim())
-    } catch (err) {
-      setError('Failed to search products')
-    } finally {
-      setIsLoading(false)
-    }
+  const resetFilters = () => {
+    setFilters({
+      minPrice: undefined,
+      maxPrice: undefined,
+      inStock: false,
+      skinType: null,
+      sortBy: 'relevance',
+    })
   }
 
   const clearSearch = () => {
-    setSearchQuery('')
-    setProducts([])
-    setFilteredProducts([])
-    setSelectedSkinType(null)
-    setSelectedSort('relevance')
-    // Also clear params if we want to fully reset (requires navigation replace, but clearing state is usually enough)
+    setSearchState({
+      query: '',
+      products: [],
+      filteredProducts: [],
+      isLoading: false,
+      loadingMore: false,
+      error: null,
+      pagination: null,
+    })
+    setSearchMode('idle')
+    resetFilters()
   }
 
+  // ============= Render Functions =============
   const renderSearchBar = () => (
     <View style={styles.searchBarContainer}>
       <View style={styles.searchInputWrapper}>
@@ -261,14 +380,13 @@ export default function SearchScreen() {
           style={styles.searchInput}
           placeholder="Search skincare products..."
           placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          // Auto focus only if we didn't come from a category click
-          autoFocus={!categoryId}
+          value={searchState.query}
+          onChangeText={(text) => setSearchState(prev => ({ ...prev, query: text }))}
+          autoFocus={!isCategoryMode}
           returnKeyType="search"
-          onSubmitEditing={handleSearch}
+          onSubmitEditing={handleSearchSubmit}
         />
-        {searchQuery.length > 0 && (
+        {searchState.query.length > 0 && (
           <TouchableOpacity onPress={clearSearch} style={styles.clearButton} activeOpacity={0.7}>
             <Ionicons name="close-circle" size={20} color="#999" />
           </TouchableOpacity>
@@ -291,9 +409,7 @@ export default function SearchScreen() {
     <Animated.View 
       style={[
         styles.filtersContainer,
-        {
-          opacity: fadeAnim,
-        }
+        { opacity: fadeAnim }
       ]}
     >
       {/* Skin Type Filter */}
@@ -308,14 +424,14 @@ export default function SearchScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              !selectedSkinType && [styles.filterChipActive, { backgroundColor: primaryColor }]
+              !filters.skinType && [styles.filterChipActive, { backgroundColor: primaryColor }]
             ]}
-            onPress={() => setSelectedSkinType(null)}
+            onPress={() => updateFilter('skinType', null)}
             activeOpacity={0.7}
           >
             <Text style={[
               styles.filterChipText,
-              !selectedSkinType && styles.filterChipTextActive
+              !filters.skinType && styles.filterChipTextActive
             ]}>All Types</Text>
           </TouchableOpacity>
           {SKIN_TYPES.map(type => (
@@ -323,18 +439,59 @@ export default function SearchScreen() {
               key={type.id}
               style={[
                 styles.filterChip,
-                selectedSkinType === type.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
+                filters.skinType === type.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
-              onPress={() => setSelectedSkinType(type.id)}
+              onPress={() => updateFilter('skinType', type.id)}
               activeOpacity={0.7}
             >
               <Text style={[
                 styles.filterChipText,
-                selectedSkinType === type.id && styles.filterChipTextActive
+                filters.skinType === type.id && styles.filterChipTextActive
               ]}>{type.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
+      </View>
+
+      {/* Price Range Filter */}
+      <View style={styles.filterSection}>
+        <View style={styles.filterHeader}>
+          <View style={[styles.filterIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+            <Ionicons name="cash" size={16} color="#FF9800" />
+          </View>
+          <Text style={styles.filterTitle}>Price Range</Text>
+        </View>
+        <View style={styles.priceInputs}>
+          <TextInput
+            style={styles.priceInput}
+            placeholder="Min Price"
+            keyboardType="numeric"
+            value={filters.minPrice?.toString() || ''}
+            onChangeText={(text) => updateFilter('minPrice', text ? parseFloat(text) : undefined)}
+          />
+          <Text style={styles.priceSeparator}>-</Text>
+          <TextInput
+            style={styles.priceInput}
+            placeholder="Max Price"
+            keyboardType="numeric"
+            value={filters.maxPrice?.toString() || ''}
+            onChangeText={(text) => updateFilter('maxPrice', text ? parseFloat(text) : undefined)}
+          />
+        </View>
+      </View>
+
+      {/* In Stock Filter */}
+      <View style={styles.filterSection}>
+        <TouchableOpacity
+          style={styles.inStockToggle}
+          onPress={() => updateFilter('inStock', !filters.inStock)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, filters.inStock && [styles.checkboxChecked, { backgroundColor: primaryColor }]]}>
+            {filters.inStock && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+          </View>
+          <Text style={styles.inStockText}>In Stock Only</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Sort Options */}
@@ -351,19 +508,19 @@ export default function SearchScreen() {
               key={option.id}
               style={[
                 styles.filterChip,
-                selectedSort === option.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
+                filters.sortBy === option.id && [styles.filterChipActive, { backgroundColor: primaryColor }]
               ]}
-              onPress={() => setSelectedSort(option.id)}
+              onPress={() => updateFilter('sortBy', option.id)}
               activeOpacity={0.7}
             >
               <Ionicons 
                 name={option.icon as any} 
                 size={14} 
-                color={selectedSort === option.id ? '#FFFFFF' : '#666'} 
+                color={filters.sortBy === option.id ? '#FFFFFF' : '#666'} 
               />
               <Text style={[
                 styles.filterChipText,
-                selectedSort === option.id && styles.filterChipTextActive
+                filters.sortBy === option.id && styles.filterChipTextActive
               ]}>{option.label}</Text>
             </TouchableOpacity>
           ))}
@@ -373,8 +530,7 @@ export default function SearchScreen() {
   )
 
   const renderEmptyState = () => {
-    // Only show empty state if we are not loading and haven't searched yet
-    if (searchQuery.trim() === '' && !categoryId) {
+    if (searchMode === 'idle') {
       return (
         <Animated.View 
           style={[
@@ -450,7 +606,7 @@ export default function SearchScreen() {
       )
     }
 
-    if (filteredProducts.length === 0 && !isLoading) {
+    if (searchState.filteredProducts.length === 0 && !searchState.isLoading) {
       return (
         <Animated.View 
           style={[
@@ -495,54 +651,65 @@ export default function SearchScreen() {
     </View>
   )
 
-  const renderResults = () => (
-    <View style={styles.resultsContainer}>
-      <View style={styles.resultsHeader}>
-        <View style={styles.resultsLeft}>
-          <View style={[styles.resultsIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
+  const renderResults = () => {
+    const hasActiveFilters = filters.skinType || filters.sortBy !== 'relevance'
+    const totalCount = searchState.pagination?.total || searchState.filteredProducts.length
+
+    return (
+      <View style={styles.resultsContainer}>
+        <View style={styles.resultsHeader}>
+          <View style={styles.resultsLeft}>
+            <View style={[styles.resultsIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
+            </View>
+            <Text style={styles.resultsText}>
+              {totalCount} {totalCount === 1 ? 'product' : 'products'}
+            </Text>
           </View>
-          <Text style={styles.resultsText}>
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-          </Text>
+          {hasActiveFilters && (
+            <TouchableOpacity 
+              onPress={resetFilters}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.clearFiltersLink, { color: primaryColor }]}>Reset</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {(selectedSkinType || selectedSort !== 'relevance') && (
-          <TouchableOpacity 
-            onPress={() => {
-              setSelectedSkinType(null)
-              setSelectedSort('relevance')
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.clearFiltersLink, { color: primaryColor }]}>Reset</Text>
-          </TouchableOpacity>
-        )}
+
+        <FlatList
+          data={searchState.filteredProducts}
+          renderItem={renderProductItem}
+          keyExtractor={item => item.productId}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.productsList}
+          showsVerticalScrollIndicator={false}
+          onEndReached={loadMoreProducts}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            searchState.loadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color={primaryColor} />
+                <Text style={styles.loadingMoreText}>Loading more products...</Text>
+              </View>
+            ) : null
+          }
+        />
       </View>
+    )
+  }
 
-      <FlatList
-        data={filteredProducts}
-        renderItem={renderProductItem}
-        keyExtractor={item => item.productId}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.productsList}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  )
-
-  if (isLoading) {
+  // ============= Main Render =============
+  if (searchState.isLoading) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
         
-        {/* Decorative Background */}
         <View style={styles.backgroundPattern}>
           <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
           <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
         </View>
 
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -564,18 +731,16 @@ export default function SearchScreen() {
     )
   }
 
-  if (error) {
+  if (searchState.error) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
         
-        {/* Decorative Background */}
         <View style={styles.backgroundPattern}>
           <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
           <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
         </View>
 
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -592,10 +757,10 @@ export default function SearchScreen() {
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
           <Text style={styles.errorTitle}>Oops!</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{searchState.error}</Text>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: primaryColor }]} 
-            onPress={handleSearch}
+            onPress={handleSearchSubmit}
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={18} color="#FFFFFF" />
@@ -610,13 +775,11 @@ export default function SearchScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
       
-      {/* Decorative Background */}
       <View style={styles.backgroundPattern}>
         <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
         <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
       </View>
 
-      {/* Header with Search Bar */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -628,11 +791,9 @@ export default function SearchScreen() {
         {renderSearchBar()}
       </View>
 
-      {/* Filters */}
       {showFilters && renderFilters()}
 
-      {/* Content */}
-      {filteredProducts.length > 0 ? (
+      {searchState.filteredProducts.length > 0 ? (
         renderResults()
       ) : (
         <ScrollView 
@@ -743,24 +904,25 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 24,
-    marginBottom: 20,
-    borderRadius: 20,
-    padding: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 4,
+    zIndex: 10,
   },
   filterSection: {
-    marginBottom: 16,
+    marginTop: 16,
   },
   filterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    paddingHorizontal: 24,
     marginBottom: 12,
+    gap: 8,
   },
   filterIconWrapper: {
     width: 28,
@@ -770,37 +932,254 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1A1A1A',
-    letterSpacing: -0.2,
+    letterSpacing: 0.5,
   },
   chipScroll: {
-    gap: 10,
+    paddingHorizontal: 24,
+    gap: 8,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
     backgroundColor: '#F5F5F5',
+    gap: 6,
   },
   filterChipActive: {
-    backgroundColor: '#007AFF',
+    // Background color set dynamically
   },
   filterChipText: {
     fontSize: 13,
+    fontWeight: '600',
     color: '#666',
-    fontWeight: '700',
   },
   filterChipTextActive: {
     color: '#FFFFFF',
   },
-  scrollContent: {
-    flexGrow: 1,
+  priceInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
+    gap: 12,
+  },
+  priceInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: '#1A1A1A',
+  },
+  priceSeparator: {
+    fontSize: 18,
+    color: '#999',
+    fontWeight: '600',
+  },
+  inStockToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxChecked: {
+    borderColor: 'transparent',
+  },
+  inStockText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  resultsContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  resultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  resultsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultsIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultsText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  clearFiltersLink: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  productsList: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  productCardWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 16,
+  },
+  loadingMore: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 13,
+    color: '#999',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 40,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  suggestionsSection: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  suggestionIconWrapper: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  suggestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  suggestionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  recentSearches: {
+    gap: 12,
+  },
+  recentSearchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recentSearchLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  recentSearchIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recentSearchText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -816,7 +1195,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingText: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#666',
     fontWeight: '500',
   },
@@ -824,7 +1203,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    paddingHorizontal: 40,
   },
   errorIcon: {
     width: 100,
@@ -832,196 +1211,23 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   errorTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: '#1A1A1A',
     marginBottom: 8,
+    textAlign: 'center',
   },
   errorText: {
     fontSize: 15,
     color: '#666',
-    marginBottom: 28,
-    textAlign: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 8,
-    letterSpacing: -0.3,
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 32,
-    fontWeight: '500',
+    lineHeight: 22,
   },
-  suggestionsSection: {
-    width: '100%',
-    marginBottom: 32,
-  },
-  suggestionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  suggestionIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  suggestionsTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
-  },
-  suggestionsGrid: {
-    gap: 12,
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '600',
-  },
-  recentSearches: {
-    gap: 10,
-  },
-  recentSearchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  recentSearchLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  recentSearchIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recentSearchText: {
-    fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '600',
-  },
-  resultsContainer: {
-    flex: 1,
-  },
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 24,
-    marginBottom: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  resultsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  resultsIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  resultsText: {
-    fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '700',
-  },
-  clearFiltersLink: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  productsList: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  productCardWrapper: {
-    width: CARD_WIDTH,
-  },
+  scrollContent: {
+    paddingBottom: 40,
+  }
 })

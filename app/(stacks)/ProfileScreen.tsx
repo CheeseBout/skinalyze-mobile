@@ -19,6 +19,8 @@ import tokenService from "@/services/tokenService";
 import userService from "@/services/userService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const { width } = Dimensions.get('window')
 
@@ -26,6 +28,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, refreshUser, logout } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
+  const { currentLanguage, setLanguage } = useLanguage();
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -88,7 +92,7 @@ export default function ProfileScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert("Error", "Please login again");
+        Alert.alert(t('profile.error'), t('profile.loginAgain'));
         return;
       }
 
@@ -96,9 +100,9 @@ export default function ProfileScreen() {
       await refreshUser();
 
       setIsEditing(false);
-      Alert.alert("Success", "Profile updated successfully");
+      Alert.alert(t('profile.success'), t('profile.profileUpdated'));
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update profile");
+      Alert.alert(t('profile.error'), error.message || t('profile.failedUpdate'));
     } finally {
       setLoading(false);
     }
@@ -117,12 +121,12 @@ export default function ProfileScreen() {
 
   const handleDeleteAddress = async (addressId: string) => {
     Alert.alert(
-      "Delete Address",
-      "Are you sure you want to delete this address?",
+      t('profile.deleteAddress'),  
+      t('profile.deleteAddressConfirm'),  
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t('profile.cancel'), style: "cancel" },  
         {
-          text: "Delete",
+          text: t('profile.delete'),
           style: "destructive",
           onPress: async () => {
             try {
@@ -131,9 +135,9 @@ export default function ProfileScreen() {
 
               await userService.deleteAddress(token, addressId);
               await refreshUser();
-              Alert.alert("Success", "Address deleted successfully");
+              Alert.alert(t('profile.success'), t('profile.addressDeleted'));  
             } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to delete address");
+              Alert.alert(t('profile.error'), error.message || t('profile.failedDelete'));  
             }
           },
         },
@@ -143,12 +147,12 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('profile.logout'),
+      t('profile.logoutConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('profile.cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('profile.logout'),
           style: 'destructive',
           onPress: async () => {
             await logout()
@@ -173,7 +177,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <Text style={styles.loadingText}>{t('profile.loading')}</Text>
       </View>
     );
   }
@@ -211,7 +215,7 @@ export default function ProfileScreen() {
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={styles.headerTitle}>{t('profile.title')}</Text>
           
           <TouchableOpacity 
             onPress={() => isEditing ? handleCancel() : setIsEditing(true)}
@@ -272,7 +276,7 @@ export default function ProfileScreen() {
                     color={user.isVerified ? "#34C759" : "#FF9500"} 
                   />
                   <Text style={[styles.statusPillText, { color: user.isVerified ? "#34C759" : "#FF9500" }]}>
-                    {user.isVerified ? 'Verified' : 'Unverified'}
+                    {user.isVerified ? t('profile.verified') : t('profile.unverified')}
                   </Text>
                 </View>
                 
@@ -293,7 +297,7 @@ export default function ProfileScreen() {
                 <Ionicons name="wallet-outline" size={22} color="#FFFFFF" />
               </View>
               <View>
-                <Text style={styles.balanceLabel}>Wallet Balance</Text>
+                <Text style={styles.balanceLabel}>{t('profile.walletBalance')}</Text>
                 {balanceLoading ? (
                   <ActivityIndicator size="small" color={primaryColor} />
                 ) : (
@@ -325,28 +329,28 @@ export default function ProfileScreen() {
         >
           <QuickActionButton
             icon="analytics"
-            label="Analysis"
+            label={t('profile.analysis')}
             color="#FF9500"
             bgColor="#FFF4E6"
             onPress={() => router.push('/(stacks)/AnalysisListScreen')}
           />
           <QuickActionButton
             icon="receipt"
-            label="Orders"
+            label={t('profile.orders')}
             color="#007AFF"
             bgColor="#F0F9FF"
             onPress={() => router.push('/(stacks)/OrderListScreen')}
           />
           <QuickActionButton
             icon="lock-closed"
-            label="Security"
+            label={t('profile.security')}
             color="#34C759"
             bgColor="#F0FDF4"
             onPress={() => router.push('/(stacks)/ChangePasswordScreen')}
           />
           <QuickActionButton
             icon="settings"
-            label="Settings"
+            label={t('profile.settings')}
             color="#A855F7"
             bgColor="#F3E8FF"
             onPress={() => router.push('/(stacks)/SettingsScreen')}
@@ -364,13 +368,13 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
           </View>
 
           <View style={styles.infoCard}>
             <InfoField
               icon="person-outline"
-              label="Full Name"
+              label={t('profile.fullName')}
               value={formData.fullName}
               isEditing={isEditing}
               onChangeText={(text) => setFormData({ ...formData, fullName: text })}
@@ -381,7 +385,7 @@ export default function ProfileScreen() {
 
             <InfoField
               icon="call-outline"
-              label="Phone Number"
+              label={t('profile.phone')}
               value={formData.phone}
               isEditing={isEditing}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
@@ -396,7 +400,7 @@ export default function ProfileScreen() {
                 <Ionicons name="calendar-outline" size={18} color={primaryColor} />
               </View>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>Date of Birth</Text>
+                <Text style={styles.fieldLabel}>{t('profile.dob')}</Text>
                 {isEditing ? (
                   <TextInput
                     style={[styles.fieldInput, { borderBottomColor: primaryColor }]}
@@ -422,9 +426,9 @@ export default function ProfileScreen() {
                 <Ionicons name="mail-outline" size={18} color={primaryColor} />
               </View>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>Email Address</Text>
+                <Text style={styles.fieldLabel}>{t('profile.email')}</Text>
                 <Text style={styles.fieldValue}>{user.email}</Text>
-                <Text style={styles.fieldHint}>Email cannot be changed</Text>
+                <Text style={styles.fieldHint}>{t('profile.emailHint')}</Text>
               </View>
             </View>
           </View>
@@ -441,7 +445,7 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Saved Addresses</Text>
+            <Text style={styles.sectionTitle}>{t('profile.savedAddresses')}</Text>
             <TouchableOpacity 
               onPress={() => router.push('/(stacks)/AddressDetailScreen')}
               style={[styles.addButton, { backgroundColor: `${primaryColor}15` }]}
@@ -460,8 +464,8 @@ export default function ProfileScreen() {
                   </View>
                   
                   <View style={styles.addressInfo}>
-                    <Text style={styles.addressTitle}>Address {index + 1}</Text>
-                    <Text style={styles.addressType}>Home</Text>
+                    <Text style={styles.addressTitle}>{t('profile.address')} {index + 1}</Text>
+                    <Text style={styles.addressType}>{t('profile.home')}</Text>
                   </View>
 
                   <View style={styles.addressActions}>
@@ -501,15 +505,15 @@ export default function ProfileScreen() {
               <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
                 <Ionicons name="location-outline" size={40} color={primaryColor} />
               </View>
-              <Text style={styles.emptyTitle}>No saved addresses</Text>
-              <Text style={styles.emptySubtitle}>Add your address for easier checkout</Text>
+              <Text style={styles.emptyTitle}>{t('profile.noAddresses')}</Text>
+              <Text style={styles.emptySubtitle}>{t('profile.addAddressDesc')}</Text>
               <TouchableOpacity
                 style={[styles.emptyButton, { backgroundColor: primaryColor }]}
                 onPress={() => router.push('/(stacks)/AddressDetailScreen')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.emptyButtonText}>Add Address</Text>
+                <Text style={styles.emptyButtonText}>{t('profile.addAddress')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -532,7 +536,7 @@ export default function ProfileScreen() {
                 onPress={handleCancel}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('profile.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -545,7 +549,7 @@ export default function ProfileScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                    <Text style={styles.saveButtonText}>{t('profile.saveChanges')}</Text>
                     <Ionicons name="checkmark" size={20} color="#FFFFFF" />
                   </>
                 )}
@@ -558,7 +562,7 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-              <Text style={styles.logoutButtonText}>Logout</Text>
+              <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -596,31 +600,35 @@ const InfoField: React.FC<InfoFieldProps> = ({
   onChangeText,
   keyboardType = 'default',
   primaryColor,
-}) => (
-  <View style={styles.fieldWrapper}>
-    <View style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}>
-      <Ionicons name={icon} size={18} color={primaryColor} />
-    </View>
-    <View style={styles.fieldContent}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      {isEditing ? (
-        <TextInput
-          style={[styles.fieldInput, { borderBottomColor: primaryColor }]}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType={keyboardType}
-          placeholder={`Enter ${label.toLowerCase()}`}
-          placeholderTextColor="#999"
-        />
-      ) : (
-        <Text style={styles.fieldValue}>{value || 'Not set'}</Text>
+}) => {
+  const { t } = useTranslation(); // FIX: Using the hook inside the component
+  
+  return (
+    <View style={styles.fieldWrapper}>
+      <View style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}>
+        <Ionicons name={icon} size={18} color={primaryColor} />
+      </View>
+      <View style={styles.fieldContent}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {isEditing ? (
+          <TextInput
+            style={[styles.fieldInput, { borderBottomColor: primaryColor }]}
+            value={value}
+            onChangeText={onChangeText}
+            keyboardType={keyboardType}
+            placeholder={`${t('profile.enter')} ${label.toLowerCase()}`}
+            placeholderTextColor="#999"
+          />
+        ) : (
+          <Text style={styles.fieldValue}>{value || t('profile.notSet')}</Text>
+        )}
+      </View>
+      {!isEditing && value && (
+        <Ionicons name="checkmark-circle" size={18} color="#34C759" />
       )}
     </View>
-    {!isEditing && value && (
-      <Ionicons name="checkmark-circle" size={18} color="#34C759" />
-    )}
-  </View>
-)
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

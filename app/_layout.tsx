@@ -16,6 +16,9 @@ import { ProductProvider } from "@/contexts/ProductContext";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
 import { CartCountProvider } from '@/contexts/CartCountContext';
 import { ThemeColorProvider } from '@/contexts/ThemeColorContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';  // Add this import
+
+import '@/config/i18n';
 
 export { ErrorBoundary } from "expo-router";
 
@@ -50,7 +53,9 @@ export default function RootLayout() {
       <AuthProvider>
         <ProductProvider>
           <CartCountProvider>
-            <RootLayoutNav />
+            <LanguageProvider>
+              <RootLayoutNav />
+            </LanguageProvider>
           </CartCountProvider>
         </ProductProvider>
       </AuthProvider>
