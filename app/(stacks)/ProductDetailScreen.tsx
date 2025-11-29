@@ -12,13 +12,16 @@ import {
   Animated
 } from 'react-native'
 import React, { useEffect, useState, useRef } from 'react'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
+import { useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import productService, { Product } from '@/services/productService'
+import reviewService from '@/services/reviewService'
 import cartService from '@/services/cartService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
+import ReviewsComponent from '@/components/ReviewsComponent'
 
 const { width } = Dimensions.get('window')
 
@@ -33,6 +36,7 @@ export default function ProductDetailScreen() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number} | null>(null)
   const { refreshCount } = useCartCount()
 
   // Animations
@@ -45,6 +49,18 @@ export default function ProductDetailScreen() {
       fetchProductDetails()
     }
   }, [productId])
+
+  // Refresh when screen comes into focus (e.g., returning from review screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (productId && product && !isLoading) {
+        // Only refresh review stats, not the entire product
+        reviewService.getProductReviewStats(productId)
+          .then(statsData => setReviewStats(statsData))
+          .catch(() => setReviewStats({ averageRating: 0, totalReviews: 0 }));
+      }
+    }, [productId, product, isLoading])
+  )
 
   useEffect(() => {
     if (!isLoading && product) {
@@ -73,8 +89,12 @@ export default function ProductDetailScreen() {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await productService.getProductById(productId!)
-      setProduct(data)
+      const [productData, reviewStatsData] = await Promise.all([
+        productService.getProductById(productId!),
+        reviewService.getProductReviewStats(productId!).catch(() => ({ averageRating: 0, totalReviews: 0 }))
+      ])
+      setProduct(productData)
+      setReviewStats(reviewStatsData)
     } catch (err) {
       setError('Failed to load product details')
       console.error('Error fetching product:', err)
@@ -203,7 +223,8 @@ export default function ProductDetailScreen() {
 
   const discountedPrice = productService.calculateDiscountedPrice(product)
   const discountAmount = productService.getDiscountAmount(product)
-  const avgRating = productService.calculateAverageRating(product)
+  const avgRating = reviewStats?.averageRating || 0
+  const reviewCount = reviewStats?.totalReviews || 0
   const stockStatus = productService.getStockStatus(product)
   const hasDiscount = parseFloat(product.salePercentage) > 0
 
@@ -333,7 +354,7 @@ export default function ProductDetailScreen() {
               </Text>
             </View>
             <Text style={styles.reviewCount}>
-              {product.reviews?.length || 0} {product.reviews?.length === 1 ? 'review' : 'reviews'}
+              {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
             </Text>
           </View>
 
@@ -426,43 +447,27 @@ export default function ProductDetailScreen() {
               </View>
             </View>
           )}
-
-          {/* Reviews */}
-          {product.reviews && product.reviews.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIcon, { backgroundColor: '#FFE8F0' }]}>
-                  <Ionicons name="chatbubbles" size={18} color="#E91E63" />
-                </View>
-                <Text style={styles.sectionTitle}>Customer Reviews</Text>
-              </View>
-              {product.reviews.slice(0, 3).map((review, index) => (
-                <View key={index} style={styles.reviewCard}>
-                  <View style={styles.reviewHeader}>
-                    <View style={styles.reviewStars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name={star <= review.rating ? 'star' : 'star-outline'}
-                          size={14}
-                          color="#FFB800"
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.reviewDate}>
-                      {new Date(review.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </Text>
-                  </View>
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </Animated.View>
+
+        {/* Reviews Component */}
+        <ReviewsComponent
+          productId={productId!}
+          primaryColor={primaryColor}
+          onWriteReview={(reviewData) => {
+            router.push({
+              pathname: '/(stacks)/CreateReviewScreen',
+              params: { 
+                productId: productId!,
+                ...(reviewData && {
+                  reviewId: reviewData.reviewId,
+                  existingRating: reviewData.rating.toString(),
+                  existingContent: reviewData.content,
+                  isEditing: 'true'
+                })
+              }
+            })
+          }}
+        />
       </ScrollView>
 
       {/* Bottom Action Bar */}

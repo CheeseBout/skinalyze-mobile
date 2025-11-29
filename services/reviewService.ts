@@ -13,20 +13,128 @@ export interface Review {
     rating: number,
     content: string,
     createdAt: string,
-    updatedAt: string
+    updatedAt: string,
+    user?: {
+      fullName: string;
+      photoUrl?: string;
+    };
+}
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: Array<{
+    rating: number;
+    count: number;
+  }>;
+}
+
+interface ReviewResponse {
+  statusCode: number;
+  message: string;
+  data: Review;
+  timestamp: string;
+}
+
+interface ReviewsResponse {
+  statusCode: number;
+  message: string;
+  data: Review[];
+  timestamp: string;
+}
+
+interface ReviewStatsResponse {
+  statusCode: number;
+  message: string;
+  data: ReviewStats;
+  timestamp: string;
 }
 
 class ReviewService {
-    async postReview(token: string, payload: ReviewPayload): Promise<Review> {
-        return await apiService.post<Review>('/reviews', payload, { token });
+    async postReview(payload: ReviewPayload): Promise<Review> {
+        try {
+          const response = await apiService.post<ReviewResponse>('/reviews', payload);
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error creating review:", error);
+          throw error;
+        }
     }
 
-    async updateReview(token: string, reviewId: string, payload: Partial<ReviewPayload>): Promise<Review> {
-        return await apiService.put<Review>(`/reviews/${reviewId}`, payload, { token });
+    async updateReview(reviewId: string, payload: Partial<ReviewPayload>): Promise<Review> {
+        try {
+          const response = await apiService.patch<ReviewResponse>(`/reviews/${reviewId}`, payload);
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error updating review:", error);
+          throw error;
+        }
     }
 
-    async deleteReview(token: string, reviewId: string): Promise<void> {
-        return await apiService.delete<void>(`/reviews/${reviewId}`, { token });
+    async deleteReview(reviewId: string): Promise<void> {
+        try {
+          await apiService.delete<void>(`/reviews/${reviewId}`);
+        } catch (error) {
+          console.error("❌ Error deleting review:", error);
+          throw error;
+        }
+    }
+
+    async getProductReviews(productId: string): Promise<Review[]> {
+        try {
+          const response = await apiService.get<ReviewsResponse>(`/reviews/product/${productId}`);
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error fetching reviews:", error);
+          throw error;
+        }
+    }
+
+    async getProductReviewStats(productId: string): Promise<ReviewStats> {
+        try {
+          const response = await apiService.get<ReviewStatsResponse>(`/reviews/product/${productId}/stats`);
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error fetching review stats:", error);
+          throw error;
+        }
+    }
+
+    async checkCanReview(productId: string): Promise<{ canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }> {
+        try {
+          // Import orderService here to avoid circular dependencies
+          const orderService = (await import('./orderService')).default;
+          const tokenService = (await import('./tokenService')).default;
+          
+          const token = await tokenService.getToken();
+          if (!token) {
+            return { canReview: false, hasReviewed: false, hasPurchased: false };
+          }
+
+          // Check if user has delivered orders with this product
+          const orders = await orderService.getOrdersByCustomer(token);
+          const deliveredOrders = orders.filter(order => order.status === 'DELIVERED');
+          
+          const hasPurchased = deliveredOrders.some(order => 
+            order.orderItems.some(item => item.product.productId === productId)
+          );
+
+          if (!hasPurchased) {
+            return { canReview: false, hasReviewed: false, hasPurchased: false };
+          }
+
+          // Check if user has already reviewed this product
+          const reviews = await this.getProductReviews(productId);
+          const userReview = reviews.find(review => review.userId === token); // Assuming token contains userId or we can extract it
+          const hasReviewed = !!userReview;
+
+          const canReview = hasPurchased && !hasReviewed;
+          
+          return { canReview, hasReviewed, hasPurchased };
+        } catch (error: any) {
+          console.error("❌ Error checking review eligibility:", error);
+          return { canReview: false, hasReviewed: false, hasPurchased: false };
+        }
     }
 }
 export const reviewService = new ReviewService();

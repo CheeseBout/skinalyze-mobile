@@ -9,26 +9,41 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderItem } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import reviewService from '@/services/reviewService';
 
 export default function OrderDetailScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { primaryColor } = useThemeColor();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewEligibility, setReviewEligibility] = useState<Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }>>({});
 
   useEffect(() => {
     if (orderId && isAuthenticated) {
       fetchOrderDetail();
     }
   }, [orderId, isAuthenticated]);
+
+  // Refresh when screen comes into focus (e.g., returning from review screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (orderId && isAuthenticated && order) {
+        // Only refresh review eligibility, not the entire order
+        if (order.status === 'DELIVERED') {
+          checkReviewEligibility(order.orderItems);
+        }
+      }
+    }, [orderId, isAuthenticated, order])
+  );
 
   const fetchOrderDetail = async () => {
     if (!isAuthenticated || !orderId) {
@@ -45,6 +60,11 @@ export default function OrderDetailScreen() {
       }
       const data = await orderService.getOrderById(orderId, token);
       setOrder(data);
+      
+      // Check review eligibility for delivered orders
+      if (data.status === 'DELIVERED') {
+        await checkReviewEligibility(data.orderItems);
+      }
     } catch (error: any) {
       console.error('Error fetching order detail:', error);
       Alert.alert('Error', error.message || 'Unable to load order details');
@@ -53,11 +73,78 @@ export default function OrderDetailScreen() {
     }
   };
 
+  const checkReviewEligibility = async (orderItems: OrderItem[]) => {
+    const eligibilityMap: Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }> = {};
+    
+    try {
+      if (!user) return;
+
+      const eligibilityPromises = orderItems.map(async (item) => {
+        try {
+          // Check if user has already reviewed this product
+          const reviews = await reviewService.getProductReviews(item.product.productId);
+          const userReview = reviews.find(review => review.userId === user.userId);
+          const hasReviewed = !!userReview;
+          const hasPurchased = true; // Since this is from a delivered order
+          const canReview = !hasReviewed;
+          
+          return {
+            productId: item.product.productId,
+            eligibility: { canReview, hasReviewed, hasPurchased }
+          };
+        } catch (error) {
+          console.error(`Error checking eligibility for product ${item.product.productId}:`, error);
+          return {
+            productId: item.product.productId,
+            eligibility: { canReview: true, hasReviewed: false, hasPurchased: true }
+          };
+        }
+      });
+      
+      const results = await Promise.all(eligibilityPromises);
+      results.forEach(({ productId, eligibility }) => {
+        eligibilityMap[productId] = eligibility;
+      });
+      
+      setReviewEligibility(eligibilityMap);
+    } catch (error) {
+      console.error('Error checking review eligibility:', error);
+    }
+  };
+
   const renderOrderItem = (item: OrderItem) => {
     const itemTotal = parseFloat(item.priceAtTime) * item.quantity;
+    const isDelivered = order?.status === 'DELIVERED';
+    const eligibility = reviewEligibility[item.product.productId];
+    const canShowReviewButton = isDelivered && eligibility?.canReview && eligibility?.hasPurchased && !eligibility?.hasReviewed;
+
+    const handleProductPress = () => {
+      router.push({
+        pathname: '/(stacks)/ProductDetailScreen',
+        params: { productId: item.product.productId }
+      });
+    };
+
+    const handleReviewPress = (e: any) => {
+      e.stopPropagation();
+      router.push({
+        pathname: '/(stacks)/CreateReviewScreen',
+        params: { 
+          productId: item.product.productId,
+          orderId: order?.orderId 
+        }
+      });
+    };
 
     return (
-      <View key={item.orderItemId} style={styles.orderItemCard}>
+      <TouchableOpacity 
+        key={item.orderItemId} 
+        style={styles.orderItemCard}
+        onPress={handleProductPress}
+        activeOpacity={0.7}
+        accessible={true}
+        accessibilityLabel={`View ${item.product.productName} details`}
+      >
         <Image
           source={{ uri: item.product.productImages[0] }}
           style={styles.orderItemImage}
@@ -73,13 +160,30 @@ export default function OrderDetailScreen() {
             </Text>
             <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
           </View>
+          {canShowReviewButton && (
+            <TouchableOpacity
+              style={[styles.reviewButton, { borderColor: primaryColor }]}
+              onPress={handleReviewPress}
+            >
+              <Ionicons name="star-outline" size={16} color={primaryColor} />
+              <Text style={[styles.reviewButtonText, { color: primaryColor }]}>
+                Write Review
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isDelivered && eligibility?.hasReviewed && (
+            <View style={styles.reviewedIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.reviewedText}>Reviewed</Text>
+            </View>
+          )}
         </View>
         <View style={styles.orderItemTotal}>
           <Text style={styles.orderItemTotalText}>
             {orderService.formatCurrency(itemTotal)}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -475,6 +579,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginTop: 8,
+  },
+  reviewButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  reviewedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  reviewedText: {
+    fontSize: 12,
+    color: '#34C759',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   summaryRow: {
     flexDirection: 'row',
