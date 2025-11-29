@@ -243,9 +243,6 @@ export default function CreateReviewScreen() {
           />
           <View style={styles.productInfo}>
             <Text style={styles.productName}>{product.productName}</Text>
-            <Text style={styles.productPrice}>
-              {productService.formatPrice(product.price)}
-            </Text>
           </View>
         </View>
 
@@ -376,11 +373,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1A1A1A",
     marginBottom: 4,
-  },
-  productPrice: {
-    fontSize: 14,
-    color: "#007AFF",
-    fontWeight: "600",
   },
   section: {
     margin: 16,

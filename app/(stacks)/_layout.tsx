@@ -105,6 +105,18 @@ export default function StackLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="MyReviewsScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="CreateReviewScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

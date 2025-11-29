@@ -342,11 +342,11 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(stacks)/OrderListScreen')}
           />
           <QuickActionButton
-            icon="lock-closed"
-            label={t('profile.security')}
+            icon="chatbubbles"
+            label="Reviews"
             color="#34C759"
             bgColor="#F0FDF4"
-            onPress={() => router.push('/(stacks)/ChangePasswordScreen')}
+            onPress={() => router.push('/(stacks)/MyReviewsScreen')}
           />
           <QuickActionButton
             icon="settings"

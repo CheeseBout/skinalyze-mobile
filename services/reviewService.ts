@@ -18,6 +18,14 @@ export interface Review {
       fullName: string;
       photoUrl?: string;
     };
+    product?: {
+      productId: string;
+      name: string;
+      description?: string;
+      price: number;
+      images: string[];
+      category?: string;
+    };
 }
 
 export interface ReviewStats {
@@ -80,6 +88,16 @@ class ReviewService {
         }
     }
 
+    async getMyReviews(): Promise<Review[]> {
+        try {
+          const response = await apiService.get<ReviewsResponse>('/reviews/my-reviews');
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error fetching user reviews:", error);
+          throw error;
+        }
+    }
+
     async getProductReviews(productId: string): Promise<Review[]> {
         try {
           const response = await apiService.get<ReviewsResponse>(`/reviews/product/${productId}`);
@@ -111,11 +129,13 @@ class ReviewService {
             return { canReview: false, hasReviewed: false, hasPurchased: false };
           }
 
-          // Check if user has delivered orders with this product
-          const orders = await orderService.getOrdersByCustomer(token);
-          const deliveredOrders = orders.filter(order => order.status === 'DELIVERED');
+          // Check if user has delivered or completed orders with this product
+          const orders = await orderService.getMyOrders(token);
+          const eligibleOrders = orders.filter(order => 
+            order.status === 'DELIVERED' || order.status === 'COMPLETED'
+          );
           
-          const hasPurchased = deliveredOrders.some(order => 
+          const hasPurchased = eligibleOrders.some(order => 
             order.orderItems.some(item => item.product.productId === productId)
           );
 

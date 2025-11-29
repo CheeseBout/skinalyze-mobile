@@ -8,6 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { useCallback } from "react";
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from "@expo/vector-icons/Ionicons";
 import reviewService, { Review, ReviewStats } from "@/services/reviewService";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +31,7 @@ export default function ReviewsComponent({
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -38,9 +40,27 @@ export default function ReviewsComponent({
     }
   }, [productId]);
 
+  // Refresh reviews when screen comes back into focus, but only if data is stale
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      // Only refresh if more than 5 seconds have passed since last fetch
+      if (productId && (now - lastFetchTime > 5000)) {
+        fetchReviewData();
+      }
+    }, [productId, lastFetchTime])
+  );
+
   const fetchReviewData = async () => {
+    const now = Date.now();
+    // Prevent rapid successive calls (within 1 second)
+    if (now - lastFetchTime < 1000) {
+      return;
+    }
+    
     try {
       setLoading(true);
+      setLastFetchTime(now);
       const [reviewsData, statsData] = await Promise.all([
         reviewService.getProductReviews(productId),
         reviewService.getProductReviewStats(productId),
@@ -60,7 +80,7 @@ export default function ReviewsComponent({
           
           const token = await tokenService.getToken();
           if (token) {
-            const orders = await orderService.getOrdersByCustomer(token);
+            const orders = await orderService.getMyOrders(token);
             const deliveredOrders = orders.filter(order => order.status === 'DELIVERED');
             
             const hasPurchasedProduct = deliveredOrders.some(order => 
@@ -74,7 +94,8 @@ export default function ReviewsComponent({
             setCanReview(false);
           }
         } catch (error) {
-          // If we can't check orders, default to not allowing review
+          console.error('Error checking purchase history:', error);
+          // If we can't verify purchase, don't allow review
           setHasPurchased(false);
           setCanReview(false);
         }

@@ -50,18 +50,6 @@ export default function ProductDetailScreen() {
     }
   }, [productId])
 
-  // Refresh when screen comes into focus (e.g., returning from review screen)
-  useFocusEffect(
-    useCallback(() => {
-      if (productId && product && !isLoading) {
-        // Only refresh review stats, not the entire product
-        reviewService.getProductReviewStats(productId)
-          .then(statsData => setReviewStats(statsData))
-          .catch(() => setReviewStats({ averageRating: 0, totalReviews: 0 }));
-      }
-    }, [productId, product, isLoading])
-  )
-
   useEffect(() => {
     if (!isLoading && product) {
       Animated.parallel([
