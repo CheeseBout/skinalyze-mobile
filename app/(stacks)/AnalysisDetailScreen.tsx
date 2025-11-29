@@ -219,11 +219,15 @@ Can you provide more information about this condition and suggest what steps I s
 
               <View style={styles.resultContent}>
                 <Text style={styles.resultLabel}>
-                  {isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')} 
+                  {isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')}
                 </Text>
                 <Text style={[styles.resultValue, { color: detectionColor }]}
                 >
                   {isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
+                </Text>
+                {/* Add brief description */}
+                <Text style={styles.resultDescription}>
+                  {isConditionDetection ? t('analysis.' + result.aiDetectedCondition + '_desc') : t('analysis.' + result.aiDetectedDisease + '_desc')}
                 </Text>
               </View>
             </View>
@@ -557,6 +561,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 26,
     letterSpacing: -0.3,
+  },
+  resultDescription: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#999',
+    marginTop: 4,
+    lineHeight: 20,
   },
   detailsSection: {
     marginBottom: 24,

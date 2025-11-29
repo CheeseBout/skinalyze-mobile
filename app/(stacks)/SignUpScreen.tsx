@@ -387,7 +387,7 @@ export default function SignUpScreen() {
                 label="Password"
                 placeholder="Enter your password"
                 value={formData.password}
-                onChangeText={(text) => {
+                onChangeText={(text: any) => {
                   setFormData({ ...formData, password: text })
                   if (errors.password) setErrors({ ...errors, password: '' })
                 }}
@@ -401,7 +401,7 @@ export default function SignUpScreen() {
                 label="Confirm Password"
                 placeholder="Re-enter your password"
                 value={confirmPassword}
-                onChangeText={(text) => {
+                onChangeText={(text: any) => {
                   setConfirmPassword(text)
                   if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' })
                 }}

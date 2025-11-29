@@ -235,7 +235,6 @@ export default function SignInScreen() {
             ) : (
               <>
                 <Text style={styles.loginButtonText}>Sign In</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               </>
             )}
           </TouchableOpacity>

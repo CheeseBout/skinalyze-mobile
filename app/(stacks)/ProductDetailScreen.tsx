@@ -9,46 +9,46 @@ import {
   Dimensions, 
   Alert,
   StatusBar,
-  Animated
-} from 'react-native'
-import React, { useEffect, useState, useRef } from 'react'
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { useCallback } from 'react'
-import { Ionicons } from '@expo/vector-icons'
-import productService, { Product } from '@/services/productService'
-import reviewService from '@/services/reviewService'
-import cartService from '@/services/cartService'
-import tokenService from '@/services/tokenService'
-import { useCartCount } from '@/hooks/userCartCount'
-import { useThemeColor } from '@/contexts/ThemeColorContext'
-import ReviewsComponent from '@/components/ReviewsComponent'
+  Animated,
+  SafeAreaView
+} from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import productService, { Product } from '@/services/productService';
+import reviewService from '@/services/reviewService';
+import cartService from '@/services/cartService';
+import tokenService from '@/services/tokenService';
+import { useCartCount } from '@/hooks/userCartCount';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import ReviewsComponent from '@/components/ReviewsComponent';
 
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen() {
-  const router = useRouter()
-  const { productId } = useLocalSearchParams<{ productId: string }>()
-  const { primaryColor } = useThemeColor()
+  const router = useRouter();
+  const { productId } = useLocalSearchParams<{ productId: string }>();
+  const { primaryColor } = useThemeColor();
 
-  const [product, setProduct] = useState<Product | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [quantity, setQuantity] = useState(1)
-  const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number} | null>(null)
-  const { refreshCount } = useCartCount()
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number} | null>(null);
+  const { refreshCount } = useCartCount();
 
   // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(30)).current
-  const scaleAnim = useRef(new Animated.Value(0.95)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     if (productId) {
-      fetchProductDetails()
+      fetchProductDetails();
     }
-  }, [productId])
+  }, [productId]);
 
   useEffect(() => {
     if (!isLoading && product) {
@@ -69,42 +69,42 @@ export default function ProductDetailScreen() {
           friction: 7,
           useNativeDriver: true,
         }),
-      ]).start()
+      ]).start();
     }
-  }, [isLoading, product])
+  }, [isLoading, product]);
 
   const fetchProductDetails = async () => {
     try {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
       const [productData, reviewStatsData] = await Promise.all([
         productService.getProductById(productId!),
         reviewService.getProductReviewStats(productId!).catch(() => ({ averageRating: 0, totalReviews: 0 }))
-      ])
-      setProduct(productData)
-      setReviewStats(reviewStatsData)
+      ]);
+      setProduct(productData);
+      setReviewStats(reviewStatsData);
     } catch (err) {
-      setError('Failed to load product details')
-      console.error('Error fetching product:', err)
+      setError('Failed to load product details');
+      console.error('Error fetching product:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleQuantityChange = (increment: boolean) => {
     if (increment && product && quantity < product.stock) {
-      setQuantity(quantity + 1)
+      setQuantity(quantity + 1);
     } else if (!increment && quantity > 1) {
-      setQuantity(quantity - 1)
+      setQuantity(quantity - 1);
     }
-  }
+  };
 
   const handleAddToCart = async () => {
-    if (!product || !productId) return
+    if (!product || !productId) return;
 
     try {
-      setIsAddingToCart(true)
-      const token = await tokenService.getToken()
+      setIsAddingToCart(true);
+      const token = await tokenService.getToken();
 
       if (!token) {
         Alert.alert(
@@ -114,16 +114,16 @@ export default function ProductDetailScreen() {
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log In', onPress: () => router.push('/WelcomeScreen') }
           ]
-        )
-        return
+        );
+        return;
       }
 
       await cartService.addToCart(token, {
         productId: productId,
         quantity: quantity
-      })
+      });
       
-      await refreshCount()
+      await refreshCount();
 
       Alert.alert(
         'Added to Cart',
@@ -132,64 +132,48 @@ export default function ProductDetailScreen() {
           { text: 'Continue Shopping', style: 'cancel' },
           { text: 'View Cart', onPress: () => router.push('/(tabs)/CartScreen') }
         ]
-      )
+      );
 
-      setQuantity(1)
+      setQuantity(1);
 
     } catch (err: any) {
-      console.error('Error adding to cart:', err)
-      let errorMessage = 'Failed to add product to cart. Please try again.'
+      console.error('Error adding to cart:', err);
+      let errorMessage = 'Failed to add product to cart. Please try again.';
 
       if (err.message) {
         if (err.message.includes('không có sẵn') || err.message.includes('not available')) {
-          errorMessage = 'This product is currently out of stock in all warehouses.'
+          errorMessage = 'This product is currently out of stock in all warehouses.';
         } else if (err.message.includes('quantity') || err.message.includes('số lượng')) {
-          errorMessage = 'The requested quantity is not available.'
+          errorMessage = 'The requested quantity is not available.';
         } else if (err.message.includes('token') || err.message.includes('auth')) {
-          errorMessage = 'Your session has expired. Please log in again.'
+          errorMessage = 'Your session has expired. Please log in again.';
         } else {
-          errorMessage = err.message
+          errorMessage = err.message;
         }
       }
 
-      Alert.alert('Cannot Add to Cart', errorMessage, [{ text: 'OK' }])
+      Alert.alert('Cannot Add to Cart', errorMessage, [{ text: 'OK' }]);
     } finally {
-      setIsAddingToCart(false)
+      setIsAddingToCart(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-
         <View style={styles.loadingContainer}>
-          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <ActivityIndicator size="large" color={primaryColor} />
-          </View>
+          <ActivityIndicator size="large" color={primaryColor} />
           <Text style={styles.loadingText}>Loading product...</Text>
         </View>
       </View>
-    )
+    );
   }
 
   if (error || !product) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-
         <View style={styles.errorContainer}>
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
@@ -206,26 +190,21 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
 
-  const discountedPrice = productService.calculateDiscountedPrice(product)
-  const discountAmount = productService.getDiscountAmount(product)
-  const avgRating = reviewStats?.averageRating || 0
-  const reviewCount = reviewStats?.totalReviews || 0
-  const stockStatus = productService.getStockStatus(product)
-  const hasDiscount = parseFloat(product.salePercentage) > 0
-
-  // Convert prices to VND
-  const discountedPriceVND = productService.convertToVND(discountedPrice)
-  const discountAmountVND = productService.convertToVND(discountAmount)
-  const originalPriceVND = productService.convertToVND(product.sellingPrice)
+  const discountedPrice = productService.calculateDiscountedPrice(product);
+  const discountAmount = productService.getDiscountAmount(product);
+  const avgRating = reviewStats?.averageRating || 0;
+  const reviewCount = reviewStats?.totalReviews || 0;
+  const stockStatus = productService.getStockStatus(product);
+  const hasDiscount = parseFloat(product.salePercentage) > 0;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
       
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Image Gallery */}
         <View style={styles.imageSection}>
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -331,14 +310,14 @@ export default function ProductDetailScreen() {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Ionicons
                     key={star}
-                    name={star <= avgRating ? 'star' : 'star-outline'}
+                    name={star <= avgRating ? 'star' : (star - 0.5 <= avgRating ? 'star-half' : 'star-outline')}
                     size={18}
                     color="#FFB800"
                   />
                 ))}
               </View>
               <Text style={styles.ratingValue}>
-                {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews yet'}
+                {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews'}
               </Text>
             </View>
             <Text style={styles.reviewCount}>
@@ -350,19 +329,19 @@ export default function ProductDetailScreen() {
           <View style={styles.priceCard}>
             <View style={styles.priceRow}>
               <Text style={[styles.currentPrice, { color: primaryColor }]}>
-                {productService.formatPrice(discountedPriceVND)}
+                {productService.formatPrice(discountedPrice)}
               </Text>
               {hasDiscount && (
                 <View style={styles.savingsBadge}>
                   <Text style={styles.savingsText}>
-                    Save {productService.formatPrice(discountAmountVND)}
+                    Save {productService.formatPrice(discountAmount)}
                   </Text>
                 </View>
               )}
             </View>
             {hasDiscount && (
               <Text style={styles.originalPrice}>
-                {productService.formatPrice(originalPriceVND)}
+                {productService.formatPrice(product.sellingPrice)}
               </Text>
             )}
             <Text style={styles.stockInfo}>
@@ -697,7 +676,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbnailSelected: {
-    borderColor: '#007AFF',
+    // borderColor handled dynamically
   },
   thumbnailImage: {
     width: '100%',
@@ -889,33 +868,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  reviewCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  reviewStars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  reviewDate: {
-    fontSize: 12,
-    color: '#999',
-    fontWeight: '600',
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -929,6 +881,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   quantitySection: {
     flex: 0.4,
@@ -991,4 +947,4 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
-})
+});

@@ -1,6 +1,6 @@
 import apiService from "./apiService";
 
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
+export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED' | 'COMPLETED';
 export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
 
 export interface User {
@@ -8,7 +8,7 @@ export interface User {
   email: string;
   fullName: string;
   dob: string;
-  photoUrl: string | null;
+  photoUrl: string | null;  
   phone: string;
   role: string;
   createdAt: string;
@@ -106,14 +106,12 @@ class OrderService {
   async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
     try {
       ('🛒 Creating checkout order...');
-      ('Payload:', payload);
       
       const response = await apiService.post<CheckoutResponse>(
         '/orders/checkout',
         payload,
       );
       
-      ('✅ Order created successfully:', response.data.orderId);
       return response.data;
     } catch (error) {
       console.error('❌ Checkout error:', error);
@@ -178,6 +176,7 @@ class OrderService {
       DELIVERED: '#4CAF50',
       CANCELLED: '#F44336',
       REJECTED: '#F44336',
+      COMPLETED: '#4CAF50',
     };
     return colorMap[status] || '#757575';
   }
@@ -193,6 +192,7 @@ class OrderService {
       DELIVERED: 'Delivered',
       CANCELLED: 'Cancelled',
       REJECTED: 'Rejected',
+      COMPLETED: 'Completed',
     };
     return labelMap[status] || status;
   }
@@ -211,6 +211,22 @@ class OrderService {
       vnpay: 'VNPay',
     };
     return labelMap[method] || method;
+  }
+
+  async confirmCompleteOrder(orderId: string, token: string, feedback?: string): Promise<Order> {
+    try {
+      const payload = feedback ? { feedback } : {};
+      
+      const response = await apiService.post<OrderDetailResponse>(
+        `/orders/${orderId}/complete`,
+        payload
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error completing order:', error);
+      throw error;
+    }
   }
 
   /**

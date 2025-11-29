@@ -43,6 +43,7 @@ export default function PaymentScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
+  
   const { primaryColor } = useThemeColor();
 
   // ---  Parse Data ---
@@ -71,8 +72,7 @@ export default function PaymentScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [leaveAction, setLeaveAction] = useState<any>(null);
 
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-
+const pollingInterval = useRef<number | null>(null);
   // ---  Logic Countdown Timer ---
   useEffect(() => {
     const calculateTimeLeft = () => {

@@ -23,8 +23,8 @@ const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
   const finalPriceUSD = productService.calculateDiscountedPrice(product);
   
   // 2. Convert to VND
-  const originalPriceVND = productService.convertToVND(originalPriceUSD);
-  const finalPriceVND = productService.convertToVND(finalPriceUSD);
+  // const originalPriceVND = productService.convertToVND(originalPriceUSD);
+  // const finalPriceVND = productService.convertToVND(finalPriceUSD);
 
   // 3. Determine Discount Status
   // We use the API's salePercentage string to determine if a discount exists
@@ -67,15 +67,15 @@ const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
           {hasDiscount ? (
             <>
               <Text style={styles.discountedPrice}>
-                {productService.formatPrice(finalPriceVND)}
+                {productService.formatPrice(finalPriceUSD)}
               </Text>
               <Text style={styles.originalPrice}>
-                {productService.formatPrice(originalPriceVND)}
+                {productService.formatPrice(originalPriceUSD)}
               </Text>
             </>
           ) : (
             <Text style={styles.price}>
-              {productService.formatPrice(originalPriceVND)}
+              {productService.formatPrice(originalPriceUSD)}
             </Text>
           )}
         </View>

@@ -62,12 +62,6 @@ export default function HomeScreen() {
     ]).start()
   }, [])
 
-  useEffect(() => {
-    if (categories.length > 0) {
-      setProducts(categories.slice(0, PRODUCTS_PER_PAGE))
-    }
-  }, [categories])
-
   // Load initial products
   useEffect(() => {
     loadProducts(1)

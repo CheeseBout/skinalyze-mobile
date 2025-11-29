@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderItem } from '@/services/orderService';
@@ -23,8 +22,10 @@ export default function OrderDetailScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { isAuthenticated, user } = useAuth();
   const { primaryColor } = useThemeColor();
+  
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [processingAction, setProcessingAction] = useState(false); // To handle button loading state
   const [reviewEligibility, setReviewEligibility] = useState<Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }>>({});
 
   useEffect(() => {
@@ -33,12 +34,11 @@ export default function OrderDetailScreen() {
     }
   }, [orderId, isAuthenticated]);
 
-  // Refresh when screen comes into focus (e.g., returning from review screen)
+  // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (orderId && isAuthenticated && order) {
-        // Only refresh review eligibility, not the entire order
-        if (order.status === 'DELIVERED') {
+        if (order.status === 'DELIVERED' || order.status === 'COMPLETED') {
           checkReviewEligibility(order.orderItems);
         }
       }
@@ -61,8 +61,7 @@ export default function OrderDetailScreen() {
       const data = await orderService.getOrderById(orderId, token);
       setOrder(data);
       
-      // Check review eligibility for delivered orders
-      if (data.status === 'DELIVERED') {
+      if (data.status === 'DELIVERED' || data.status === 'COMPLETED') {
         await checkReviewEligibility(data.orderItems);
       }
     } catch (error: any) {
@@ -73,6 +72,41 @@ export default function OrderDetailScreen() {
     }
   };
 
+  const handleCompleteOrder = () => {
+    Alert.alert(
+      "Confirm Receipt",
+      "Have you received this order and are satisfied with the products? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Yes, Received", 
+          onPress: async () => {
+            try {
+              setProcessingAction(true);
+              const token = await tokenService.getToken();
+              
+              if (!token || !order) return;
+
+              // Call the service method (ensure this method exists in your orderService)
+              const updatedOrder = await orderService.confirmCompleteOrder(order.orderId, token);
+              
+              setOrder(updatedOrder);
+              Alert.alert("Success", "Order completed successfully! You can now review your products.");
+              
+              // Refresh review eligibility based on new status
+              checkReviewEligibility(updatedOrder.orderItems);
+              
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "Failed to complete order");
+            } finally {
+              setProcessingAction(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const checkReviewEligibility = async (orderItems: OrderItem[]) => {
     const eligibilityMap: Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }> = {};
     
@@ -81,11 +115,10 @@ export default function OrderDetailScreen() {
 
       const eligibilityPromises = orderItems.map(async (item) => {
         try {
-          // Check if user has already reviewed this product
           const reviews = await reviewService.getProductReviews(item.product.productId);
           const userReview = reviews.find(review => review.userId === user.userId);
           const hasReviewed = !!userReview;
-          const hasPurchased = true; // Since this is from a delivered order
+          const hasPurchased = true;
           const canReview = !hasReviewed;
           
           return {
@@ -114,9 +147,11 @@ export default function OrderDetailScreen() {
 
   const renderOrderItem = (item: OrderItem) => {
     const itemTotal = parseFloat(item.priceAtTime) * item.quantity;
-    const isDelivered = order?.status === 'DELIVERED';
+    const isCompleted = order?.status === 'COMPLETED' || order?.status === 'DELIVERED';
     const eligibility = reviewEligibility[item.product.productId];
-    const canShowReviewButton = isDelivered && eligibility?.canReview && eligibility?.hasPurchased && !eligibility?.hasReviewed;
+    
+    // Only allow review if order is effectively delivered/completed and user hasn't reviewed yet
+    const canShowReviewButton = isCompleted && eligibility?.canReview && eligibility?.hasPurchased && !eligibility?.hasReviewed;
 
     const handleProductPress = () => {
       router.push({
@@ -142,8 +177,6 @@ export default function OrderDetailScreen() {
         style={styles.orderItemCard}
         onPress={handleProductPress}
         activeOpacity={0.7}
-        accessible={true}
-        accessibilityLabel={`View ${item.product.productName} details`}
       >
         <Image
           source={{ uri: item.product.productImages[0] }}
@@ -160,6 +193,8 @@ export default function OrderDetailScreen() {
             </Text>
             <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
           </View>
+          
+          {/* Review Button */}
           {canShowReviewButton && (
             <TouchableOpacity
               style={[styles.reviewButton, { borderColor: primaryColor }]}
@@ -171,7 +206,9 @@ export default function OrderDetailScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          {isDelivered && eligibility?.hasReviewed && (
+          
+          {/* Reviewed Indicator */}
+          {isCompleted && eligibility?.hasReviewed && (
             <View style={styles.reviewedIndicator}>
               <Ionicons name="checkmark-circle" size={16} color="#34C759" />
               <Text style={styles.reviewedText}>Reviewed</Text>
@@ -214,8 +251,15 @@ export default function OrderDetailScreen() {
   const totalAmount = orderService.calculateOrderTotal(order.orderItems);
   const totalItems = orderService.calculateTotalItems(order.orderItems);
 
+  // Determine icon based on status
+  let statusIconName: keyof typeof Ionicons.glyphMap = 'time';
+  if (order.status === 'DELIVERED') statusIconName = 'cube';
+  else if (order.status === 'COMPLETED') statusIconName = 'checkmark-done-circle';
+  else if (order.status === 'CANCELLED' || order.status === 'REJECTED') statusIconName = 'close-circle';
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -231,7 +275,7 @@ export default function OrderDetailScreen() {
             params: { orderId: order.orderId }
           } as any)}
         >
-          <Ionicons name="location" size={24} color={primaryColor} />
+          <Ionicons name="map-outline" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
@@ -246,13 +290,7 @@ export default function OrderDetailScreen() {
               ]}
             >
               <Ionicons
-                name={
-                  order.status === 'DELIVERED'
-                    ? 'checkmark-circle'
-                    : order.status === 'CANCELLED' || order.status === 'REJECTED'
-                    ? 'close-circle'
-                    : 'time'
-                }
+                name={statusIconName}
                 size={40}
                 color={orderService.getStatusColor(order.status)}
               />
@@ -277,7 +315,7 @@ export default function OrderDetailScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Order ID:</Text>
-            <Text style={styles.infoValue}>#{order.orderId.slice(0, 8)}</Text>
+            <Text style={styles.infoValue}>#{order.orderId.slice(0, 8).toUpperCase()}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Order Date:</Text>
@@ -315,11 +353,15 @@ export default function OrderDetailScreen() {
             <Text style={styles.sectionTitle}>Customer Information</Text>
           </View>
           <View style={styles.customerInfo}>
-            {order.customer.user.photoUrl && (
+            {order.customer.user.photoUrl ? (
               <Image
                 source={{ uri: order.customer.user.photoUrl }}
                 style={styles.customerAvatar}
               />
+            ) : (
+              <View style={[styles.customerAvatar, { justifyContent: 'center', alignItems: 'center' }]}>
+                 <Ionicons name="person" size={30} color="#999" />
+              </View>
             )}
             <View style={styles.customerDetails}>
               <Text style={styles.customerName}>{order.customer.user.fullName}</Text>
@@ -373,17 +415,52 @@ export default function OrderDetailScreen() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Method:</Text>
               <Text style={styles.infoValue}>
-                {order.payment.method || 'Not specified'}
+                {orderService.getPaymentMethodLabel(order.payment.method as any)}
               </Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Status:</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[
+                styles.infoValue, 
+                { color: order.payment.status === 'PAID' ? '#4CAF50' : '#FFA500' }
+              ]}>
                 {order.payment.status || 'Unpaid'}
               </Text>
             </View>
           </View>
         )}
+
+        {/* COMPLETE ORDER BUTTON SECTION */}
+        {/* Only rendered when status is DELIVERED */}
+        {order.status === 'DELIVERED' && (
+          <View style={styles.actionContainer}>
+            <View style={styles.completeInfoBox}>
+              <Ionicons name="gift-outline" size={24} color={primaryColor} />
+              <Text style={styles.completeInfoText}>
+                Package delivered? Please confirm receipt to complete the order.
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={[
+                styles.completeButton, 
+                { backgroundColor: primaryColor, opacity: processingAction ? 0.7 : 1 }
+              ]}
+              onPress={handleCompleteOrder}
+              disabled={processingAction}
+              activeOpacity={0.8}
+            >
+              {processingAction ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.completeButtonText}>Received & Complete Order</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Bottom padding */}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -411,9 +488,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-  },
-  placeholder: {
-    width: 40,
   },
   trackingButton: {
     padding: 8,
@@ -461,6 +535,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginTop: 16,
+    width: '100%',
   },
   rejectionText: {
     flex: 1,
@@ -563,7 +638,6 @@ const styles = StyleSheet.create({
   orderItemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2196F3',
   },
   orderItemQuantity: {
     fontSize: 14,
@@ -588,6 +662,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginTop: 8,
+    alignSelf: 'flex-start',
   },
   reviewButtonText: {
     fontSize: 12,
@@ -631,7 +706,6 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2196F3',
   },
   loadingContainer: {
     flex: 1,
@@ -660,12 +734,53 @@ const styles = StyleSheet.create({
   backToListButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#2196F3',
     borderRadius: 8,
   },
   backToListButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  // NEW STYLES FOR ACTION SECTION
+  actionContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  completeInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  completeInfoText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  completeButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

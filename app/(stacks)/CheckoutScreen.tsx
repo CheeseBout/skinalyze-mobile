@@ -21,8 +21,10 @@ import productService from '@/services/productService';
 import userService from '@/services/userService';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 export default function CheckoutScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
@@ -55,7 +57,7 @@ export default function CheckoutScreen() {
       const token = await tokenService.getToken();
       if (!token) return;
 
-      const balanceData = await userService.getBalance(token);
+      const balanceData = await userService.getBalance();
       setBalance(balanceData.balance);
       setCurrency(balanceData.currency);
     } catch (error: any) {
@@ -89,7 +91,7 @@ export default function CheckoutScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Error', 'Please log in to continue');
+        Alert.alert(t('checkout.error'), t('checkout.loginRequired'));
         router.back();
         return;
       }
@@ -97,8 +99,8 @@ export default function CheckoutScreen() {
       const cartData = await cartService.getUserCart();
 
       if (!cartData || cartData.items.length === 0) {
-        Alert.alert('Empty Cart', 'Your cart is empty', [
-          { text: 'OK', onPress: () => router.back() }
+        Alert.alert(t('checkout.emptyCart'), t('checkout.emptyCartDesc'), [
+          { text: t('checkout.ok'), onPress: () => router.back() }
         ]);
         return;
       }
@@ -116,8 +118,8 @@ export default function CheckoutScreen() {
       );
 
       if (selectedCartItems.length === 0) {
-        Alert.alert('No Items Selected', 'Please select items to checkout', [
-          { text: 'OK', onPress: () => router.back() }
+        Alert.alert(t('checkout.noItemsSelected'), t('checkout.selectItemsToCheckout'), [
+          { text: t('checkout.ok'), onPress: () => router.back() }
         ]);
         return;
       }
@@ -125,7 +127,7 @@ export default function CheckoutScreen() {
       setSelectedItems(selectedCartItems);
     } catch (error) {
       console.error('Error loading cart:', error);
-      Alert.alert('Error', 'Failed to load cart data');
+      Alert.alert(t('checkout.error'), t('checkout.loadError'));
     } finally {
       setLoading(false);
     }
@@ -143,12 +145,12 @@ export default function CheckoutScreen() {
 
   const handleCheckout = async () => {
     if (!shippingAddress.trim()) {
-      Alert.alert('Required', 'Please enter shipping address');
+      Alert.alert(t('checkout.required'), t('checkout.enterShippingAddress'));
       return;
     }
 
     if (selectedItems.length === 0) {
-      Alert.alert('Error', 'No items selected for checkout');
+      Alert.alert(t('checkout.error'), t('checkout.noItemsForCheckout'));
       return;
     }
 
@@ -157,12 +159,12 @@ export default function CheckoutScreen() {
     // Check if using wallet and balance is insufficient
     if (paymentMethod === 'wallet' && balance < totalPrice) {
       Alert.alert(
-        'Insufficient Balance',
-        `Your balance: ${balance.toLocaleString()} ${currency}\nOrder total: ${totalPrice.toLocaleString()} ${currency}\n\nPlease top up your wallet or choose another payment method.`,
+        t('checkout.insufficientBalance'),
+        t('checkout.balanceMessage', { balance: balance.toLocaleString(), currency, total: totalPrice.toLocaleString() }),
         [
-          { text: 'OK', style: 'default' },
+          { text: t('checkout.ok'), style: 'default' },
           {
-            text: 'Top Up Wallet',
+            text: t('checkout.topUpWallet'),
             onPress: () => router.push('/(stacks)/WithdrawalScreen')
           }
         ]
@@ -171,22 +173,26 @@ export default function CheckoutScreen() {
     }
 
     const paymentLabel = paymentMethod === 'wallet' 
-      ? 'Wallet Balance' 
+      ? t('checkout.walletBalance') 
       : orderService.getPaymentMethodLabel(paymentMethod);
 
     Alert.alert(
-      'Confirm Order',
-      `Total: ${productService.formatPrice(totalPrice)}\nPayment: ${paymentLabel}${paymentMethod === 'wallet' ? `\n\nNew Balance: ${(balance - totalPrice).toLocaleString()} ${currency}` : ''}`,
+      t('checkout.confirmOrder'),
+      t('checkout.confirmMessage', { 
+        total: productService.formatPrice(totalPrice), 
+        payment: paymentLabel,
+        newBalance: paymentMethod === 'wallet' ? t('checkout.newBalance', { balance: balance.toLocaleString(), currency }) : ''
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('checkout.cancel'), style: 'cancel' },
         {
-          text: 'Confirm',
+          text: t('checkout.confirm'),
           onPress: async () => {
             try {
               setSubmitting(true);
               const token = await tokenService.getToken();
               if (!token) {
-                Alert.alert('Error', 'Please log in again');
+                Alert.alert(t('checkout.error'), t('checkout.loginAgain'));
                 return;
               }
 
@@ -205,7 +211,7 @@ export default function CheckoutScreen() {
               let newBalance = balance;
               if (paymentMethod === 'wallet') {
                 await fetchBalance();
-                const balanceData = await userService.getBalance(token);
+                const balanceData = await userService.getBalance();
                 newBalance = balanceData.balance;
               }
 
@@ -216,12 +222,14 @@ export default function CheckoutScreen() {
                   params: {
                     paymentCode: order.payment.paymentCode || '',
                     expiredAt: order.payment.expiredAt || '',
-                    qrCodeUrl: order.payment.qrCodeUrl || '',
-                    amount: order.payment.amount || 0,
-                    instructions: JSON.stringify(order.payment.instructions || []), 
-                    bankName: order.payment.bankingInfo?.bankName,
-                    accountNumber: order.payment.bankingInfo?.accountNumber,
-                    accountName: order.payment.bankingInfo?.accountName,
+                    appointmentId: '', // Add if needed (not in original, but PaymentScreen uses it)
+                    bankingInfo: JSON.stringify({
+                      bankName: order.payment.bankingInfo?.bankName || '',
+                      accountNumber: order.payment.bankingInfo?.accountNumber || '',
+                      accountName: order.payment.bankingInfo?.accountName || '',
+                      amount: order.payment.amount || 0,
+                      qrCodeUrl: order.payment.qrCodeUrl || '',
+                    }),
                   }
                 });
                 return;
@@ -233,7 +241,7 @@ export default function CheckoutScreen() {
                 `Order ID: ${order.orderId}\nYour order has been placed successfully.${paymentMethod === 'wallet' ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}` : ''}`,
                 [
                   {
-                    text: 'View Order',
+                    text: t('checkout.viewOrder'),
                     onPress: () => {
                       router.replace({
                         pathname: '/(stacks)/OrderDetailScreen',
@@ -242,7 +250,7 @@ export default function CheckoutScreen() {
                     }
                   },
                   {
-                    text: 'Go to Home',
+                    text: t('checkout.goToHome'),
                     onPress: () => router.replace('/(tabs)/HomeScreen')
                   }
                 ]
@@ -253,9 +261,9 @@ export default function CheckoutScreen() {
               // Handle insufficient balance error
               const errorMessage = error.message || 'Failed to place order. Please try again.';
               if (errorMessage.includes('Số dư không đủ') || errorMessage.includes('insufficient')) {
-                Alert.alert('Insufficient Balance', errorMessage);
+                Alert.alert(t('checkout.insufficientBalance'), errorMessage);
               } else {
-                Alert.alert('Checkout Failed', errorMessage);
+                Alert.alert(t('checkout.checkoutFailed'), errorMessage);
               }
             } finally {
               setSubmitting(false);
@@ -269,8 +277,8 @@ export default function CheckoutScreen() {
   const handleAddressSelect = () => {
     if (user?.addresses && user.addresses.length > 0) {
       Alert.alert(
-        'Select Address',
-        'Choose a saved address',
+        t('checkout.selectAddress'),
+        t('checkout.chooseSavedAddress'),
         [
           ...user.addresses.map((address, index) => ({
             text: `${address.streetLine1}, ${address.city}`,
@@ -290,14 +298,14 @@ export default function CheckoutScreen() {
             }
           })),
           {
-            text: 'Enter Manually',
+            text: t('checkout.enterManually'),
             onPress: () => {
               setShippingAddress('');
               setAddressEditable(true);
             }
           },
           {
-            text: 'Cancel',
+            text: t('checkout.cancel'),
             style: 'cancel' as const
           }
         ]
@@ -311,7 +319,7 @@ export default function CheckoutScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading checkout...</Text>
+        <Text style={styles.loadingText}>{t('checkout.loading')}</Text>
       </View>
     );
   }
@@ -333,7 +341,7 @@ export default function CheckoutScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Checkout</Text>
+        <Text style={styles.headerTitle}>{t('checkout.title')}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -344,7 +352,7 @@ export default function CheckoutScreen() {
         {/* Selected Items Preview */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Selected Items ({selectedItems.length})
+            {t('checkout.selectedItems', { count: selectedItems.length })}
           </Text>
           <View style={styles.itemsPreview}>
             {selectedItems.slice(0, 3).map((item, index) => (
@@ -365,24 +373,24 @@ export default function CheckoutScreen() {
 
         {/* Order Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
+          <Text style={styles.sectionTitle}>{t('checkout.orderSummary')}</Text>
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Items</Text>
+              <Text style={styles.summaryLabel}>{t('checkout.items')}</Text>
               <Text style={styles.summaryValue}>{totalItems}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryLabel}>{t('checkout.subtotal')}</Text>
               <Text style={styles.summaryValue}>
                 {productService.formatPrice(totalPrice)}
               </Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text style={styles.summaryValue}>Free</Text>
-            </View>
+            {/* <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>{t('checkout.shipping')}</Text>
+              <Text style={styles.summaryValue}>{t('checkout.free')}</Text>
+            </View> */}
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>{t('checkout.total')}</Text>
               <Text style={styles.totalValue}>
                 {productService.formatPrice(totalPrice)}
               </Text>
@@ -394,11 +402,11 @@ export default function CheckoutScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              Shipping Address <Text style={styles.required}>*</Text>
+              {t('checkout.shippingAddress')} <Text style={styles.required}>{t('checkout.requiredSymbol')}</Text>
             </Text>
             {user?.addresses && user.addresses.length > 0 && (
               <TouchableOpacity onPress={handleAddressSelect}>
-                <Text style={[styles.changeAddressText, { color: primaryColor }]}>Change</Text>
+                <Text style={[styles.changeAddressText, { color: primaryColor }]}>{t('checkout.change')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -417,7 +425,7 @@ export default function CheckoutScreen() {
           ) : (
             <TextInput
               style={styles.addressInput}
-              placeholder="Enter shipping address"
+              placeholder={t('checkout.enterShippingAddress')}
               value={shippingAddress}
               onChangeText={setShippingAddress}
               multiline
@@ -428,10 +436,10 @@ export default function CheckoutScreen() {
 
         {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes (Optional)</Text>
+          <Text style={styles.sectionTitle}>{t('checkout.notes')}</Text>
           <TextInput
             style={styles.notesInput}
-            placeholder="Add any special instructions..."
+            placeholder={t('checkout.notesPlaceholder')}
             value={notes}
             onChangeText={setNotes}
             multiline
@@ -441,7 +449,7 @@ export default function CheckoutScreen() {
 
         {/* Payment Method */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
+          <Text style={styles.sectionTitle}>{t('checkout.paymentMethod')}</Text>
 
           {/* Wallet Balance */}
           <TouchableOpacity
@@ -454,9 +462,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="wallet" size={24} color={primaryColor} />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Wallet Balance</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.walletBalance')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  {balanceLoading ? 'Loading...' : `Available: ${balance.toLocaleString()} ${currency}`}
+                  {balanceLoading ? t('checkout.loadingBalance') : t('checkout.availableBalance', { balance: balance.toLocaleString(), currency })}
                 </Text>
               </View>
             </View>
@@ -479,9 +487,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="cash-outline" size={24} color={primaryColor} />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Cash on Delivery</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.cashOnDelivery')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  Pay when you receive
+                  {t('checkout.payOnReceive')}
                 </Text>
               </View>
             </View>
@@ -504,9 +512,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="card-outline" size={24} color={primaryColor} />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Bank Transfer</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.bankTransfer')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  Pay via SePay gateway
+                  {t('checkout.payViaSepay')}
                 </Text>
               </View>
             </View>
@@ -529,9 +537,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="wallet-outline" size={24} color="#D82D8B" />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>MoMo</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.momo')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  Pay with MoMo wallet
+                  {t('checkout.payWithMomo')}
                 </Text>
               </View>
             </View>
@@ -554,9 +562,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="card-outline" size={24} color="#0066B2" />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>VNPay</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.vnpay')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  Pay with VNPay wallet
+                  {t('checkout.payWithVnpay')}
                 </Text>
               </View>
             </View>
@@ -579,9 +587,9 @@ export default function CheckoutScreen() {
             <View style={styles.paymentOptionContent}>
               <Ionicons name="wallet-outline" size={24} color="#0068FF" />
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>ZaloPay</Text>
+                <Text style={styles.paymentOptionTitle}>{t('checkout.zalopay')}</Text>
                 <Text style={styles.paymentOptionSubtitle}>
-                  Pay with ZaloPay wallet
+                  {t('checkout.payWithZalopay')}
                 </Text>
               </View>
             </View>
@@ -599,7 +607,9 @@ export default function CheckoutScreen() {
       <View style={styles.bottomContainer}>
         <View style={styles.checkoutSummary}>
           <View style={styles.checkoutRow}>
-            <Text style={styles.checkoutLabel}>Total ({totalItems} items)</Text>
+            <Text style={styles.checkoutLabel}>
+              {t('checkout.totalItems', { count: totalItems })}
+            </Text>
             <Text style={styles.checkoutAmount}>
               {productService.formatPrice(totalPrice)}
             </Text>
@@ -619,7 +629,7 @@ export default function CheckoutScreen() {
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Text style={styles.checkoutButtonText}>Place Order</Text>
+              <Text style={styles.checkoutButtonText}>{t('checkout.placeOrder')}</Text>
               <Text style={styles.checkoutButtonAmount}>
                 {productService.formatPrice(totalPrice)}
               </Text>
