@@ -13,6 +13,9 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 
 import paymentService, {
@@ -66,6 +69,7 @@ export default function PaymentScreen() {
 
   // QR Error Handling
   const [qrLoadError, setQrLoadError] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Popup & Cancel logic
   const [isAlertVisible, setIsAlertVisible] = useState(false);
@@ -236,6 +240,78 @@ const pollingInterval = useRef<number | null>(null);
     setQrLoadError(true);
   };
 
+  const downloadQRCode = async () => {
+    if (!bankingInfo.qrCodeUrl) {
+      Alert.alert('Error', 'QR code is not available for download');
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+      
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant access to save the QR code to your gallery');
+        return;
+      }
+
+      // Download the QR code image using legacy API
+      const filename = `payment_qr_${paymentCode}_${Date.now()}.png`;
+      const downloadResult = await FileSystem.downloadAsync(
+        bankingInfo.qrCodeUrl,
+        FileSystem.documentDirectory + filename
+      );
+
+      if (downloadResult.status === 200) {
+        // Save to media library
+        const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+        await MediaLibrary.createAlbumAsync('Skinalyze Payments', asset, false);
+        
+        Alert.alert('Success', 'QR code downloaded');
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      Alert.alert('Download Error', 'Failed to download QR code. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const shareQRCode = async (uri?: string) => {
+    try {
+      const fileUri = uri || (await downloadQRToTemp());
+      if (fileUri) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share Payment QR Code'
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing QR code:', error);
+      Alert.alert('Share Error', 'Failed to share QR code.');
+    }
+  };
+
+  const downloadQRToTemp = async (): Promise<string | null> => {
+    if (!bankingInfo.qrCodeUrl) return null;
+    
+    try {
+      const filename = `temp_qr_${Date.now()}.png`;
+      const downloadResult = await FileSystem.downloadAsync(
+        bankingInfo.qrCodeUrl,
+        FileSystem.cacheDirectory + filename
+      );
+      
+      return downloadResult.status === 200 ? downloadResult.uri : null;
+    } catch (error) {
+      console.error('Error downloading QR to temp:', error);
+      return null;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -328,12 +404,50 @@ const pollingInterval = useRef<number | null>(null);
             {/* QR Code Logic  */}
             <View style={styles.qrContainer}>
               {bankingInfo.qrCodeUrl && !qrLoadError ? (
-                <Image
-                  style={styles.qrCode}
-                  source={{ uri: bankingInfo.qrCodeUrl }}
-                  resizeMode="contain"
-                  onError={handleQrError}
-                />
+                <>
+                  <Image
+                    style={styles.qrCode}
+                    source={{ uri: bankingInfo.qrCodeUrl }}
+                    resizeMode="contain"
+                    onError={handleQrError}
+                  />
+                  
+                  {/* QR Action Buttons */}
+                  <View style={styles.qrActionButtons}>
+                    <Pressable
+                      style={[styles.qrActionButton, { backgroundColor: primaryColor }]}
+                      onPress={downloadQRCode}
+                      disabled={isDownloading}
+                    >
+                      {isDownloading ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <MaterialCommunityIcons
+                          name="download"
+                          size={20}
+                          color="white"
+                        />
+                      )}
+                      <Text style={styles.qrActionButtonText}>
+                        {isDownloading ? 'Downloading...' : 'Download'}
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      style={[styles.qrActionButton, styles.shareButton]}
+                      onPress={() => shareQRCode()}
+                    >
+                      <MaterialCommunityIcons
+                        name="share"
+                        size={20}
+                        color={primaryColor}
+                      />
+                      <Text style={[styles.qrActionButtonText, { color: primaryColor }]}>
+                        Share
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
               ) : (
                 <View style={styles.qrPlaceholder}>
                   <Ionicons name="qr-code-outline" size={80} color="#CCC" />
@@ -508,10 +622,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     overflow: "hidden",
+    padding: 16,
   },
   qrCode: {
     width: 240,
     height: 240,
+    alignSelf: 'center',
+  },
+  qrActionButtons: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 12,
+  },
+  qrActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  shareButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#007bff',
+  },
+  qrActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
   qrPlaceholder: {
     width: 240,
