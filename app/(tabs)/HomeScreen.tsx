@@ -21,6 +21,9 @@ import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
 import { productService } from '@/services/productService'
 import { Product } from '@/services/productService'
+import { 
+  useTranslation  // Add this import (from 'react-i18next')
+} from 'react-i18next';
 
 const { width } = Dimensions.get('window')
 
@@ -29,6 +32,7 @@ export default function HomeScreen() {
   const { user } = useAuth()
   const { primaryColor } = useThemeColor()
   const { categories, saleProducts, isLoading: isLoadingCategories, error: categoriesError, refreshProducts: refreshCategories } = useProducts()
+  const { t } = useTranslation();  // Add this
   
   // New state for paginated products
   const [products, setProducts] = useState<Product[]>([])
@@ -103,9 +107,9 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours()
-    if (hour < 12) return 'Good Morning'
-    if (hour < 18) return 'Good Afternoon'
-    return 'Good Evening'
+    if (hour < 12) return t('home.goodMorning')
+    if (hour < 18) return t('home.goodAfternoon')
+    return t('home.goodEvening')
   }
 
   // --- Render Components ---
@@ -125,7 +129,7 @@ export default function HomeScreen() {
           </View>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{user?.fullName || 'Guest'}</Text>
+            <Text style={styles.userName}>{user?.fullName || t('home.guest')}</Text>  
           </View>
         </View>
         <TouchableOpacity 
@@ -152,8 +156,10 @@ export default function HomeScreen() {
             <Ionicons name="camera" size={24} color="#2196F3" />
           </View>
           <View style={styles.quickActionContent}>
-            <Text style={styles.quickActionTitle}>Analyze</Text>
-            <Text style={styles.quickActionSubtitle}>Scan your skin</Text>
+            <Text style={styles.quickActionTitle}>{t('home.analyze')}</Text>  
+            <Text style={styles.quickActionSubtitle}>
+              {t('home.scanSkin')}  
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
@@ -167,8 +173,10 @@ export default function HomeScreen() {
             <Ionicons name="receipt" size={24} color="#FF9800" />
           </View>
           <View style={styles.quickActionContent}>
-            <Text style={styles.quickActionTitle}>Orders</Text>
-            <Text style={styles.quickActionSubtitle}>Track orders</Text>
+            <Text style={styles.quickActionTitle}>{t('home.orders')}</Text>  
+            <Text style={styles.quickActionSubtitle}>
+              {t('home.trackOrders')}  
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
@@ -182,10 +190,10 @@ export default function HomeScreen() {
               <View style={[styles.sectionIcon, { backgroundColor: '#FFE8E8' }]}>
                 <Ionicons name="flame" size={18} color="#FF3B30" />
               </View>
-              <Text style={styles.sectionTitle}>Hot Deals</Text>
+              <Text style={styles.sectionTitle}>{t('home.hotDeals')}</Text>  
             </View>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={[styles.seeAllText, { color: primaryColor }]}>See All →</Text>
+              <Text style={[styles.seeAllText, { color: primaryColor }]}>{t('home.seeAll')}</Text>  
             </TouchableOpacity>
           </View>
           
@@ -216,7 +224,7 @@ export default function HomeScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
               <Ionicons name="grid" size={18} color={primaryColor} />
             </View>
-            <Text style={styles.sectionTitle}>Categories</Text>
+            <Text style={styles.sectionTitle}>{t('home.categories')}</Text>  
           </View>
         </View>
         
@@ -225,7 +233,7 @@ export default function HomeScreen() {
             <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
               <ActivityIndicator size="small" color={primaryColor} />
             </View>
-            <Text style={styles.loadingText}>Loading categories...</Text>
+            <Text style={styles.loadingText}>{t('home.loadingCategories')}</Text>  
           </View>
         ) : (
           <ScrollView 
@@ -276,7 +284,7 @@ export default function HomeScreen() {
           <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
             <Ionicons name="sparkles" size={18} color="#34C759" />
           </View>
-          <Text style={styles.sectionTitle}>All Products</Text>
+          <Text style={styles.sectionTitle}>{t('home.allProducts')}</Text>  
         </View>
         <View style={styles.productCount}>
           <Text style={styles.productCountText}>{pagination?.total || 0}</Text>
@@ -298,7 +306,7 @@ export default function HomeScreen() {
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Oops!</Text>
+          <Text style={styles.errorTitle}>{t('home.oops')}</Text>  
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: primaryColor }]} 
@@ -306,7 +314,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('home.tryAgain')}</Text>  
           </TouchableOpacity>
         </View>
       </View>
@@ -362,7 +370,7 @@ export default function HomeScreen() {
               <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
                 <ActivityIndicator size="large" color={primaryColor} />
               </View>
-              <Text style={styles.loadingText}>Loading products...</Text>
+              <Text style={styles.loadingText}>{t('home.loadingProducts')}</Text>  
             </View>
           ) : null
         }
@@ -370,7 +378,7 @@ export default function HomeScreen() {
           loadingMore ? (
             <View style={styles.loadingMore}>
               <ActivityIndicator size="small" color={primaryColor} />
-              <Text style={styles.loadingMoreText}>Loading more products...</Text>
+              <Text style={styles.loadingMoreText}>{t('home.loadingMoreProducts')}</Text>  
             </View>
           ) : (
             <View style={{ height: 20 }} />

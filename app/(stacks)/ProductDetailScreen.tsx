@@ -22,6 +22,7 @@ import tokenService from '@/services/tokenService';
 import { useCartCount } from '@/hooks/userCartCount';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import ReviewsComponent from '@/components/ReviewsComponent';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,11 +110,11 @@ export default function ProductDetailScreen() {
 
       if (!token) {
         Alert.alert(
-          'Authentication Required',
-          'Please log in to add items to your cart',
+          t('productDetail.authRequired'),
+          t('productDetail.loginToAddCart'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Log In', onPress: () => router.push('/WelcomeScreen') }
+            { text: t('productDetail.cancel'), style: 'cancel' },
+            { text: t('productDetail.logIn'), onPress: () => router.push('/WelcomeScreen') }
           ]
         );
         return;
@@ -126,11 +128,11 @@ export default function ProductDetailScreen() {
       await refreshCount();
 
       Alert.alert(
-        'Added to Cart',
-        `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${product.productName} added to your cart`,
+        t('productDetail.addedToCart'),
+        t('productDetail.itemsAdded', { quantity, item: quantity === 1 ? t('productDetail.item') : t('productDetail.items'), productName: product.productName }),
         [
-          { text: 'Continue Shopping', style: 'cancel' },
-          { text: 'View Cart', onPress: () => router.push('/(tabs)/CartScreen') }
+          { text: t('productDetail.continueShopping'), style: 'cancel' },
+          { text: t('productDetail.viewCart'), onPress: () => router.push('/(tabs)/CartScreen') }
         ]
       );
 
@@ -142,20 +144,46 @@ export default function ProductDetailScreen() {
 
       if (err.message) {
         if (err.message.includes('không có sẵn') || err.message.includes('not available')) {
-          errorMessage = 'This product is currently out of stock in all warehouses.';
+          errorMessage = t('productDetail.outOfStock');
         } else if (err.message.includes('quantity') || err.message.includes('số lượng')) {
-          errorMessage = 'The requested quantity is not available.';
+          errorMessage = t('productDetail.quantityNotAvailable');
         } else if (err.message.includes('token') || err.message.includes('auth')) {
-          errorMessage = 'Your session has expired. Please log in again.';
+          errorMessage = t('productDetail.sessionExpired');
         } else {
           errorMessage = err.message;
         }
       }
 
-      Alert.alert('Cannot Add to Cart', errorMessage, [{ text: 'OK' }]);
+      Alert.alert(t('productDetail.cannotAddToCart'), errorMessage, [{ text: t('productDetail.ok') }]);
     } finally {
       setIsAddingToCart(false);
     }
+  };
+
+  // --- Helper to clean suitableFor data ---
+  const getCleanSuitableFor = (data: any): string[] => {
+    if (!data) return [];
+    
+    let items: string[] = [];
+
+    if (Array.isArray(data)) {
+      items = data;
+    } else if (typeof data === 'string') {
+      // If it's a string like '["oily", "dry"]', parse it
+      try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) items = parsed;
+        else items = [data];
+      } catch (e) {
+        // If not JSON, maybe comma separated?
+        items = data.split(',').map(s => s.trim());
+      }
+    }
+
+    // Final cleanup: remove quotes, brackets if they somehow persisted in string items
+    return items.map(item => {
+        return item.replace(/[\[\]"]/g, '').trim(); // Removes [ ] " characters
+    }).filter(item => item.length > 0);
   };
 
   if (isLoading) {
@@ -164,7 +192,7 @@ export default function ProductDetailScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={primaryColor} />
-          <Text style={styles.loadingText}>Loading product...</Text>
+          <Text style={styles.loadingText}>{t('productDetail.loading')}</Text>
         </View>
       </View>
     );
@@ -178,15 +206,15 @@ export default function ProductDetailScreen() {
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Oops!</Text>
-          <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+          <Text style={styles.errorTitle}>{t('productDetail.oops')}</Text>
+          <Text style={styles.errorText}>{error || t('productDetail.productNotFound')}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: primaryColor }]} 
             onPress={fetchProductDetails}
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('productDetail.tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -199,6 +227,9 @@ export default function ProductDetailScreen() {
   const reviewCount = reviewStats?.totalReviews || 0;
   const stockStatus = productService.getStockStatus(product);
   const hasDiscount = parseFloat(product.salePercentage) > 0;
+
+  // Clean tags
+  const suitableForTags = getCleanSuitableFor(product.suitableFor);
 
   return (
     <View style={styles.container}>
@@ -317,11 +348,11 @@ export default function ProductDetailScreen() {
                 ))}
               </View>
               <Text style={styles.ratingValue}>
-                {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews'}
+                {avgRating > 0 ? avgRating.toFixed(1) : t('productDetail.noReviews')}
               </Text>
             </View>
             <Text style={styles.reviewCount}>
-              {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+              {reviewCount} {reviewCount === 1 ? t('productDetail.review') : t('productDetail.reviews')}
             </Text>
           </View>
 
@@ -345,9 +376,29 @@ export default function ProductDetailScreen() {
               </Text>
             )}
             <Text style={styles.stockInfo}>
-              <Ionicons name="cube" size={14} color="#666" /> {product.stock} units available
+              <Ionicons name="cube" size={14} color="#666" /> {t('productDetail.unitsAvailable', { stock: product.stock })}
             </Text>
           </View>
+
+          {/* Categories */}
+          {product.categories && product.categories.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="grid" size={18} color="#A855F7" />
+                </View>
+                <Text style={styles.sectionTitle}>{t('productDetail.categories')}</Text>
+              </View>
+              <View style={styles.tagsContainer}>
+                {product.categories.map((category) => (
+                  <View key={category.categoryId} style={styles.categoryTag}>
+                    <Ionicons name="pricetag" size={14} color="#666" />
+                    <Text style={styles.categoryTagText}>{category.categoryName}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Description */}
           <View style={styles.section}>
@@ -355,24 +406,25 @@ export default function ProductDetailScreen() {
               <View style={[styles.sectionIcon, { backgroundColor: '#F0F9FF' }]}>
                 <Ionicons name="document-text" size={18} color="#2196F3" />
               </View>
-              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.sectionTitle}>{t('productDetail.description')}</Text>
             </View>
             <Text style={styles.description}>{product.productDescription}</Text>
           </View>
 
-          {/* Suitable For */}
-          {product.suitableFor && product.suitableFor.length > 0 && (
+          {/* Suitable For (Corrected) */}
+          {suitableForTags.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
                   <Ionicons name="checkmark-done" size={18} color="#34C759" />
                 </View>
-                <Text style={styles.sectionTitle}>Suitable For</Text>
+                <Text style={styles.sectionTitle}>{t('productDetail.suitableFor')}</Text>
               </View>
               <View style={styles.tagsContainer}>
-                {product.suitableFor.map((item, index) => (
+                {suitableForTags.map((item, index) => (
                   <View key={index} style={[styles.tag, { backgroundColor: `${primaryColor}12` }]}>
                     <Ionicons name="checkmark-circle" size={14} color={primaryColor} />
+                    {/* Use the cleaned item text here */}
                     <Text style={[styles.tagText, { color: primaryColor }]}>{item}</Text>
                   </View>
                 ))}
@@ -387,30 +439,10 @@ export default function ProductDetailScreen() {
                 <View style={[styles.sectionIcon, { backgroundColor: '#FFF4E6' }]}>
                   <Ionicons name="flask" size={18} color="#FF9800" />
                 </View>
-                <Text style={styles.sectionTitle}>Ingredients</Text>
+                <Text style={styles.sectionTitle}>{t('productDetail.ingredients')}</Text>
               </View>
               <View style={styles.ingredientsCard}>
                 <Text style={styles.ingredients}>{product.ingredients}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Categories */}
-          {product.categories && product.categories.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="grid" size={18} color="#A855F7" />
-                </View>
-                <Text style={styles.sectionTitle}>Categories</Text>
-              </View>
-              <View style={styles.tagsContainer}>
-                {product.categories.map((category) => (
-                  <View key={category.categoryId} style={styles.categoryTag}>
-                    <Ionicons name="pricetag" size={14} color="#666" />
-                    <Text style={styles.categoryTagText}>{category.categoryName}</Text>
-                  </View>
-                ))}
               </View>
             </View>
           )}
@@ -447,7 +479,6 @@ export default function ProductDetailScreen() {
         ]}
       >
         <View style={styles.quantitySection}>
-          <Text style={styles.quantityLabel}>Quantity</Text>
           <View style={styles.quantityControls}>
             <TouchableOpacity
               style={[styles.quantityButton, quantity <= 1 && styles.quantityButtonDisabled]}
@@ -481,13 +512,13 @@ export default function ProductDetailScreen() {
           {isAddingToCart ? (
             <>
               <ActivityIndicator size="small" color="#FFFFFF" />
-              <Text style={styles.addToCartText}>Adding...</Text>
+              <Text style={styles.addToCartText}>{t('productDetail.adding')}</Text>
             </>
           ) : (
             <>
               <Ionicons name="cart" size={20} color="#FFFFFF" />
               <Text style={styles.addToCartText}>
-                {productService.isInStock(product) ? 'Add to Cart' : 'Out of Stock'}
+                {productService.isInStock(product) ? t('productDetail.addToCart') : t('productDetail.outOfStockBtn')}
               </Text>
               {productService.isInStock(product) && (
                 <View style={styles.cartArrow}>
@@ -842,6 +873,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontWeight: '700',
+    textTransform: 'capitalize', // Ensure consistent capitalization
   },
   categoryTag: {
     flexDirection: 'row',

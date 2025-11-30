@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Alert } from 'react-native';
 import { useNotificationWebSocket } from '@/hooks/useNotificationWebSocket';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 export default function HeaderComponent() {
   const [searchText, setSearchText] = useState('');
@@ -14,16 +15,17 @@ export default function HeaderComponent() {
   const { logout } = useAuth();
   const { unreadCount } = useNotificationWebSocket();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
   // Animation refs
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.9)).current;
 
   const menuItems = [
-    { name: 'Profile', icon: 'person', url: 'ProfileScreen' },
-    { name: 'Settings', icon: 'settings', url: 'SettingsScreen' },
-    { name: 'About us', icon: 'information-circle', url: 'AboutScreen' },
-    { name: 'Logout', icon: 'log-out', url: 'WelcomeScreen' },
+    { name: t('profile.title'), icon: 'person', url: 'ProfileScreen' },
+    { name: t('settings.title'), icon: 'settings', url: 'SettingsScreen' },
+    { name: t('settings.about'), icon: 'information-circle', url: 'AboutScreen' },
+    { name: t('profile.logout'), icon: 'log-out', url: 'WelcomeScreen' },
   ]
 
   const handleSearchFocus = () => {
@@ -55,12 +57,12 @@ export default function HeaderComponent() {
     handleMenuPress(); // Close menu with animation
     if (path === 'WelcomeScreen') {
       Alert.alert(
-        'Logout',
-        'Are you sure you want to logout?',
+        t('profile.logout'),
+        t('profile.logoutConfirm'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('profile.cancel'), style: 'cancel' },
           {
-            text: 'Logout',
+            text: t('profile.logout'),
             style: 'destructive',
             onPress: async () => {
               await logout();
@@ -82,7 +84,7 @@ export default function HeaderComponent() {
         onPress={handleSearchFocus}
       >
         <Ionicons name="search" size={20} color={primaryColor} style={styles.searchIcon} />
-        <Text style={styles.searchPlaceholder}>Search skincare products...</Text>
+        <Text style={styles.searchPlaceholder}>{t('header.searchPlaceholder')}</Text>
       </TouchableOpacity>
       
       {/* Notification Icon */}

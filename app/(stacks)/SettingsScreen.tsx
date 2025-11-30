@@ -17,6 +17,8 @@ import ColorPicker from 'react-native-wheel-color-picker';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@/hooks/useLanguage';  // Add this import (or use '@/contexts/LanguageContext' if not creating a separate hook file)
 
+type Language = 'en' | 'vi';
+
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const { themeColor, setThemeColor, primaryColor, customColor, setCustomColor } = useThemeColor();

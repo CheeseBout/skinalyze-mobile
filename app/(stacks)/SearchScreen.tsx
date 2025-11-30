@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import productService, { Product } from '@/services/productService'
 import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
+import { useTranslation  } from 'react-i18next'
 
 const { width } = Dimensions.get('window')
 const CARD_WIDTH = (width - 60) / 2
@@ -75,6 +76,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams()
   const { categoryId, categoryName } = params
   const { primaryColor } = useThemeColor()
+  const { t } = useTranslation();
 
   // Search State
   const [searchState, setSearchState] = useState<SearchState>({
@@ -378,7 +380,7 @@ export default function SearchScreen() {
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search skincare products..."
+          placeholder={t('search.placeholder')}
           placeholderTextColor="#999"
           value={searchState.query}
           onChangeText={(text) => setSearchState(prev => ({ ...prev, query: text }))}
@@ -418,7 +420,7 @@ export default function SearchScreen() {
           <View style={[styles.filterIconWrapper, { backgroundColor: '#F0F9FF' }]}>
             <Ionicons name="water" size={16} color="#2196F3" />
           </View>
-          <Text style={styles.filterTitle}>Skin Type</Text>
+          <Text style={styles.filterTitle}>{t('search.skinType')}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
           <TouchableOpacity
@@ -432,7 +434,7 @@ export default function SearchScreen() {
             <Text style={[
               styles.filterChipText,
               !filters.skinType && styles.filterChipTextActive
-            ]}>All Types</Text>
+            ]}>{t('search.allTypes')}</Text>
           </TouchableOpacity>
           {SKIN_TYPES.map(type => (
             <TouchableOpacity
@@ -447,7 +449,7 @@ export default function SearchScreen() {
               <Text style={[
                 styles.filterChipText,
                 filters.skinType === type.id && styles.filterChipTextActive
-              ]}>{type.label}</Text>
+              ]}>{t('search.' + type.id)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -459,7 +461,7 @@ export default function SearchScreen() {
           <View style={[styles.filterIconWrapper, { backgroundColor: '#FFF4E6' }]}>
             <Ionicons name="cash" size={16} color="#FF9800" />
           </View>
-          <Text style={styles.filterTitle}>Price Range</Text>
+          <Text style={styles.filterTitle}>{t('search.priceRange')}</Text>
         </View>
         <View style={styles.priceInputs}>
           <TextInput
@@ -490,7 +492,7 @@ export default function SearchScreen() {
           <View style={[styles.checkbox, filters.inStock && [styles.checkboxChecked, { backgroundColor: primaryColor }]]}>
             {filters.inStock && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
           </View>
-          <Text style={styles.inStockText}>In Stock Only</Text>
+          <Text style={styles.inStockText}>{t('search.inStockOnly')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -500,7 +502,7 @@ export default function SearchScreen() {
           <View style={[styles.filterIconWrapper, { backgroundColor: '#FFF4E6' }]}>
             <Ionicons name="swap-vertical" size={16} color="#FF9800" />
           </View>
-          <Text style={styles.filterTitle}>Sort By</Text>
+          <Text style={styles.filterTitle}>{t('search.sortBy')}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
           {SORT_OPTIONS.map(option => (
@@ -521,7 +523,7 @@ export default function SearchScreen() {
               <Text style={[
                 styles.filterChipText,
                 filters.sortBy === option.id && styles.filterChipTextActive
-              ]}>{option.label}</Text>
+              ]}>{t('search.' + option.id)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -544,9 +546,9 @@ export default function SearchScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
             <Ionicons name="search" size={56} color={primaryColor} />
           </View>
-          <Text style={styles.emptyTitle}>Search Products</Text>
+          <Text style={styles.emptyTitle}>{t('search.searchProducts')}</Text>
           <Text style={styles.emptySubtitle}>
-            Find your perfect skincare products
+            {t('search.findPerfect')}
           </Text>
 
           {/* Popular Searches */}
@@ -555,7 +557,7 @@ export default function SearchScreen() {
               <View style={[styles.suggestionIconWrapper, { backgroundColor: '#F0FDF4' }]}>
                 <Ionicons name="trending-up" size={16} color="#34C759" />
               </View>
-              <Text style={styles.suggestionsTitle}>Popular Searches</Text>
+              <Text style={styles.suggestionsTitle}>{t('search.popularSearches')}</Text>
             </View>
             <View style={styles.suggestionsGrid}>
               {POPULAR_SEARCHES.map((search, index) => (
@@ -580,7 +582,7 @@ export default function SearchScreen() {
                 <View style={[styles.suggestionIconWrapper, { backgroundColor: '#F3E8FF' }]}>
                   <Ionicons name="time" size={16} color="#A855F7" />
                 </View>
-                <Text style={styles.suggestionsTitle}>Recent Searches</Text>
+                <Text style={styles.suggestionsTitle}>{t('search.recentSearches')}</Text>
               </View>
               <View style={styles.recentSearches}>
                 {recentSearches.map((search, index) => (
@@ -620,9 +622,9 @@ export default function SearchScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="sad-outline" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.emptyTitle}>No Products Found</Text>
+          <Text style={styles.emptyTitle}>{t('search.noProductsFound')}</Text>
           <Text style={styles.emptySubtitle}>
-            Try adjusting your search or filters
+            {t('search.tryAdjusting')}
           </Text>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: primaryColor }]} 
@@ -630,7 +632,7 @@ export default function SearchScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={18} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Clear Filters</Text>
+            <Text style={styles.actionButtonText}>{t('search.clearFilters')}</Text>
           </TouchableOpacity>
         </Animated.View>
       )
@@ -663,7 +665,7 @@ export default function SearchScreen() {
               <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
             </View>
             <Text style={styles.resultsText}>
-              {totalCount} {totalCount === 1 ? 'product' : 'products'}
+              {totalCount} {totalCount === 1 ? t('search.product') : t('search.products')}
             </Text>
           </View>
           {hasActiveFilters && (
@@ -671,7 +673,7 @@ export default function SearchScreen() {
               onPress={resetFilters}
               activeOpacity={0.7}
             >
-              <Text style={[styles.clearFiltersLink, { color: primaryColor }]}>Reset</Text>
+              <Text style={[styles.clearFiltersLink, { color: primaryColor }]}>{t('search.reset')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -690,7 +692,7 @@ export default function SearchScreen() {
             searchState.loadingMore ? (
               <View style={styles.loadingMore}>
                 <ActivityIndicator size="small" color={primaryColor} />
-                <Text style={styles.loadingMoreText}>Loading more products...</Text>
+                <Text style={styles.loadingMoreText}>{t('search.loadingMore')}</Text>
               </View>
             ) : null
           }
@@ -725,7 +727,7 @@ export default function SearchScreen() {
           <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
             <ActivityIndicator size="large" color={primaryColor} />
           </View>
-          <Text style={styles.loadingText}>Searching products...</Text>
+          <Text style={styles.loadingText}>{t('search.searchingProducts')}</Text>
         </View>
       </View>
     )
@@ -756,7 +758,7 @@ export default function SearchScreen() {
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Oops!</Text>
+          <Text style={styles.errorTitle}>{t('search.oops')}</Text>
           <Text style={styles.errorText}>{searchState.error}</Text>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: primaryColor }]} 
@@ -764,7 +766,7 @@ export default function SearchScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={18} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Try Again</Text>
+            <Text style={styles.actionButtonText}>{t('search.tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       </View>

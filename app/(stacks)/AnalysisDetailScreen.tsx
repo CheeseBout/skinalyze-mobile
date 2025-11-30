@@ -1,12 +1,12 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  StatusBar,
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Image, 
+  TouchableOpacity, 
+  Dimensions, 
+  StatusBar, 
   Animated
 } from 'react-native';
 import React, { useState, useRef, useEffect } from 'react';
@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';  
 
 const { width } = Dimensions.get('window');
 
@@ -52,67 +52,64 @@ export default function AnalysisDetailScreen() {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
         <View style={styles.errorContainer}>
-          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
-            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
-          </View>
-          <Text style={styles.errorTitle}>{t('analysis.noData')}</Text>
-          <Text style={styles.errorText}>{t('analysis.unableLoad')}</Text>
-          <TouchableOpacity
-            style={[styles.errorButton, { backgroundColor: primaryColor }]}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            <Text style={styles.errorButtonText}>{t('analysis.goBack')}</Text>
-          </TouchableOpacity>
+          <Text style={styles.errorText}>{t('analysis.noData')}</Text>
         </View>
       </View>
     );
   }
 
+  const isManual = result.source === 'MANUAL';
   const isConditionDetection = result.aiDetectedCondition !== null;
   const isDiseaseDetection = result.aiDetectedDisease !== null;
   const imageUrl = result.imageUrls[0];
-  const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
 
-  // Handle Ask AI Logic
-  const handleAskAI = (path: any) => {
-    const analysisText = `I have a skin analysis result that I'd like to understand better:
+  // Determine Display Values based on Source
+  let displayTitle = '';
+  let displayType = '';
+  let displayDescription = '';
+  let detectionColor = primaryColor;
 
-Detection Type: ${isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')}
-Result: ${isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
-Date: ${new Date(result.createdAt).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })}
-Source: ${result.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manual')}
-
-${result.chiefComplaint ? `Chief Complaint: ${result.chiefComplaint}\n` : ''}${result.patientSymptoms ? `Symptoms: ${result.patientSymptoms}\n` : ''}${result.notes ? `Notes: ${result.notes}\n` : ''}
-Can you provide more information about this condition and suggest what steps I should take?`;
-
-    router.push({
-      pathname: '/(tabs)/ChatbotScreen',
-      params: {
-        prefillText: analysisText,
-        prefillImage: imageUrl,
-      }
-    })
+  if (isManual) {
+    displayTitle = result.chiefComplaint || t('analysis.manual');
+    displayType = t('analysis.manual');
+    displayDescription = result.patientSymptoms || result.notes || 'No details provided.';
+    detectionColor = '#666'; // Neutral color for manual
+  } else if (isConditionDetection) {
+    displayTitle = t('analysis.' + result.aiDetectedCondition);
+    displayType = t('analysis.condition');
+    displayDescription = t('analysis.' + result.aiDetectedCondition + '_desc');
+    detectionColor = primaryColor;
+  } else {
+    displayTitle = t('analysis.' + result.aiDetectedDisease);
+    displayType = t('analysis.disease');
+    displayDescription = t('analysis.' + result.aiDetectedDisease + '_desc');
+    detectionColor = '#E91E63';
   }
 
   // Mask Logic
   let maskUrl: string | null = null;
-  if (result.mask) {
+  if (!isManual && result.mask) {
     if (Array.isArray(result.mask) && result.mask.length > 0) {
       maskUrl = result.mask[0];
     } else if (typeof result.mask === 'string') {
       maskUrl = result.mask;
     }
+  }
+
+  const handleAskAI = () => {
+    const analysisText = `I have a skin analysis result:
+    Type: ${displayType}
+    Result: ${displayTitle}
+    Source: ${result.source}
+    Description: ${displayDescription}
+    
+    Can you explain this condition and suggest skincare routines?`;
+
+    router.push({
+      pathname: '/(tabs)/ChatbotScreen',
+      params: { prefillText: analysisText }
+    });
   }
 
   return (
@@ -132,7 +129,7 @@ Can you provide more information about this condition and suggest what steps I s
               resizeMode="cover"
             />
 
-            {/* Mask Overlay */}
+            {/* Mask Overlay (Only for AI Disease) */}
             {isDiseaseDetection && maskUrl && showMask && (
               <View style={styles.maskContainer}>
                 <Image
@@ -143,12 +140,10 @@ Can you provide more information about this condition and suggest what steps I s
                 <View style={styles.redTintOverlay} />
               </View>
             )}
-
-            {/* Gradient Overlay */}
+            
             <View style={styles.gradientOverlay} />
           </View>
 
-          {/* Header Overlay */}
           <View style={styles.headerOverlay}>
             <TouchableOpacity
               style={styles.overlayButton}
@@ -160,7 +155,7 @@ Can you provide more information about this condition and suggest what steps I s
             <View style={styles.overlayButton} />
           </View>
 
-          {/* Mask Toggle Button */}
+          {/* Mask Toggle (Only for AI Disease) */}
           {isDiseaseDetection && maskUrl && result.aiDetectedDisease?.toLowerCase() !== "normal" && (
             <View style={styles.maskControls}>
               <TouchableOpacity
@@ -178,116 +173,97 @@ Can you provide more information about this condition and suggest what steps I s
                     color={showMask ? '#FFFFFF' : detectionColor}
                   />
                 </View>
-                <Text style={[
-                  styles.maskToggleText,
-                  showMask && styles.maskToggleTextActive
-                ]}>
-                  {showMask ? t('analysis.hideMask') : t('analysis.showMask')}
+                <Text style={[styles.maskToggleText, showMask && styles.maskToggleTextActive]}>
+                  {showMask ? t('analysis.hideMask') : t('analysis.showMask')} 
                 </Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Content Section */}
         <View style={styles.contentSection}>
           
-          {/* Unified Analysis Card */}
+          {/* Diagnosis Card */}
           <Animated.View
             style={[
-              styles.unifiedCard,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+              styles.resultCard,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
             ]}
           >
-            {/* Header: Icon, Title, Type */}
-            <View style={styles.unifiedHeader}>
+            <View style={styles.resultHeader}>
               <View style={[styles.resultIconWrapper, { backgroundColor: `${detectionColor}15` }]}>
                 <View style={[styles.resultIcon, { backgroundColor: detectionColor }]}>
                   <Ionicons
-                    name={isConditionDetection ? 'water' : 'medical'}
+                    name={isManual ? 'create' : (isConditionDetection ? 'water' : 'medical')}
                     size={28}
                     color="#FFFFFF"
                   />
                 </View>
               </View>
               
-              <View style={styles.unifiedHeaderText}>
-                 {/* Type Badge */}
-                 <View style={[styles.typeBadge, { backgroundColor: `${detectionColor}10`, borderColor: `${detectionColor}30` }]}>
-                  <Text style={[styles.typeBadgeText, { color: detectionColor }]}>
-                    {isConditionDetection ? t('analysis.condition') : t('analysis.disease')}
-                  </Text>
+              <View style={styles.resultTitleContainer}>
+                <Text style={styles.resultLabel}>{displayType}</Text>
+                <Text style={[styles.resultValue, { color: detectionColor }]}>
+                  {displayTitle}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.resultDivider} />
+
+            <View style={styles.descriptionContainer}>
+              <View style={styles.descriptionHeaderRow}>
+                <Ionicons name="information-circle-outline" size={18} color="#666" />
+                <Text style={styles.descriptionLabel}>{t('analysis.analysisDetails')}</Text>
+              </View>
+              <Text style={styles.resultDescription}>
+                {displayDescription}
+              </Text>
+            </View>
+          </Animated.View>
+
+          {/* Metadata Grid */}
+          <Animated.View
+            style={[
+              styles.detailsSection,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <Text style={styles.sectionTitle}>{t('analysis.analysisDetails')}</Text> 
+
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
+                  <Ionicons name="calendar" size={20} color="#2196F3" />
                 </View>
-                
-                {/* Result Name */}
-                <Text style={styles.resultTitle}>
-                  {isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Description Box */}
-            <View style={styles.descriptionBox}>
-               <Text style={styles.descriptionLabel}>{t('analysis.analysisDetails')}</Text>
-               <Text style={styles.descriptionText}>
-                  {isConditionDetection 
-                    ? t('analysis.' + result.aiDetectedCondition + '_desc') 
-                    : t('analysis.' + result.aiDetectedDisease + '_desc')}
-               </Text>
-            </View>
-
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* Footer: Date, Time, Source */}
-            <View style={styles.infoFooter}>
-              {/* Date */}
-              <View style={styles.infoItem}>
-                <Ionicons name="calendar-outline" size={16} color="#999" style={{ marginBottom: 4 }} />
-                <Text style={styles.infoValue}>
+                <Text style={styles.detailLabel}>{t('analysis.date')}</Text> 
+                <Text style={styles.detailValue}>
                   {new Date(result.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
+                    month: 'short', day: 'numeric', year: 'numeric'
                   })}
                 </Text>
-                <Text style={styles.infoLabel}>{t('analysis.date')}</Text>
               </View>
 
-              <View style={styles.verticalDivider} />
-
-              {/* Time */}
-              <View style={styles.infoItem}>
-                <Ionicons name="time-outline" size={16} color="#999" style={{ marginBottom: 4 }} />
-                <Text style={styles.infoValue}>
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#FFF4E6' }]}>
+                  <Ionicons name="time" size={20} color="#FF9800" />
+                </View>
+                <Text style={styles.detailLabel}>{t('analysis.time')}</Text> 
+                <Text style={styles.detailValue}>
                   {new Date(result.createdAt).toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    hour: '2-digit', minute: '2-digit'
                   })}
                 </Text>
-                <Text style={styles.infoLabel}>{t('analysis.time')}</Text>
               </View>
 
-              <View style={styles.verticalDivider} />
-
-              {/* Source */}
-              <View style={styles.infoItem}>
-                <Ionicons 
-                  name={result.source === 'AI_SCAN' ? 'sparkles-outline' : 'create-outline'} 
-                  size={16} 
-                  color={result.source === 'AI_SCAN' ? '#A855F7' : '#999'} 
-                  style={{ marginBottom: 4 }} 
-                />
-                <Text style={[
-                  styles.infoValue, 
-                  result.source === 'AI_SCAN' && { color: '#A855F7', fontWeight: '800' }
-                ]}>
-                  {result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                  <Ionicons name={isManual ? 'create' : 'sparkles'} size={20} color="#34C759" />
+                </View>
+                <Text style={styles.detailLabel}>{t('analysis.source')}</Text> 
+                <Text style={styles.detailValue}>
+                  {isManual ? t('analysis.manual') : t('analysis.aiScan')} 
                 </Text>
-                <Text style={styles.infoLabel}>{t('analysis.source')}</Text>
               </View>
             </View>
           </Animated.View>
@@ -296,48 +272,43 @@ Can you provide more information about this condition and suggest what steps I s
           <Animated.View
             style={[
               styles.disclaimer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
             ]}
           >
             <View style={styles.disclaimerHeader}>
               <View style={styles.disclaimerIconWrapper}>
                 <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
               </View>
-              <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text>
+              <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text> 
             </View>
             <Text style={styles.disclaimerText}>
-              {t('analysis.disclaimerText')}
+              {t('analysis.disclaimerText')} 
             </Text>
           </Animated.View>
 
-          {/* Action Buttons */}
+          {/* Actions */}
           <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }}
+            style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
           >
             <TouchableOpacity
               style={[styles.askAIButton, { backgroundColor: '#F5F5F5', borderColor: detectionColor }]}
               onPress={handleAskAI}
               activeOpacity={0.8}
             >
-              <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}20` }]}>
-                <Ionicons name="sparkles" size={20} color={detectionColor} />
+              <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}15` }]}>
+                <Ionicons name="chatbubbles" size={20} color={detectionColor} />
               </View>
-              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text>
+              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text> 
+              <Ionicons name="arrow-forward" size={18} color={detectionColor} />
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text>
+              <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -353,27 +324,13 @@ const styles = StyleSheet.create({
   },
   backgroundPattern: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-    overflow: 'hidden',
+    top: 0, left: 0, right: 0, height: 400, overflow: 'hidden',
   },
   circle1: {
-    position: 'absolute',
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    top: -150,
-    right: -80,
+    position: 'absolute', width: 350, height: 350, borderRadius: 175, top: -150, right: -80,
   },
   circle2: {
-    position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    top: -80,
-    left: -60,
+    position: 'absolute', width: 250, height: 250, borderRadius: 125, top: -80, left: -60,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -399,6 +356,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     opacity: 0.6,
+    transform: [{ scaleX: -1 }],
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -406,18 +364,13 @@ const styles = StyleSheet.create({
   },
   gradientOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 150,
+    top: 0, left: 0, right: 0, height: 150,
     backgroundColor: 'transparent',
     backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
   },
   headerOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 0, left: 0, right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -426,84 +379,62 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   overlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   maskControls: {
-    position: 'absolute',
-    bottom: 20,
-    left: 24,
-    right: 24,
+    position: 'absolute', bottom: 20, left: 24, right: 24,
   },
   maskToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: '#FFFFFF', paddingVertical: 14, paddingHorizontal: 20,
+    borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   maskToggleActive: {
-    backgroundColor: '#007AFF',
+    // backgroundColor set inline
   },
   maskToggleIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
   maskToggleIconActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   maskToggleText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontSize: 14, fontWeight: '700', color: '#1A1A1A',
   },
   maskToggleTextActive: {
     color: '#FFFFFF',
   },
   contentSection: {
     padding: 24,
+    marginTop: -20, 
   },
-  
-  // UNIFIED CARD STYLES
-  unifiedCard: {
+  resultCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 20,
+    padding: 24,
     marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  unifiedHeader: {
+  resultHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 16,
     marginBottom: 20,
   },
   resultIconWrapper: {
     width: 64,
     height: 64,
-    borderRadius: 18,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -519,83 +450,99 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  unifiedHeaderText: {
+  resultTitleContainer: {
     flex: 1,
-    paddingTop: 4,
   },
-  typeBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+  resultLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#666',
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  resultTitle: {
-    fontSize: 22,
+  resultValue: {
+    fontSize: 24,
     fontWeight: '800',
-    color: '#1A1A1A',
-    lineHeight: 28,
+    lineHeight: 30,
+    letterSpacing: -0.5,
   },
-  descriptionBox: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 16,
+  resultDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
     marginBottom: 20,
+  },
+  descriptionContainer: {
+    backgroundColor: '#FAFAFA',
+    padding: 16,
+    borderRadius: 16,
+  },
+  descriptionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
   descriptionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#444',
-    marginBottom: 6,
-    textTransform: 'uppercase',
+    color: '#666',
   },
-  descriptionText: {
-    fontSize: 15,
+  resultDescription: {
+    fontSize: 14,
     fontWeight: '400',
-    color: '#444',
+    color: '#333',
     lineHeight: 22,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#EEEEEE',
-    marginBottom: 20,
+  detailsSection: {
+    marginBottom: 24,
   },
-  infoFooter: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  detailsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  detailCard: {
+    width: (width - 60) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  infoItem: {
-    flex: 1,
+  detailIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  verticalDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#EEEEEE',
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  infoValue: {
+  detailValue: {
     fontSize: 13,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 2,
     textAlign: 'center',
   },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#999',
-    textTransform: 'uppercase',
-  },
-
-  // Disclaimer Styles
   disclaimer: {
     backgroundColor: '#FFF8E1',
     borderRadius: 16,
@@ -629,8 +576,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '500',
   },
-  
-  // Button Styles
   askAIButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -640,23 +585,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   askAIIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   askAIText: {
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.2,
   },
   actionButton: {
     flexDirection: 'row',
@@ -678,8 +617,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-
-  // Error Styles
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
