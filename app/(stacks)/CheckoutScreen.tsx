@@ -222,7 +222,8 @@ export default function CheckoutScreen() {
                   params: {
                     paymentCode: order.payment.paymentCode || '',
                     expiredAt: order.payment.expiredAt || '',
-                    appointmentId: '', // Add if needed (not in original, but PaymentScreen uses it)
+                    appointmentId: '', 
+                    orderId: order.orderId,
                     bankingInfo: JSON.stringify({
                       bankName: order.payment.bankingInfo?.bankName || '',
                       accountNumber: order.payment.bankingInfo?.accountNumber || '',

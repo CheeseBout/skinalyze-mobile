@@ -15,13 +15,17 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 // Services & Types
 import appointmentService from "@/services/appointmentService";
-// (Import các types mà bạn đã định nghĩa ở lượt trước)
+import orderService from "@/services/orderService";
+import tokenService from "@/services/tokenService";
+import paymentService from "@/services/paymentService"; // Added for payment status
 import {
-  AppointmentWithRelations, // (Giả sử đây là type bao gồm relations)
+  AppointmentWithRelations,
 } from "@/types/appointment.type";
-import { AppointmentType } from "@/types/appointment.type"; // (Import enum)
+import { Order } from "@/services/orderService";
+import { PaymentStatusResponse } from "@/services/paymentService"; // Added
 
 // --- Helpers ---
+// (Helpers remain unchanged)
 const formatTime = (isoDate: string) => {
   if (!isoDate) return "N/A";
   return new Date(isoDate).toLocaleTimeString("en-US", {
@@ -38,10 +42,10 @@ const formatDate = (isoDate: string) => {
     year: "numeric",
   });
 };
-// (Helper mới để format AppointmentType)
-const formatAppointmentType = (type: AppointmentType) => {
-  if (type === AppointmentType.NEW_PROBLEM) return "New Problem";
-  if (type === AppointmentType.FOLLOW_UP) return "Follow-up";
+// (Helper for appointment type - kept for bookings)
+const formatAppointmentType = (type: string) => {
+  if (type === "NEW_PROBLEM") return "New Problem";
+  if (type === "FOLLOW_UP") return "Follow-up";
   return "Appointment";
 };
 // --- End Helpers ---
@@ -49,161 +53,262 @@ const formatAppointmentType = (type: AppointmentType) => {
 export default function PaymentSuccessScreen() {
   const router = useRouter();
 
-  // 1. Lấy appointmentId từ params
-  const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
+  // Updated params: Include paymentCode
+  const { appointmentId, orderId, paymentCode } = useLocalSearchParams<{
+    appointmentId?: string;
+    orderId?: string;
+    paymentCode?: string;
+  }>();
 
-  const [appointment, setAppointment] =
-    useState<AppointmentWithRelations | null>(null);
+  const [appointment, setAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentStatusResponse | null>(null); // Added
   const [isLoading, setIsLoading] = useState(true);
+  const [paymentType, setPaymentType] = useState<"booking" | "purchase" | "other">("booking"); // Updated to include 'other'
 
-  // 2. Gọi API để lấy thông tin chi tiết
   useEffect(() => {
-    if (!appointmentId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchAppointment = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        // (Giả sử service trả về 'data' từ wrapper { statusCode, message, data })
-        const data = await appointmentService.getAppointmentById(appointmentId);
-        setAppointment(data);
+        if (!paymentCode) {
+          throw new Error("Payment code is missing.");
+        }
+
+        // Fetch payment status to get paymentType and other details
+        const paymentStatus = await paymentService.checkPaymentStatus(paymentCode);
+        setPaymentData(paymentStatus);
+
+        // Determine payment type and fetch relevant data
+        if (paymentStatus.paymentType === 'booking') {
+          setPaymentType("booking");
+          if (appointmentId) {
+            const data = await appointmentService.getAppointmentById(appointmentId);
+            setAppointment(data);
+          }
+        } else if (paymentStatus.paymentType === 'order') {
+          setPaymentType("purchase");
+          const orderIdToUse = paymentStatus.order?.orderId || orderId;
+          if (orderIdToUse) {
+            const token = await tokenService.getToken();
+            if (!token) {
+              throw new Error("Authentication token not found. Please log in again.");
+            }
+            const data = await orderService.getOrderById(orderIdToUse, token);
+            setOrder(data);
+          }
+        } else {
+          setPaymentType("other"); // For 'topup', 'subscription', etc.
+        }
       } catch (error) {
-        console.error("Failed to load appointment details:", error);
+        console.error("Failed to load details:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAppointment();
-  }, [appointmentId]);
+    if (paymentCode) {
+      fetchData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [appointmentId, orderId, paymentCode]);
 
-  // 3. Nút điều hướng
-  const goToSchedule = () => {
-    router.replace({ pathname: "/(tabs)/ScheduleScreen" });
+  // Navigation handler (kept similar, but could customize per type if needed)
+  const goToNext = () => {
+    if (paymentType === "booking") {
+      router.replace({ pathname: "/(tabs)/ScheduleScreen" });
+    } else {
+      router.replace({ pathname: "/(tabs)/HomeScreen" }); // Or a purchase history screen
+    }
   };
 
+  // Updated renderContent to handle 'other' type
   const renderContent = () => {
     if (isLoading) {
       return <ActivityIndicator size="large" style={{ marginTop: 20 }} />;
     }
 
-    if (!appointment) {
+    if (paymentType === "booking" && !appointment) {
       return (
         <Text style={styles.errorText}>
-          Your payment was successful, but we couldn't load the details. Please
-          check "My Schedule".
+          Your booking payment was successful, but we couldn't load the details. Please check "My Schedule".
         </Text>
       );
     }
 
-    // === THAY ĐỔI 1: Xử lý ảnh base64 ===
-    // (Nếu photoUrl là base64 (bắt đầu bằng 'data:'), dùng nó.
-    //  Nếu không, dùng ảnh icon.png)
-    const doctorPhotoUri =
-      appointment.dermatologist?.user?.photoUrl?.startsWith("data:")
-        ? appointment.dermatologist.user.photoUrl
-        : null;
-    // ===================================
+    if (paymentType === "purchase" && !order) {
+      return (
+        <Text style={styles.errorText}>
+          Your purchase payment was successful, but we couldn't load the details. Please check your orders.
+        </Text>
+      );
+    }
 
-    return (
-      <View style={styles.infoCard}>
-        <Text style={styles.cardTitle}>Appointment Details</Text>
-
-        {/* --- Bác Sĩ --- */}
-        <Text style={styles.sectionTitle}>Consultant</Text>
-        <View style={styles.doctorHeader}>
-          <Image
-            style={styles.doctorAvatar}
-            source={
-              doctorPhotoUri
-                ? { uri: doctorPhotoUri } // (Dùng ảnh base64)
-                : require("@/assets/images/icon.png")
-            }
-          />
-          <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>
-              {appointment.dermatologist?.user?.fullName || "Dermatologist"}
+    if (paymentType === "other") {
+      // Generic success for topup/subscription
+      return (
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Payment Successful</Text>
+          <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Amount Paid:</Text>
+            <Text style={styles.valueAmount}>
+              {paymentData?.amount.toLocaleString("vi-VN")} VND
             </Text>
-            {/* === THAY ĐỔI 2: Ẩn 'specialization' vì API không có === */}
-            {/* <Text style={styles.doctorSpec}>
-              (API không có trường 'specialization')
-            </Text> */}
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Method:</Text>
+            <Text style={styles.value}>
+              {paymentData?.paymentMethod?.toUpperCase() || "N/A"}
+            </Text>
           </View>
         </View>
+      );
+    }
 
-        <View style={styles.divider} />
+    if (paymentType === "booking" && appointment) {
+      // Existing booking content
+      const doctorPhotoUri = appointment.dermatologist?.user?.photoUrl?.startsWith("data:")
+        ? appointment.dermatologist.user.photoUrl
+        : null;
 
-        {/* --- Bệnh Nhân --- */}
-        <Text style={styles.sectionTitle}>Patient</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Name:</Text>
-          <Text style={styles.value}>
-            {appointment.customer?.user?.fullName || "Patient"}
-          </Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Email:</Text>
-          <Text style={styles.value}>
-            {" "}
-            {/* (Style riêng cho email) */}
-            {appointment.customer?.user?.email}
-          </Text>
-        </View>
+      return (
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Appointment Details</Text>
 
-        <View style={styles.divider} />
+          {/* Doctor Section */}
+          <Text style={styles.sectionTitle}>Consultant</Text>
+          <View style={styles.doctorHeader}>
+            <Image
+              style={styles.doctorAvatar}
+              source={
+                doctorPhotoUri
+                  ? { uri: doctorPhotoUri }
+                  : require("@/assets/images/icon.png")
+              }
+            />
+            <View style={styles.doctorInfo}>
+              <Text style={styles.doctorName}>
+                {appointment.dermatologist?.user?.fullName || "Dermatologist"}
+              </Text>
+            </View>
+          </View>
 
-        {/* --- Lịch Hẹn --- */}
-        <Text style={styles.sectionTitle}>When</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Date:</Text>
-          <Text style={styles.value}>{formatDate(appointment.startTime)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Time:</Text>
-          <Text style={styles.value}>
-            {`${formatTime(appointment.startTime)} - ${formatTime(
-              appointment.endTime
-            )}`}
-          </Text>
-        </View>
-        {/* === THAY ĐỔI 3: Dùng helper để format 'appointmentType' === */}
-        <View style={styles.row}>
-          <Text style={styles.label}>Type:</Text>
-          <Text style={styles.value}>
-            {formatAppointmentType(appointment.appointmentType)}
-          </Text>
-        </View>
+          <View style={styles.divider} />
 
-        <View style={styles.divider} />
+          {/* Patient Section */}
+          <Text style={styles.sectionTitle}>Patient</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Name:</Text>
+            <Text style={styles.value}>
+              {appointment.customer?.user?.fullName || "Patient"}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Email:</Text>
+            <Text style={styles.emailValue}>
+              {appointment.customer?.user?.email}
+            </Text>
+          </View>
 
-        {/* --- Chi Tiết Thanh Toán --- */}
-        <Text style={styles.sectionTitle}>Payment</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Amount Paid:</Text>
-          <Text style={styles.valueAmount}>
-            {Number(
-              appointment.payment?.amount || appointment.price
-            ).toLocaleString("vi-VN")}{" "}
-            VND
-          </Text>
+          <View style={styles.divider} />
+
+          {/* Appointment Details */}
+          <Text style={styles.sectionTitle}>When</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Date:</Text>
+            <Text style={styles.value}>{formatDate(appointment.startTime)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Time:</Text>
+            <Text style={styles.value}>
+              {`${formatTime(appointment.startTime)} - ${formatTime(appointment.endTime)}`}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Type:</Text>
+            <Text style={styles.value}>
+              {formatAppointmentType(appointment.appointmentType)}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Payment Details */}
+          <Text style={styles.sectionTitle}>Payment</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Amount Paid:</Text>
+            <Text style={styles.valueAmount}>
+              {Number(appointment.payment?.amount || appointment.price).toLocaleString("vi-VN")} VND
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Method:</Text>
+            <Text style={styles.value}>
+              {appointment.payment?.paymentMethod?.toUpperCase() || "Subscription"}
+            </Text>
+          </View>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Method:</Text>
-          <Text style={styles.value}>
-            {appointment.payment?.paymentMethod?.toUpperCase() ||
-              "Subscription"}
-          </Text>
+      );
+    }
+
+    if (paymentType === "purchase" && order) {
+      // New purchase content
+      return (
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Purchase Details</Text>
+
+          {/* Order ID */}
+          <Text style={styles.sectionTitle}>Order Information</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Order ID:</Text>
+            <Text style={styles.value}>{order.orderId}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Status:</Text>
+            <Text style={styles.value}>{order.status}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Items Summary */}
+          <Text style={styles.sectionTitle}>Items Purchased</Text>
+          {order.orderItems?.map((item, index) => (
+            <View key={index} style={styles.row}>
+              <Text style={styles.label}>{item.product.productName} (x{item.quantity}):</Text>  {/* Updated to use item.product.productName */}
+              <Text style={styles.value}>
+                {(parseFloat(item.priceAtTime) * item.quantity).toLocaleString("vi-VN")} VND
+              </Text>
+            </View>
+          ))}
+
+          <View style={styles.divider} />
+
+          {/* Payment Details */}
+          <Text style={styles.sectionTitle}>Payment</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Total Paid:</Text>
+            <Text style={styles.valueAmount}>
+              {orderService.calculateOrderTotal(order.orderItems).toLocaleString("vi-VN")} VND  {/* Use service method for total */}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Method:</Text>
+            <Text style={styles.value}>
+              {order.payment?.paymentMethod?.toUpperCase() || "Bank Transfer"}
+            </Text>
+          </View>
         </View>
-      </View>
-    );
+      );
+    }
+
+    return null;
   };
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Biểu tượng thành công */}
+        {/* Success Icon */}
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
             name="check-decagram"
@@ -212,26 +317,35 @@ export default function PaymentSuccessScreen() {
           />
         </View>
 
-        <Text style={styles.title}>Booking Confirmed!</Text>
+        {/* Dynamic Title and Instructions */}
+        <Text style={styles.title}>
+          {paymentType === "booking" ? "Booking Confirmed!" : paymentType === "purchase" ? "Purchase Successful!" : "Payment Successful!"}
+        </Text>
         <Text style={styles.instructions}>
-          Your appointment has been successfully booked.
+          {paymentType === "booking"
+            ? "Your appointment has been successfully booked."
+            : paymentType === "purchase"
+            ? "Your purchase has been completed successfully."
+            : "Your payment has been processed successfully."}
         </Text>
 
-        {/* Card chi tiết */}
+        {/* Dynamic Content */}
         {renderContent()}
       </ScrollView>
 
-      {/* Nút "Go to My Schedule" */}
+      {/* Footer Button */}
       <View style={styles.footer}>
-        <Pressable style={styles.scheduleButton} onPress={goToSchedule}>
-          <Text style={styles.scheduleButtonText}>Go to My Schedule</Text>
+        <Pressable style={styles.scheduleButton} onPress={goToNext}>
+          <Text style={styles.scheduleButtonText}>
+            {paymentType === "booking" ? "Go to My Schedule" : "Continue Shopping"}
+          </Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-// --- STYLES ---
+// --- STYLES --- (Unchanged, but ensure they fit both contexts)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -242,7 +356,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 100, // (Thêm padding dưới)
+    paddingBottom: 100,
   },
   iconContainer: {
     marginBottom: 20,
@@ -296,10 +410,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  doctorSpec: {
-    fontSize: 14,
-    color: "#666",
-  },
   divider: {
     height: 1,
     backgroundColor: "#e0e0e0",
@@ -309,7 +419,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginVertical: 6,
-    paddingHorizontal: 8, // (Thêm padding)
+    paddingHorizontal: 8,
   },
   label: {
     fontSize: 15,
@@ -319,13 +429,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     textTransform: "capitalize",
-    flex: 1, // (Cho phép email xuống dòng nếu cần)
-    textAlign: "right", // (Căn phải)
+    flex: 1,
+    textAlign: "right",
   },
   emailValue: {
     fontSize: 15,
     fontWeight: "600",
-    textTransform: "none", // (Không 'capitalize' email)
+    textTransform: "none",
     flex: 1,
     textAlign: "right",
   },

@@ -10,6 +10,7 @@ export interface PaymentStatusResponse {
   createdAt: string;
   expiredAt: string;
   paidAt?: string;
+  paymentType: 'order' | 'topup' | 'booking' | 'subscription';
   order?: {
     orderId: string;
     status: string;

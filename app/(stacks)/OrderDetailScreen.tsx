@@ -16,12 +16,14 @@ import orderService, { Order, OrderItem } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import reviewService from '@/services/reviewService';
+import { useTranslation } from 'react-i18next';
 
 export default function OrderDetailScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { isAuthenticated, user } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export default function OrderDetailScreen() {
 
   const fetchOrderDetail = async () => {
     if (!isAuthenticated || !orderId) {
-      Alert.alert('Error', 'Invalid information');
+      Alert.alert(t('orderDetail.error'), t('orderDetail.invalidInfo'));
       return;
     }
 
@@ -55,7 +57,7 @@ export default function OrderDetailScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Error', 'Please login to view order details');
+        Alert.alert(t('orderDetail.error'), t('orderDetail.loginToView'));
         return;
       }
       const data = await orderService.getOrderById(orderId, token);
@@ -66,7 +68,7 @@ export default function OrderDetailScreen() {
       }
     } catch (error: any) {
       console.error('Error fetching order detail:', error);
-      Alert.alert('Error', error.message || 'Unable to load order details');
+      Alert.alert(t('orderDetail.error'), error.message || t('orderDetail.unableLoad'));
     } finally {
       setLoading(false);
     }
@@ -74,12 +76,12 @@ export default function OrderDetailScreen() {
 
   const handleCompleteOrder = () => {
     Alert.alert(
-      "Confirm Receipt",
-      "Have you received this order and are satisfied with the products? This action cannot be undone.",
+      t('orderDetail.confirmReceipt'),
+      t('orderDetail.confirmMessage'),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t('orderDetail.cancel'), style: "cancel" },
         { 
-          text: "Yes, Received", 
+          text: t('orderDetail.yesReceived'), 
           onPress: async () => {
             try {
               setProcessingAction(true);
@@ -91,13 +93,13 @@ export default function OrderDetailScreen() {
               const updatedOrder = await orderService.confirmCompleteOrder(order.orderId, token);
               
               setOrder(updatedOrder);
-              Alert.alert("Success", "Order completed successfully! You can now review your products.");
+              Alert.alert(t('orderDetail.success'), t('orderDetail.orderCompleted'));
               
               // Refresh review eligibility based on new status
               checkReviewEligibility(updatedOrder.orderItems);
               
             } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to complete order");
+              Alert.alert(t('orderDetail.error'), error.message || t('orderDetail.failedComplete'));
             } finally {
               setProcessingAction(false);
             }
@@ -202,7 +204,7 @@ export default function OrderDetailScreen() {
             >
               <Ionicons name="star-outline" size={16} color={primaryColor} />
               <Text style={[styles.reviewButtonText, { color: primaryColor }]}>
-                Write Review
+                {t('orderDetail.writeReview')}
               </Text>
             </TouchableOpacity>
           )}
@@ -211,7 +213,7 @@ export default function OrderDetailScreen() {
           {isCompleted && eligibility?.hasReviewed && (
             <View style={styles.reviewedIndicator}>
               <Ionicons name="checkmark-circle" size={16} color="#34C759" />
-              <Text style={styles.reviewedText}>Reviewed</Text>
+              <Text style={styles.reviewedText}>{t('orderDetail.reviewed')}</Text>
             </View>
           )}
         </View>
@@ -228,7 +230,7 @@ export default function OrderDetailScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading order details...</Text>
+        <Text style={styles.loadingText}>{t('orderDetail.loadingDetails')}</Text>
       </View>
     );
   }
@@ -237,19 +239,20 @@ export default function OrderDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={80} color="#ccc" />
-        <Text style={styles.errorText}>Order not found</Text>
+        <Text style={styles.errorText}>{t('orderDetail.orderNotFound')}</Text>
         <TouchableOpacity
           style={[styles.backToListButton, { backgroundColor: primaryColor }]}
           onPress={() => router.back()}
         >
-          <Text style={styles.backToListButtonText}>Go Back</Text>
+          <Text style={styles.backToListButtonText}>{t('orderDetail.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const totalAmount = orderService.calculateOrderTotal(order.orderItems);
-  const totalItems = orderService.calculateTotalItems(order.orderItems);
+  const totalAmount = orderService.calculateOrderTotal(order.orderItems);  // Subtotal
+  const shippingFee = order.shippingLogs?.find(log => log.shippingFee)?.shippingFee || '0';  // Extract shipping fee
+  const totalWithShipping = totalAmount + parseFloat(shippingFee);  // Total including shipping
 
   // Determine icon based on status
   let statusIconName: keyof typeof Ionicons.glyphMap = 'time';
@@ -267,7 +270,7 @@ export default function OrderDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order Details</Text>
+        <Text style={styles.headerTitle}>{t('orderDetail.orderDetails')}</Text>
         <TouchableOpacity
           style={styles.trackingButton}
           onPress={() => router.push({
@@ -296,7 +299,7 @@ export default function OrderDetailScreen() {
               />
             </View>
             <Text style={styles.statusTitle}>
-              {orderService.getStatusLabel(order.status)}
+              {t('orders.' + order.status.toLowerCase())}
             </Text>
             {order.rejectionReason && (
               <View style={styles.rejectionBox}>
@@ -311,20 +314,20 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="information-circle-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Order Information</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.orderInformation')}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Order ID:</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.orderId')}</Text>
             <Text style={styles.infoValue}>#{order.orderId.slice(0, 8).toUpperCase()}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Order Date:</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.orderDate')}</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.createdAt)}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Last Updated:</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.lastUpdated')}</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.updatedAt)}
             </Text>
@@ -335,12 +338,12 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="location-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Shipping Address</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.shippingAddress')}</Text>
           </View>
           <Text style={styles.addressText}>{order.shippingAddress}</Text>
           {order.notes && (
             <View style={styles.notesContainer}>
-              <Text style={styles.notesLabel}>Notes:</Text>
+              <Text style={styles.notesLabel}>{t('orderDetail.notes')}</Text>
               <Text style={styles.notesText}>{order.notes}</Text>
             </View>
           )}
@@ -350,7 +353,7 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Customer Information</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.customerInformation')}</Text>
           </View>
           <View style={styles.customerInfo}>
             {order.customer.user.photoUrl ? (
@@ -375,7 +378,9 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="cart-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Products ({totalItems})</Text>
+            <Text style={styles.sectionTitle}>
+              {t('orderDetail.products', { count: order.orderItems.length })}
+            </Text>
           </View>
           {order.orderItems.map(renderOrderItem)}
         </View>
@@ -384,23 +389,25 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="receipt-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Order Summary</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.orderSummary')}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal:</Text>
+            <Text style={styles.summaryLabel}>{t('orderDetail.subtotal')}</Text>
             <Text style={styles.summaryValue}>
               {orderService.formatCurrency(totalAmount)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Shipping Fee:</Text>
-            <Text style={styles.summaryValue}>Free</Text>
+            <Text style={styles.summaryLabel}>{t('orderDetail.shippingFee')}</Text>
+            <Text style={styles.summaryValue}>
+              {orderService.formatCurrency(parseFloat(shippingFee))}
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.totalLabel}>{t('orderDetail.total')}</Text>
             <Text style={[styles.totalValue, { color: primaryColor }]}>
-              {orderService.formatCurrency(totalAmount)}
+              {orderService.formatCurrency(totalWithShipping)}
             </Text>
           </View>
         </View>
@@ -410,21 +417,21 @@ export default function OrderDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="card-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Payment Information</Text>
+              <Text style={styles.sectionTitle}>{t('orderDetail.paymentInformation')}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Method:</Text>
+              <Text style={styles.infoLabel}>{t('orderDetail.method')}</Text>
               <Text style={styles.infoValue}>
-                {orderService.getPaymentMethodLabel(order.payment.method as any)}
+                {t('orderDetail.' + order.payment.paymentMethod)}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Status:</Text>
+              <Text style={styles.infoLabel}>{t('orderDetail.status')}</Text>
               <Text style={[
                 styles.infoValue, 
                 { color: order.payment.status === 'PAID' ? '#4CAF50' : '#FFA500' }
               ]}>
-                {order.payment.status || 'Unpaid'}
+                {order.payment.status === 'PAID' ? t('orderDetail.paid') : t('orderDetail.unpaid')}
               </Text>
             </View>
           </View>
@@ -437,7 +444,7 @@ export default function OrderDetailScreen() {
             <View style={styles.completeInfoBox}>
               <Ionicons name="gift-outline" size={24} color={primaryColor} />
               <Text style={styles.completeInfoText}>
-                Package delivered? Please confirm receipt to complete the order.
+                {t('orderDetail.packageDelivered')}
               </Text>
             </View>
             
@@ -453,7 +460,7 @@ export default function OrderDetailScreen() {
               {processingAction ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.completeButtonText}>Received & Complete Order</Text>
+                <Text style={styles.completeButtonText}>{t('orderDetail.receivedCompleteOrder')}</Text>
               )}
             </TouchableOpacity>
           </View>

@@ -16,29 +16,33 @@ import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderStatus } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 export default function OrderListScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL');
 
   const statusFilters: Array<{ key: OrderStatus | 'ALL'; label: string }> = [
-    { key: 'ALL', label: 'All' },
-    { key: 'PENDING', label: 'Pending' },
-    { key: 'PROCESSING', label: 'Processing' },
-    { key: 'SHIPPED', label: 'Shipped' },
-    { key: 'DELIVERED', label: 'Delivered' },
-    { key: 'CANCELLED', label: 'Cancelled' },
-    { key: 'REJECTED', label: 'Rejected' },
+    { key: 'ALL', label: t('orders.all') },
+    { key: 'PENDING', label: t('orders.pending') },
+    { key: 'CONFIRMED', label: t('orders.confirmed') },
+    { key: 'PROCESSING', label: t('orders.processing') },
+    { key: 'SHIPPING', label: t('orders.shipping') },    
+    { key: 'DELIVERED', label: t('orders.delivered') },
+    { key: 'COMPLETED', label: t('orders.completed') },
+    { key: 'CANCELLED', label: t('orders.cancelled') },
+    { key: 'REJECTED', label: t('orders.rejected') },
   ];
 
   const fetchOrders = useCallback(async () => {
     if (!isAuthenticated) {
-      Alert.alert('Error', 'Please login to view orders');
+      Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
       return;
     }
 
@@ -46,14 +50,14 @@ export default function OrderListScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Error', 'Please login to view orders');
+        Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
         return;
       }
       const data = await orderService.getMyOrders(token);
       setOrders(data);
     } catch (error: any) {
       console.error('Error fetching orders:', error);
-      Alert.alert('Error', error.message || 'Unable to load order list');
+      Alert.alert(t('orders.loadError'), error.message || t('orders.loadError'));
     } finally {
       setLoading(false);
     }
@@ -132,7 +136,7 @@ export default function OrderListScreen() {
                 { color: orderService.getStatusColor(item.status) },
               ]}
             >
-              {orderService.getStatusLabel(item.status)}
+              {t('orders.' + item.status.toLowerCase())}
             </Text>
           </View>
         </View>
@@ -153,7 +157,7 @@ export default function OrderListScreen() {
                   x{item.orderItems[0].quantity}
                   {item.orderItems.length > 1 && (
                     <Text style={[styles.moreItems, { color: primaryColor }]}>
-                      {' '}+{item.orderItems.length - 1} more items
+                      {' '}+{item.orderItems.length - 1} {t('orders.moreItems')}
                     </Text>
                   )}
                 </Text>
@@ -171,7 +175,7 @@ export default function OrderListScreen() {
               </Text>
             </View>
             <View style={styles.orderInfoRow}>
-              <Text style={styles.totalItemsText}>{totalItems} items</Text>
+              <Text style={styles.totalItemsText}>{totalItems} {t('orders.items')}</Text>
               <Text style={[styles.totalAmountText, { color: primaryColor }]}>
                 {orderService.formatCurrency(totalAmount)}
               </Text>
@@ -194,7 +198,7 @@ export default function OrderListScreen() {
               params: { orderId: item.orderId }
             } as any)}
           >
-            <Text style={[styles.viewDetailButtonText, { color: primaryColor }]}>View Details</Text>
+            <Text style={[styles.viewDetailButtonText, { color: primaryColor }]}>{t('orders.viewDetails')}</Text>
             <Ionicons name="chevron-forward" size={16} color={primaryColor} />
           </TouchableOpacity>
         </View>
@@ -207,8 +211,8 @@ export default function OrderListScreen() {
       <Ionicons name="cart-outline" size={80} color="#ccc" />
       <Text style={styles.emptyText}>
         {selectedStatus === 'ALL' 
-          ? 'You have no orders yet'
-          : `No ${orderService.getStatusLabel(selectedStatus as OrderStatus).toLowerCase()} orders`
+          ? t('orders.noOrders')
+          : t('orders.noStatusOrders', { status: orderService.getStatusLabel(selectedStatus as OrderStatus).toLowerCase() })
         }
       </Text>
     </View>
@@ -218,7 +222,7 @@ export default function OrderListScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading orders...</Text>
+        <Text style={styles.loadingText}>{t('orders.loading')}</Text>
       </View>
     );
   }
@@ -232,7 +236,7 @@ export default function OrderListScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Orders</Text>
+        <Text style={styles.headerTitle}>{t('orders.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 

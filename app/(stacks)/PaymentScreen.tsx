@@ -144,7 +144,11 @@ const pollingInterval = useRef<number | null>(null);
           setScreenStatus("SUCCESS");
           router.replace({
             pathname: "/(stacks)/PaymentSuccessScreen",
-            params: { appointmentId: appointmentId },
+            params: { 
+              appointmentId: appointmentId || undefined, 
+              orderId: params.orderId || undefined ,
+              paymentCode: paymentCode,
+            },
           });
         }
         // === CASE 2: FAILED OR EXPIRED ===

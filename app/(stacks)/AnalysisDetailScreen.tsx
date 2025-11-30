@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next';  
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -22,7 +22,7 @@ export default function AnalysisDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { primaryColor } = useThemeColor();
-  const { t } = useTranslation();  // Add this hook
+  const { t } = useTranslation();
   const [showMask, setShowMask] = useState(false);
 
   // Animations
@@ -44,6 +44,43 @@ export default function AnalysisDetailScreen() {
     ]).start();
   }, []);
 
+  const result: SkinAnalysisResult = params.result
+    ? JSON.parse(params.result as string)
+    : null;
+
+  if (!result) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+        <View style={styles.errorContainer}>
+          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
+            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
+          </View>
+          <Text style={styles.errorTitle}>{t('analysis.noData')}</Text>
+          <Text style={styles.errorText}>{t('analysis.unableLoad')}</Text>
+          <TouchableOpacity
+            style={[styles.errorButton, { backgroundColor: primaryColor }]}
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            <Text style={styles.errorButtonText}>{t('analysis.goBack')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const isConditionDetection = result.aiDetectedCondition !== null;
+  const isDiseaseDetection = result.aiDetectedDisease !== null;
+  const imageUrl = result.imageUrls[0];
+  const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
+
+  // Handle Ask AI Logic
   const handleAskAI = (path: any) => {
     const analysisText = `I have a skin analysis result that I'd like to understand better:
 
@@ -59,66 +96,24 @@ Source: ${result.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manua
 ${result.chiefComplaint ? `Chief Complaint: ${result.chiefComplaint}\n` : ''}${result.patientSymptoms ? `Symptoms: ${result.patientSymptoms}\n` : ''}${result.notes ? `Notes: ${result.notes}\n` : ''}
 Can you provide more information about this condition and suggest what steps I should take?`;
 
-  // Navigate to chatbot with pre-filled data
-  router.push({
-    pathname: '/(tabs)/ChatbotScreen',
-    params: {
-      prefillText: analysisText,
-      prefillImage: imageUrl,
-    }
-  })
+    router.push({
+      pathname: '/(tabs)/ChatbotScreen',
+      params: {
+        prefillText: analysisText,
+        prefillImage: imageUrl,
+      }
+    })
   }
 
-  const result: SkinAnalysisResult = params.result
-    ? JSON.parse(params.result as string)
-    : null;
-
-  if (!result) {
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-
-        {/* Decorative Background */}
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-
-        <View style={styles.errorContainer}>
-          <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
-            <Ionicons name="alert-circle" size={56} color="#FF3B30" />
-          </View>
-          <Text style={styles.errorTitle}>{t('analysis.noData')}</Text> 
-          <Text style={styles.errorText}>{t('analysis.unableLoad')}</Text> 
-          <TouchableOpacity
-            style={[styles.errorButton, { backgroundColor: primaryColor }]}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            <Text style={styles.errorButtonText}>{t('analysis.goBack')}</Text> 
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const isConditionDetection = result.aiDetectedCondition !== null;
-  const isDiseaseDetection = result.aiDetectedDisease !== null;
-  const imageUrl = result.imageUrls[0];
-
+  // Mask Logic
   let maskUrl: string | null = null;
   if (result.mask) {
     if (Array.isArray(result.mask) && result.mask.length > 0) {
-      // Take the first URL from the array
       maskUrl = result.mask[0];
     } else if (typeof result.mask === 'string') {
-      // Fallback if it happens to be a single string
       maskUrl = result.mask;
     }
   }
-
-  const detectionColor = isConditionDetection ? primaryColor : '#E91E63';
 
   return (
     <View style={styles.container}>
@@ -128,7 +123,7 @@ Can you provide more information about this condition and suggest what steps I s
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image Section with Header Overlay */}
+        {/* Image Section */}
         <View style={styles.imageSection}>
           <View style={styles.imageContainer}>
             <Image
@@ -149,7 +144,7 @@ Can you provide more information about this condition and suggest what steps I s
               </View>
             )}
 
-            {/* Gradient Overlay for better header visibility */}
+            {/* Gradient Overlay */}
             <View style={styles.gradientOverlay} />
           </View>
 
@@ -187,7 +182,7 @@ Can you provide more information about this condition and suggest what steps I s
                   styles.maskToggleText,
                   showMask && styles.maskToggleTextActive
                 ]}>
-                  {showMask ? t('analysis.hideMask') : t('analysis.showMask')} 
+                  {showMask ? t('analysis.hideMask') : t('analysis.showMask')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -196,105 +191,103 @@ Can you provide more information about this condition and suggest what steps I s
 
         {/* Content Section */}
         <View style={styles.contentSection}>
-          {/* Detection Result Card */}
+          
+          {/* Unified Analysis Card */}
           <Animated.View
             style={[
-              styles.resultCard,
+              styles.unifiedCard,
               {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }]
               }
             ]}
           >
-            <View style={styles.resultHeader}>
+            {/* Header: Icon, Title, Type */}
+            <View style={styles.unifiedHeader}>
               <View style={[styles.resultIconWrapper, { backgroundColor: `${detectionColor}15` }]}>
                 <View style={[styles.resultIcon, { backgroundColor: detectionColor }]}>
                   <Ionicons
                     name={isConditionDetection ? 'water' : 'medical'}
-                    size={24}
+                    size={28}
                     color="#FFFFFF"
                   />
                 </View>
               </View>
-
-              <View style={styles.resultContent}>
-                <Text style={styles.resultLabel}>
-                  {isConditionDetection ? t('analysis.skinCondition') : t('analysis.diseaseDetection')}
-                </Text>
-                <Text style={[styles.resultValue, { color: detectionColor }]}
-                >
+              
+              <View style={styles.unifiedHeaderText}>
+                 {/* Type Badge */}
+                 <View style={[styles.typeBadge, { backgroundColor: `${detectionColor}10`, borderColor: `${detectionColor}30` }]}>
+                  <Text style={[styles.typeBadgeText, { color: detectionColor }]}>
+                    {isConditionDetection ? t('analysis.condition') : t('analysis.disease')}
+                  </Text>
+                </View>
+                
+                {/* Result Name */}
+                <Text style={styles.resultTitle}>
                   {isConditionDetection ? t('analysis.' + result.aiDetectedCondition) : t('analysis.' + result.aiDetectedDisease)}
-                </Text>
-                {/* Add brief description */}
-                <Text style={styles.resultDescription}>
-                  {isConditionDetection ? t('analysis.' + result.aiDetectedCondition + '_desc') : t('analysis.' + result.aiDetectedDisease + '_desc')}
                 </Text>
               </View>
             </View>
-          </Animated.View>
 
-          {/* Details Grid */}
-          <Animated.View
-            style={[
-              styles.detailsSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
-            ]}
-          >
-            <Text style={styles.sectionTitle}>{t('analysis.analysisDetails')}</Text> 
+            {/* Description Box */}
+            <View style={styles.descriptionBox}>
+               <Text style={styles.descriptionLabel}>{t('analysis.analysisDetails')}</Text>
+               <Text style={styles.descriptionText}>
+                  {isConditionDetection 
+                    ? t('analysis.' + result.aiDetectedCondition + '_desc') 
+                    : t('analysis.' + result.aiDetectedDisease + '_desc')}
+               </Text>
+            </View>
 
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
-                  <Ionicons name="calendar" size={20} color="#2196F3" />
-                </View>
-                <Text style={styles.detailLabel}>{t('analysis.date')}</Text> 
-                <Text style={styles.detailValue}>
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Footer: Date, Time, Source */}
+            <View style={styles.infoFooter}>
+              {/* Date */}
+              <View style={styles.infoItem}>
+                <Ionicons name="calendar-outline" size={16} color="#999" style={{ marginBottom: 4 }} />
+                <Text style={styles.infoValue}>
                   {new Date(result.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric'
                   })}
                 </Text>
+                <Text style={styles.infoLabel}>{t('analysis.date')}</Text>
               </View>
 
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#FFF4E6' }]}>
-                  <Ionicons name="time" size={20} color="#FF9800" />
-                </View>
-                <Text style={styles.detailLabel}>{t('analysis.time')}</Text> 
-                <Text style={styles.detailValue}>
+              <View style={styles.verticalDivider} />
+
+              {/* Time */}
+              <View style={styles.infoItem}>
+                <Ionicons name="time-outline" size={16} color="#999" style={{ marginBottom: 4 }} />
+                <Text style={styles.infoValue}>
                   {new Date(result.createdAt).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit'
                   })}
                 </Text>
+                <Text style={styles.infoLabel}>{t('analysis.time')}</Text>
               </View>
 
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0FDF4' }]}>
-                  <Ionicons
-                    name={result.source === 'AI_SCAN' ? 'sparkles' : 'create'}
-                    size={20}
-                    color="#34C759"
-                  />
-                </View>
-                <Text style={styles.detailLabel}>{t('analysis.source')}</Text> 
-                <Text style={styles.detailValue}>
-                  {result.source === 'AI_SCAN' ? t('analysis.aiScan') : t('analysis.manual')} 
-                </Text>
-              </View>
+              <View style={styles.verticalDivider} />
 
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="document-text" size={20} color="#A855F7" />
-                </View>
-                <Text style={styles.detailLabel}>{t('analysis.type')}</Text> 
-                <Text style={styles.detailValue}>
-                  {isConditionDetection ? t('analysis.condition') : t('analysis.disease')} 
+              {/* Source */}
+              <View style={styles.infoItem}>
+                <Ionicons 
+                  name={result.source === 'AI_SCAN' ? 'sparkles-outline' : 'create-outline'} 
+                  size={16} 
+                  color={result.source === 'AI_SCAN' ? '#A855F7' : '#999'} 
+                  style={{ marginBottom: 4 }} 
+                />
+                <Text style={[
+                  styles.infoValue, 
+                  result.source === 'AI_SCAN' && { color: '#A855F7', fontWeight: '800' }
+                ]}>
+                  {result.source === 'AI_SCAN' ? 'AI Scan' : 'Manual'}
                 </Text>
+                <Text style={styles.infoLabel}>{t('analysis.source')}</Text>
               </View>
             </View>
           </Animated.View>
@@ -313,21 +306,20 @@ Can you provide more information about this condition and suggest what steps I s
               <View style={styles.disclaimerIconWrapper}>
                 <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
               </View>
-              <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text> 
+              <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text>
             </View>
             <Text style={styles.disclaimerText}>
-              {t('analysis.disclaimerText')} 
+              {t('analysis.disclaimerText')}
             </Text>
           </Animated.View>
 
-          {/* Action Button */}
+          {/* Action Buttons */}
           <Animated.View
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
             }}
           >
-
             <TouchableOpacity
               style={[styles.askAIButton, { backgroundColor: '#F5F5F5', borderColor: detectionColor }]}
               onPress={handleAskAI}
@@ -336,16 +328,16 @@ Can you provide more information about this condition and suggest what steps I s
               <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}20` }]}>
                 <Ionicons name="sparkles" size={20} color={detectionColor} />
               </View>
-              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text> 
-              <Ionicons name="arrow-forward" size={18} color={detectionColor} />
+              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: primaryColor }]}
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
+              <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -406,7 +398,7 @@ const styles = StyleSheet.create({
   maskImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.6, // Increased opacity slightly to make mask more visible
+    opacity: 0.6,
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -442,27 +434,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   maskControls: {
     position: 'absolute',
@@ -510,32 +481,35 @@ const styles = StyleSheet.create({
   contentSection: {
     padding: 24,
   },
-  resultCard: {
+  
+  // UNIFIED CARD STYLES
+  unifiedCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 24,
+    padding: 20,
     marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 5,
   },
-  resultHeader: {
+  unifiedHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 16,
+    marginBottom: 20,
   },
   resultIconWrapper: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   resultIcon: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -545,79 +519,83 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  resultContent: {
+  unifiedHeaderText: {
     flex: 1,
+    paddingTop: 4,
   },
-  resultLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#666',
-    marginBottom: 6,
+  typeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  resultValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    lineHeight: 26,
-    letterSpacing: -0.3,
-  },
-  resultDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#999',
-    marginTop: 4,
-    lineHeight: 20,
-  },
-  detailsSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  resultTitle: {
+    fontSize: 22,
     fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 16,
-    letterSpacing: -0.3,
+    lineHeight: 28,
   },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  detailCard: {
-    width: (width - 60) / 2,
-    backgroundColor: '#FFFFFF',
+  descriptionBox: {
+    backgroundColor: '#F8F9FA',
     borderRadius: 16,
     padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 20,
   },
-  detailIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 11,
+  descriptionLabel: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#666',
-    marginBottom: 4,
+    color: '#444',
+    marginBottom: 6,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  detailValue: {
+  descriptionText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#444',
+    lineHeight: 22,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#EEEEEE',
+    marginBottom: 20,
+  },
+  infoFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  verticalDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#EEEEEE',
+  },
+  infoValue: {
     fontSize: 13,
     fontWeight: '700',
     color: '#1A1A1A',
+    marginBottom: 2,
     textAlign: 'center',
   },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#999',
+    textTransform: 'uppercase',
+  },
+
+  // Disclaimer Styles
   disclaimer: {
     backgroundColor: '#FFF8E1',
     borderRadius: 16,
@@ -651,6 +629,35 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '500',
   },
+  
+  // Button Styles
+  askAIButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  askAIIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  askAIText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -671,10 +678,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  actionArrow: {
-    position: 'absolute',
-    right: 24,
-  },
+
+  // Error Styles
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -719,31 +724,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  askAIButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 10,
-  paddingVertical: 16,
-  borderRadius: 16,
-  borderWidth: 2,
-  marginBottom: 12,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  elevation: 3,
-},
-askAIIcon: {
-  width: 32,
-  height: 32,
-  borderRadius: 16,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-askAIText: {
-  fontSize: 16,
-  fontWeight: '700',
-  letterSpacing: 0.2,
-},
 });
