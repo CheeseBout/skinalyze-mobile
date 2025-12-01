@@ -20,11 +20,13 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import skinAnalysisService from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 export default function ManualEntryScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
   const [complaint, setComplaint] = useState('');
   const [symptoms, setSymptoms] = useState('');
@@ -68,7 +70,7 @@ export default function ManualEntryScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not pick image');
+      Alert.alert(t('manualEntry.error'), t('manualEntry.couldNotPickImage'));
     }
   };
 
@@ -76,11 +78,11 @@ export default function ManualEntryScreen() {
     const newErrors: { complaint?: string; symptoms?: string } = {};
 
     if (!complaint.trim()) {
-      newErrors.complaint = 'Chief complaint is required';
+      newErrors.complaint = t('manualEntry.chiefComplaintRequired');
     }
 
     if (!symptoms.trim()) {
-      newErrors.symptoms = 'Symptoms are required';
+      newErrors.symptoms = t('manualEntry.symptomsRequired');
     }
 
     setErrors(newErrors);
@@ -89,12 +91,12 @@ export default function ManualEntryScreen() {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fill in all required fields');
+      Alert.alert(t('manualEntry.validationError'), t('manualEntry.fillRequiredFields'));
       return;
     }
 
     if (!user?.userId) {
-      Alert.alert('Error', 'User not authenticated');
+      Alert.alert(t('manualEntry.error'), t('manualEntry.userNotAuthenticated'));
       return;
     }
 
@@ -108,11 +110,11 @@ export default function ManualEntryScreen() {
         imageUri: selectedImage,
       });
 
-      Alert.alert('Success', 'Record saved successfully', [
-        { text: 'OK', onPress: () => router.back() }
+      Alert.alert(t('manualEntry.success'), t('manualEntry.recordSaved'), [
+        { text: t('manualEntry.ok'), onPress: () => router.back() }
       ]);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save record');
+      Alert.alert(t('manualEntry.error'), error.message || t('manualEntry.failedSaveRecord'));
     } finally {
       setIsSubmitting(false);
     }
@@ -153,7 +155,7 @@ export default function ManualEntryScreen() {
           <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
             <Ionicons name="create-outline" size={20} color={primaryColor} />
           </View>
-          <Text style={styles.headerTitle}>Manual Record</Text>
+          <Text style={styles.headerTitle}>{t('manualEntry.title')}</Text>
         </View>
         
         <View style={styles.placeholder} />
@@ -180,8 +182,8 @@ export default function ManualEntryScreen() {
               <Ionicons name="camera" size={20} color={primaryColor} />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Attach Photo</Text>
-              <Text style={styles.cardSubtitle}>Optional - Add image for reference</Text>
+              <Text style={styles.cardTitle}>{t('manualEntry.attachPhoto')}</Text>
+              <Text style={styles.cardSubtitle}>{t('manualEntry.optionalImage')}</Text>
             </View>
           </View>
 
@@ -205,8 +207,8 @@ export default function ManualEntryScreen() {
                 <View style={[styles.uploadIconContainer, { backgroundColor: `${primaryColor}15` }]}>
                   <Ionicons name="image-outline" size={32} color={primaryColor} />
                 </View>
-                <Text style={styles.uploadText}>Tap to upload photo</Text>
-                <Text style={styles.uploadSubtext}>JPG, PNG up to 10MB</Text>
+                <Text style={styles.uploadText}>{t('manualEntry.tapToUpload')}</Text>
+                <Text style={styles.uploadSubtext}>{t('manualEntry.fileTypes')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -227,15 +229,15 @@ export default function ManualEntryScreen() {
               <Ionicons name="document-text" size={20} color={primaryColor} />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Medical Details</Text>
-              <Text style={styles.cardSubtitle}>Describe the condition</Text>
+              <Text style={styles.cardTitle}>{t('manualEntry.medicalDetails')}</Text>
+              <Text style={styles.cardSubtitle}>{t('manualEntry.describeCondition')}</Text>
             </View>
           </View>
 
           {/* Chief Complaint */}
           <InputField
-            label="Chief Complaint"
-            placeholder="e.g., Redness on left cheek"
+            label={t('manualEntry.chiefComplaint')}
+            placeholder={t('manualEntry.chiefComplaintPlaceholder')}
             icon="warning-outline"
             value={complaint}
             onChangeText={(text) => {
@@ -250,7 +252,7 @@ export default function ManualEntryScreen() {
           {/* Symptoms */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>
-              Symptoms <Text style={styles.required}>*</Text>
+              {t('manualEntry.symptoms')} <Text style={styles.required}>*</Text>
             </Text>
             <View style={[
               styles.textAreaWrapper, 
@@ -259,7 +261,7 @@ export default function ManualEntryScreen() {
               <Ionicons name="list-outline" size={18} color="#666" style={styles.textAreaIcon} />
               <TextInput
                 style={styles.textArea}
-                placeholder="e.g., Itchy, burning sensation, started 2 days ago..."
+                placeholder={t('manualEntry.symptomsPlaceholder')}
                 placeholderTextColor="#999"
                 value={symptoms}
                 onChangeText={(text) => {
@@ -288,12 +290,12 @@ export default function ManualEntryScreen() {
 
           {/* Additional Notes */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Additional Notes</Text>
+            <Text style={styles.label}>{t('manualEntry.additionalNotes')}</Text>
             <View style={styles.textAreaWrapper}>
               <Ionicons name="pencil-outline" size={18} color="#666" style={styles.textAreaIcon} />
               <TextInput
                 style={styles.textArea}
-                placeholder="Any other details..."
+                placeholder={t('manualEntry.notesPlaceholder')}
                 placeholderTextColor="#999"
                 value={notes}
                 onChangeText={setNotes}
@@ -309,7 +311,7 @@ export default function ManualEntryScreen() {
               <Ionicons name="information" size={16} color="#FFFFFF" />
             </View>
             <Text style={styles.infoText}>
-              Fields marked with <Text style={styles.required}>*</Text> are required
+              {t('manualEntry.fieldsRequired')}
             </Text>
           </View>
         </Animated.View>
@@ -338,7 +340,7 @@ export default function ManualEntryScreen() {
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                <Text style={styles.submitButtonText}>Save Record</Text>
+                <Text style={styles.submitButtonText}>{t('manualEntry.saveRecord')}</Text>
               </>
             )}
           </TouchableOpacity>

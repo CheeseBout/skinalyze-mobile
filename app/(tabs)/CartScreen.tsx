@@ -17,6 +17,7 @@ import productService from '@/services/productService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 // Extended CartItem with product image
 interface CartItemWithImage extends CartItem {
@@ -24,6 +25,7 @@ interface CartItemWithImage extends CartItem {
 }
  
 export default function CartScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [cart, setCart] = useState<Cart | null>(null)
   const [cartItemsWithImages, setCartItemsWithImages] = useState<CartItemWithImage[]>([])
@@ -80,7 +82,7 @@ export default function CartScreen() {
         return
       }
 
-      const cartData = await cartService.getUserCart(token)
+      const cartData = await cartService.getUserCart()
       setCart(cartData)
       
       await fetchProductImages(cartData)
@@ -191,12 +193,12 @@ export default function CartScreen() {
 
   const handleRemoveItem = useCallback((item: CartItem) => {
     Alert.alert(
-      'Remove Item',
-      `Remove ${item.productName} from cart?`,
+      t('cart.removeItem'),
+      t('cart.removeConfirm', { itemName: item.productName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cart.cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('cart.remove'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -242,12 +244,12 @@ export default function CartScreen() {
     if (!cart || cart.items.length === 0) return
 
     Alert.alert(
-      'Clear Cart',
-      'Remove all items from your cart?',
+      t('cart.clearCart'),
+      t('cart.clearConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cart.cancel'), style: 'cancel' },
         {
-          text: 'Clear All',
+          text: t('cart.clearAll'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -275,7 +277,7 @@ export default function CartScreen() {
     if (!cart || cart.items.length === 0) return
     
     if (selectedItems.size === 0) {
-      Alert.alert('No Items Selected', 'Please select at least one item to checkout')
+      Alert.alert(t('cart.noItemsSelected'), t('cart.selectItemsToCheckout'))
       return
     }
 
@@ -394,31 +396,31 @@ export default function CartScreen() {
   const renderEmptyCart = useCallback(() => (
     <View style={styles.emptyContainer}>
       <Ionicons name="cart-outline" size={100} color="#E5E5E5" />
-      <Text style={styles.emptyTitle}>Your cart is empty</Text>
+      <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
       <Text style={styles.emptySubtitle}>
-        Add products to your cart to get started
+        {t('cart.emptyDesc')}
       </Text>
       <TouchableOpacity
         style={[styles.shopButton, { backgroundColor: primaryColor }]}
         onPress={() => router.push('/(tabs)/HomeScreen')}
       >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
+        <Text style={styles.shopButtonText}>{t('cart.startShopping')}</Text>
       </TouchableOpacity>
     </View>
-  ), [router])
+  ), [router, primaryColor])
 
   const renderLoginRequired = useCallback(() => (
     <View style={styles.emptyContainer}>
       <Ionicons name="person-circle-outline" size={100} color="#E5E5E5" />
-      <Text style={styles.emptyTitle}>Login Required</Text>
+      <Text style={styles.emptyTitle}>{t('cart.loginRequiredTitle')}</Text>
       <Text style={styles.emptySubtitle}>
-        Please log in to view your cart
+        {t('cart.loginRequiredDesc')}
       </Text>
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => router.push('/WelcomeScreen')}
       >
-        <Text style={styles.shopButtonText}>Log In</Text>
+        <Text style={styles.shopButtonText}>{t('cart.logIn')}</Text>
       </TouchableOpacity>
     </View>
   ), [router])
@@ -427,7 +429,7 @@ export default function CartScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading cart...</Text>
+        <Text style={styles.loadingText}>{t('cart.loading')}</Text>
       </View>
     )
   }
@@ -440,9 +442,9 @@ export default function CartScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{t('cart.loadError')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadCart}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.retryButtonText}>{t('cart.retry')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -468,12 +470,12 @@ export default function CartScreen() {
                 <Ionicons name="checkmark" size={16} color="#FFF" />
               )}
             </View>
-            <Text style={styles.selectAllText}>All</Text>
+            <Text style={styles.selectAllText}>{t('cart.all')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.headerTitle}>Shopping Cart</Text>
+        <Text style={styles.headerTitle}>{t('cart.title')}</Text>
         <TouchableOpacity onPress={handleClearCart}>
-          <Text style={styles.clearText}>Clear</Text>
+          <Text style={styles.clearText}>{t('cart.clear')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -494,14 +496,17 @@ export default function CartScreen() {
         <View style={styles.summarySection}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>
-              Selected ({selectedTotal.items} {selectedTotal.items === 1 ? 'item' : 'items'})
+              {t('cart.selectedItems', { 
+                count: selectedTotal.items, 
+                item: selectedTotal.items === 1 ? t('cart.item') : t('cart.items') 
+              })}
             </Text>
             <Text style={styles.summaryValue}>
               {productService.formatPrice(selectedTotal.price)}
             </Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('cart.total')}</Text>
             <Text style={[styles.totalValue, { color: primaryColor }]}>
               {productService.formatPrice(selectedTotal.price)}
             </Text>
@@ -518,7 +523,7 @@ export default function CartScreen() {
           disabled={selectedItems.size === 0}
         >
           <Text style={styles.checkoutButtonText}>
-            Checkout ({selectedItems.size})
+            {t('cart.checkout', { count: selectedItems.size })}
           </Text>
           <Ionicons name="arrow-forward" size={20} color="#FFF" />
         </TouchableOpacity>

@@ -1,14 +1,14 @@
 import apiService from "./apiService";
 
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
-export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay' | 'cash';
 
 export interface User {
   userId: string;
   email: string;
   fullName: string;
   dob: string;
-  photoUrl: string | null;
+  photoUrl: string | null;  
   phone: string;
   role: string;
   createdAt: string;
@@ -53,6 +53,28 @@ export interface OrderItem {
   quantity: number;
 }
 
+export interface ShippingLog {
+  shippingLogId: string;
+  orderId: string;
+  shippingFee: string | null;
+  carrierName: string | null;
+  note: string | null;
+  unexpectedCase: string | null;
+  isCodCollected: boolean;
+  isCodTransferred: boolean;
+  status: string;
+  totalAmount: string | null;
+  codCollectDate: string | null;
+  codTransferDate: string | null;
+  estimatedDeliveryDate: string | null;
+  returnedDate: string | null;
+  deliveredDate: string | null;
+  finishedPictures: string | null;
+  shippingStaffId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   orderId: string;
   customer: Customer;
@@ -65,6 +87,7 @@ export interface Order {
   rejectionReason: string | null;
   processedBy: string | null;
   orderItems: OrderItem[];
+  shippingLogs: ShippingLog[]; 
   createdAt: string;
   updatedAt: string;
 }
@@ -106,14 +129,12 @@ class OrderService {
   async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
     try {
       ('🛒 Creating checkout order...');
-      ('Payload:', payload);
       
       const response = await apiService.post<CheckoutResponse>(
         '/orders/checkout',
         payload,
       );
       
-      ('✅ Order created successfully:', response.data.orderId);
       return response.data;
     } catch (error) {
       console.error('❌ Checkout error:', error);
@@ -144,6 +165,7 @@ class OrderService {
       const response = await apiService.get<OrderDetailResponse>(
         `/orders/${orderId}`,
       );
+      console.log(response.data)
       return response.data;
     } catch (error) {
       console.error('Error fetching order detail:', error);
@@ -173,9 +195,11 @@ class OrderService {
   getStatusColor(status: OrderStatus): string {
     const colorMap: Record<OrderStatus, string> = {
       PENDING: '#FFA500',
+      CONFIRMED: '#FF9800',  
       PROCESSING: '#2196F3',
-      SHIPPED: '#9C27B0',
+      SHIPPING: '#9C27B0',   
       DELIVERED: '#4CAF50',
+      COMPLETED: '#4CAF50',
       CANCELLED: '#F44336',
       REJECTED: '#F44336',
     };
@@ -188,9 +212,11 @@ class OrderService {
   getStatusLabel(status: OrderStatus): string {
     const labelMap: Record<OrderStatus, string> = {
       PENDING: 'Pending',
+      CONFIRMED: 'Confirmed',  // Added for CONFIRMED
       PROCESSING: 'Processing',
-      SHIPPED: 'Shipped',
+      SHIPPING: 'Shipping',    // Changed from SHIPPED to SHIPPING
       DELIVERED: 'Delivered',
+      COMPLETED: 'Completed',
       CANCELLED: 'Cancelled',
       REJECTED: 'Rejected',
     };
@@ -209,8 +235,25 @@ class OrderService {
       momo: 'MoMo',
       zalopay: 'ZaloPay',
       vnpay: 'VNPay',
+      cash: 'Cash', 
     };
     return labelMap[method] || method;
+  }
+
+  async confirmCompleteOrder(orderId: string, token: string, feedback?: string): Promise<Order> {
+    try {
+      const payload = feedback ? { feedback } : {};
+      
+      const response = await apiService.post<OrderDetailResponse>(
+        `/orders/${orderId}/complete`,
+        payload
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error completing order:', error);
+      throw error;
+    }
   }
 
   /**

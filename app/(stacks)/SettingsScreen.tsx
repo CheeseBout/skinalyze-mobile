@@ -14,9 +14,15 @@ import { router } from "expo-router";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { Ionicons } from "@expo/vector-icons";
 import ColorPicker from 'react-native-wheel-color-picker';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '@/hooks/useLanguage';  // Add this import (or use '@/contexts/LanguageContext' if not creating a separate hook file)
+
+type Language = 'en' | 'vi';
 
 export default function SettingsScreen() {
+  const { t, i18n } = useTranslation();
   const { themeColor, setThemeColor, primaryColor, customColor, setCustomColor } = useThemeColor();
+  const { currentLanguage, setLanguage } = useLanguage();  // Add this hook
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState(customColor || '#007AFF');
   
@@ -40,13 +46,13 @@ export default function SettingsScreen() {
   }, []);
   
   const themeOptions: Array<{ color: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "custom"; label: string; hex: string }> = [
-    { color: 'red', label: 'Red', hex: '#FF3B30' },
-    { color: 'orange', label: 'Orange', hex: '#FF9500' },
-    { color: 'yellow', label: 'Yellow', hex: '#FFCC00' },
-    { color: 'green', label: 'Green', hex: '#34C759' },
-    { color: 'blue', label: 'Blue', hex: '#007AFF' },
-    { color: 'purple', label: 'Purple', hex: '#AF52DE' },
-    { color: 'custom', label: 'Custom', hex: customColor || '#007AFF' },
+    { color: 'red', label: t('settings.red'), hex: '#FF3B30' },
+    { color: 'orange', label: t('settings.orange'), hex: '#FF9500' },
+    { color: 'yellow', label: t('settings.yellow'), hex: '#FFCC00' },  
+    { color: 'green', label: t('settings.green'), hex: '#34C759' },  
+    { color: 'blue', label: t('settings.blue'), hex: '#007AFF' },  
+    { color: 'purple', label: t('settings.purple'), hex: '#AF52DE' },  
+    { color: 'custom', label: t('settings.custom'), hex: customColor || '#007AFF' },  
   ];
 
   const handleCustomColorSelect = () => {
@@ -94,8 +100,8 @@ export default function SettingsScreen() {
               <Ionicons name="settings" size={50} color={primaryColor} />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Settings</Text>
-              <Text style={styles.headerSubtitle}>Customize your experience</Text>
+              <Text style={styles.headerTitle}>{t('settings.title')}</Text>  
+              <Text style={styles.headerSubtitle}>{t('settings.subtitle')}</Text> 
             </View>
           </View>
         </Animated.View>
@@ -114,7 +120,7 @@ export default function SettingsScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
               <Ionicons name="color-palette" size={18} color="#A855F7" />
             </View>
-            <Text style={styles.sectionTitle}>Theme Color</Text>
+            <Text style={styles.sectionTitle}>{t('settings.themeColor')}</Text>  
           </View>
           
           <View style={styles.themeCard}>
@@ -172,7 +178,7 @@ export default function SettingsScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: '#F0F9FF' }]}>
               <Ionicons name="code-slash" size={18} color="#2196F3" />
             </View>
-            <Text style={styles.sectionTitle}>Developer Tools</Text>
+            <Text style={styles.sectionTitle}>{t('settings.developerTools')}</Text>  
           </View>
 
           <View style={styles.settingsCard}>
@@ -185,9 +191,9 @@ export default function SettingsScreen() {
                 <Ionicons name="notifications" size={20} color="#FF9800" />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Notification Test</Text>
+                <Text style={styles.settingTitle}>{t('settings.notificationTest')}</Text> 
                 <Text style={styles.settingDescription}>
-                  Test WebSocket real-time notifications
+                  {t('settings.notificationTestDesc')} 
                 </Text>
               </View>
               <View style={[styles.settingArrow, { backgroundColor: `${primaryColor}10` }]}>
@@ -211,20 +217,26 @@ export default function SettingsScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="apps" size={18} color="#34C759" />
             </View>
-            <Text style={styles.sectionTitle}>App Settings</Text>
+            <Text style={styles.sectionTitle}>{t('settings.appSettings')}</Text> 
           </View>
 
           <View style={styles.settingsCard}>
             <TouchableOpacity 
               style={styles.settingItem}
+              onPress={() => {
+                const newLang = currentLanguage === 'vi' ? 'en' : 'vi';  // Use currentLanguage
+                setLanguage(newLang as Language);  // Use setLanguage
+              }}
               activeOpacity={0.7}
             >
               <View style={[styles.settingIconWrapper, { backgroundColor: '#F0F9FF' }]}>
                 <Ionicons name="language" size={20} color="#2196F3" />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Language</Text>
-                <Text style={styles.settingDescription}>English</Text>
+                <Text style={styles.settingTitle}>{t('settings.language')}</Text>
+                <Text style={styles.settingDescription}>
+                  {currentLanguage === 'vi' ? t('settings.vietnamese') : t('settings.english')}  {/* Use currentLanguage */}
+                </Text>
               </View>
               <View style={[styles.settingArrow, { backgroundColor: `${primaryColor}10` }]}>
                 <Ionicons name="chevron-forward" size={18} color={primaryColor} />
@@ -247,7 +259,7 @@ export default function SettingsScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: '#FFE8F0' }]}>
               <Ionicons name="information-circle" size={18} color="#E91E63" />
             </View>
-            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.sectionTitle}>{t('settings.about')}</Text> 
           </View>
 
           <View style={styles.settingsCard}>
@@ -256,7 +268,7 @@ export default function SettingsScreen() {
                 <Ionicons name="cube" size={20} color="#A855F7" />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Version</Text>
+                <Text style={styles.settingTitle}>{t('settings.version')}</Text> 
                 <Text style={styles.settingDescription}>1.0.0</Text>
               </View>
             </View>
@@ -265,7 +277,7 @@ export default function SettingsScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Made with ❤️ by Skinalyze Team</Text>
+          <Text style={styles.footerText}>{t('settings.madeBy')}</Text> 
         </View>
       </ScrollView>
 
@@ -289,7 +301,7 @@ export default function SettingsScreen() {
                 <View style={[styles.modalHeaderIcon, { backgroundColor: `${selectedColor}15` }]}>
                   <Ionicons name="color-palette" size={20} color={selectedColor} />
                 </View>
-                <Text style={styles.modalTitle}>Choose Custom Color</Text>
+                <Text style={styles.modalTitle}>{t('settings.chooseCustomColor')}</Text> 
               </View>
               <TouchableOpacity 
                 onPress={() => setShowColorPicker(false)}
@@ -314,7 +326,7 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.colorPreview}>
-              <Text style={styles.previewLabel}>Selected Color</Text>
+              <Text style={styles.previewLabel}>{t('settings.selectedColor')}</Text> 
               <View style={styles.previewRow}>
                 <View
                   style={[
@@ -325,7 +337,7 @@ export default function SettingsScreen() {
                   <Ionicons name="checkmark" size={32} color="#fff" />
                 </View>
                 <View style={styles.hexContainer}>
-                  <Text style={styles.hexLabel}>HEX Code</Text>
+                  <Text style={styles.hexLabel}>{t('settings.hexCode')}</Text> 
                   <Text style={styles.hexText}>{selectedColor.toUpperCase()}</Text>
                 </View>
               </View>
@@ -338,7 +350,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="close" size={20} color="#666" />
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('profile.cancel')}</Text>  (reuse from profile)
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: selectedColor }]}
@@ -346,7 +358,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Apply Color</Text>
+                <Text style={styles.saveButtonText}>{t('settings.applyColor')}</Text> 
               </TouchableOpacity>
             </View>
           </Pressable>

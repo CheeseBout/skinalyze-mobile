@@ -19,7 +19,11 @@ import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
+import { productService } from '@/services/productService'
 import { Product } from '@/services/productService'
+import { 
+  useTranslation  // Add this import (from 'react-i18next')
+} from 'react-i18next';
 
 const { width } = Dimensions.get('window')
 
@@ -27,11 +31,17 @@ export default function HomeScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { primaryColor } = useThemeColor()
-  const { products, categories, saleProducts, isLoading, error, refreshProducts } = useProducts()
-  const [refreshing, setRefreshing] = useState(false)
-  const [showToTop, setShowToTop] = useState(false)  
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([])
+  const { categories, saleProducts, isLoading: isLoadingCategories, error: categoriesError, refreshProducts: refreshCategories } = useProducts()
+  const { t } = useTranslation();  // Add this
+  
+  // New state for paginated products
+  const [products, setProducts] = useState<Product[]>([])
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null)
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showToTop, setShowToTop] = useState(false)
   
   const PRODUCTS_PER_PAGE = 50
   const flatListRef = useRef<FlatList>(null)
@@ -41,31 +51,47 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current
 
   useEffect(() => {
-    if (!isLoading) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    }
-  }, [isLoading])
+    // Start animations immediately on mount
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [])
 
+  // Load initial products
   useEffect(() => {
-    if (products.length > 0) {
-      setDisplayedProducts(products.slice(0, PRODUCTS_PER_PAGE))
+    loadProducts(1)
+  }, [])
+
+  const loadProducts = async (page: number) => {
+    try {
+      if (page === 1) setIsLoadingProducts(true)
+      else setLoadingMore(true)
+      
+      const result = await productService.getProductsPaginated(page, PRODUCTS_PER_PAGE)
+      setProducts(prev => page === 1 ? result.products : [...prev, ...result.products])
+      setPagination(result.pagination)
+      setError(null)
+    } catch (err) {
+      setError('Failed to load products')
+    } finally {
+      setIsLoadingProducts(false)
+      setLoadingMore(false)
     }
-  }, [products])
+  }
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await refreshProducts()
+    await loadProducts(1)  // Reset to page 1
+    await refreshCategories()
     setRefreshing(false)
   }
 
@@ -75,24 +101,15 @@ export default function HomeScreen() {
   }
 
   const loadMoreProducts = () => {
-    if (loadingMore || displayedProducts.length >= products.length) return
-
-    setLoadingMore(true)
-    setTimeout(() => { 
-      const nextBatch = products.slice(
-        displayedProducts.length,
-        displayedProducts.length + PRODUCTS_PER_PAGE
-      )
-      setDisplayedProducts(prev => [...prev, ...nextBatch])
-      setLoadingMore(false)
-    }, 500)
+    if (loadingMore || !pagination || pagination.page >= pagination.totalPages) return
+    loadProducts(pagination.page + 1)
   }
 
   const getGreeting = () => {
     const hour = new Date().getHours()
-    if (hour < 12) return 'Good Morning'
-    if (hour < 18) return 'Good Afternoon'
-    return 'Good Evening'
+    if (hour < 12) return t('home.goodMorning')
+    if (hour < 18) return t('home.goodAfternoon')
+    return t('home.goodEvening')
   }
 
   // --- Render Components ---
@@ -112,7 +129,7 @@ export default function HomeScreen() {
           </View>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{user?.fullName || 'Guest'}</Text>
+            <Text style={styles.userName}>{user?.fullName || t('home.guest')}</Text>  
           </View>
         </View>
         <TouchableOpacity 
@@ -139,8 +156,10 @@ export default function HomeScreen() {
             <Ionicons name="camera" size={24} color="#2196F3" />
           </View>
           <View style={styles.quickActionContent}>
-            <Text style={styles.quickActionTitle}>Analyze</Text>
-            <Text style={styles.quickActionSubtitle}>Scan your skin</Text>
+            <Text style={styles.quickActionTitle}>{t('home.analyze')}</Text>  
+            <Text style={styles.quickActionSubtitle}>
+              {t('home.scanSkin')}  
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
@@ -154,8 +173,10 @@ export default function HomeScreen() {
             <Ionicons name="receipt" size={24} color="#FF9800" />
           </View>
           <View style={styles.quickActionContent}>
-            <Text style={styles.quickActionTitle}>Orders</Text>
-            <Text style={styles.quickActionSubtitle}>Track orders</Text>
+            <Text style={styles.quickActionTitle}>{t('home.orders')}</Text>  
+            <Text style={styles.quickActionSubtitle}>
+              {t('home.trackOrders')}  
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
@@ -169,10 +190,10 @@ export default function HomeScreen() {
               <View style={[styles.sectionIcon, { backgroundColor: '#FFE8E8' }]}>
                 <Ionicons name="flame" size={18} color="#FF3B30" />
               </View>
-              <Text style={styles.sectionTitle}>Hot Deals</Text>
+              <Text style={styles.sectionTitle}>{t('home.hotDeals')}</Text>  
             </View>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={[styles.seeAllText, { color: primaryColor }]}>See All →</Text>
+              <Text style={[styles.seeAllText, { color: primaryColor }]}>{t('home.seeAll')}</Text>  
             </TouchableOpacity>
           </View>
           
@@ -203,49 +224,58 @@ export default function HomeScreen() {
             <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
               <Ionicons name="grid" size={18} color={primaryColor} />
             </View>
-            <Text style={styles.sectionTitle}>Categories</Text>
+            <Text style={styles.sectionTitle}>{t('home.categories')}</Text>  
           </View>
         </View>
         
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {categories.map((category, index) => {
-            const colors = [
-              { bg: '#F0F9FF', icon: '#2196F3' },
-              { bg: '#F0FDF4', icon: '#34C759' },
-              { bg: '#FFF4E6', icon: '#FF9800' },
-              { bg: '#F3E8FF', icon: '#A855F7' },
-              { bg: '#FFE8E8', icon: '#FF3B30' },
-            ]
-            const colorSet = colors[index % colors.length]
-            
-            return (
-              <TouchableOpacity
-                key={category.categoryId}
-                style={styles.categoryCard}
-                activeOpacity={0.7}
-                // === MODIFIED: Navigation to SearchScreen with Params ===
-                onPress={() => router.push({
-                  pathname: '/(stacks)/SearchScreen',
-                  params: { 
-                    categoryId: category.categoryId,
-                    categoryName: category.categoryName
-                  }
-                })}
-              >
-                <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
-                  <Ionicons name="layers" size={28} color={colorSet.icon} />
-                </View>
-                <Text style={styles.categoryName} numberOfLines={2}>
-                  {category.categoryName}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        {isLoadingCategories ? (
+          <View style={styles.loadingContainer}>
+            <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <ActivityIndicator size="small" color={primaryColor} />
+            </View>
+            <Text style={styles.loadingText}>{t('home.loadingCategories')}</Text>  
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {categories.map((category, index) => {
+              const colors = [
+                { bg: '#F0F9FF', icon: '#2196F3' },
+                { bg: '#F0FDF4', icon: '#34C759' },
+                { bg: '#FFF4E6', icon: '#FF9800' },
+                { bg: '#F3E8FF', icon: '#A855F7' },
+                { bg: '#FFE8E8', icon: '#FF3B30' },
+              ]
+              const colorSet = colors[index % colors.length]
+              
+              return (
+                <TouchableOpacity
+                  key={category.categoryId}
+                  style={styles.categoryCard}
+                  activeOpacity={0.7}
+                  // === MODIFIED: Navigation to SearchScreen with Params ===
+                  onPress={() => router.push({
+                    pathname: '/(stacks)/SearchScreen',
+                    params: { 
+                      categoryId: category.categoryId,
+                      categoryName: category.categoryName
+                    }
+                  })}
+                >
+                  <View style={[styles.categoryIcon, { backgroundColor: colorSet.bg }]}>
+                    <Ionicons name="layers" size={28} color={colorSet.icon} />
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={2}>
+                    {category.categoryName}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {/* All Products Title (Part of Header) */}
@@ -254,33 +284,14 @@ export default function HomeScreen() {
           <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
             <Ionicons name="sparkles" size={18} color="#34C759" />
           </View>
-          <Text style={styles.sectionTitle}>All Products</Text>
+          <Text style={styles.sectionTitle}>{t('home.allProducts')}</Text>  
         </View>
         <View style={styles.productCount}>
-          <Text style={styles.productCountText}>{products.length}</Text>
+          <Text style={styles.productCountText}>{pagination?.total || 0}</Text>
         </View>
       </View>
     </Animated.View>
   )
-
-  // Loading State
-  if (isLoading && products.length === 0) {
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-        <View style={styles.loadingContainer}>
-          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <ActivityIndicator size="large" color={primaryColor} />
-          </View>
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
-      </View>
-    )
-  }
 
   // Error State
   if (error) {
@@ -295,15 +306,15 @@ export default function HomeScreen() {
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Oops!</Text>
+          <Text style={styles.errorTitle}>{t('home.oops')}</Text>  
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: primaryColor }]} 
-            onPress={refreshProducts}
+            onPress={() => loadProducts(1)}
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('home.tryAgain')}</Text>  
           </TouchableOpacity>
         </View>
       </View>
@@ -322,7 +333,7 @@ export default function HomeScreen() {
 
       <FlatList
         ref={flatListRef}
-        data={displayedProducts}
+        data={products}
         keyExtractor={(item, index) => `${item.productId}-${index}`}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
@@ -353,15 +364,24 @@ export default function HomeScreen() {
             colors={[primaryColor]}
           />
         }
+        ListEmptyComponent={
+          isLoadingProducts ? (
+            <View style={styles.loadingContainer}>
+              <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+                <ActivityIndicator size="large" color={primaryColor} />
+              </View>
+              <Text style={styles.loadingText}>{t('home.loadingProducts')}</Text>  
+            </View>
+          ) : null
+        }
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
               <ActivityIndicator size="small" color={primaryColor} />
-              <Text style={styles.loadingMoreText}>Loading more products...</Text>
+              <Text style={styles.loadingMoreText}>{t('home.loadingMoreProducts')}</Text>  
             </View>
           ) : (
-             // Add some bottom padding
-             <View style={{ height: 20 }} />
+            <View style={{ height: 20 }} />
           )
         }
         showsVerticalScrollIndicator={false}
@@ -426,6 +446,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   loadingIcon: {
     width: 80,

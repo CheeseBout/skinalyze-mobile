@@ -9,42 +9,48 @@ import {
   Dimensions, 
   Alert,
   StatusBar,
-  Animated
-} from 'react-native'
-import React, { useEffect, useState, useRef } from 'react'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import productService, { Product } from '@/services/productService'
-import cartService from '@/services/cartService'
-import tokenService from '@/services/tokenService'
-import { useCartCount } from '@/hooks/userCartCount'
-import { useThemeColor } from '@/contexts/ThemeColorContext'
+  Animated,
+  SafeAreaView
+} from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import productService, { Product } from '@/services/productService';
+import reviewService from '@/services/reviewService';
+import cartService from '@/services/cartService';
+import tokenService from '@/services/tokenService';
+import { useCartCount } from '@/hooks/userCartCount';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import ReviewsComponent from '@/components/ReviewsComponent';
+import { useTranslation } from 'react-i18next';
 
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen() {
-  const router = useRouter()
-  const { productId } = useLocalSearchParams<{ productId: string }>()
-  const { primaryColor } = useThemeColor()
+  const router = useRouter();
+  const { productId } = useLocalSearchParams<{ productId: string }>();
+  const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
-  const [product, setProduct] = useState<Product | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [quantity, setQuantity] = useState(1)
-  const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const { refreshCount } = useCartCount()
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number} | null>(null);
+  const { refreshCount } = useCartCount();
 
   // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(30)).current
-  const scaleAnim = useRef(new Animated.Value(0.95)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     if (productId) {
-      fetchProductDetails()
+      fetchProductDetails();
     }
-  }, [productId])
+  }, [productId]);
 
   useEffect(() => {
     if (!isLoading && product) {
@@ -65,158 +71,171 @@ export default function ProductDetailScreen() {
           friction: 7,
           useNativeDriver: true,
         }),
-      ]).start()
+      ]).start();
     }
-  }, [isLoading, product])
+  }, [isLoading, product]);
 
   const fetchProductDetails = async () => {
     try {
-      setIsLoading(true)
-      setError(null)
-      const data = await productService.getProductById(productId!)
-      setProduct(data)
+      setIsLoading(true);
+      setError(null);
+      const [productData, reviewStatsData] = await Promise.all([
+        productService.getProductById(productId!),
+        reviewService.getProductReviewStats(productId!).catch(() => ({ averageRating: 0, totalReviews: 0 }))
+      ]);
+      setProduct(productData);
+      setReviewStats(reviewStatsData);
     } catch (err) {
-      setError('Failed to load product details')
-      console.error('Error fetching product:', err)
+      setError('Failed to load product details');
+      console.error('Error fetching product:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleQuantityChange = (increment: boolean) => {
     if (increment && product && quantity < product.stock) {
-      setQuantity(quantity + 1)
+      setQuantity(quantity + 1);
     } else if (!increment && quantity > 1) {
-      setQuantity(quantity - 1)
+      setQuantity(quantity - 1);
     }
-  }
+  };
 
   const handleAddToCart = async () => {
-    if (!product || !productId) return
+    if (!product || !productId) return;
 
     try {
-      setIsAddingToCart(true)
-      const token = await tokenService.getToken()
+      setIsAddingToCart(true);
+      const token = await tokenService.getToken();
 
       if (!token) {
         Alert.alert(
-          'Authentication Required',
-          'Please log in to add items to your cart',
+          t('productDetail.authRequired'),
+          t('productDetail.loginToAddCart'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Log In', onPress: () => router.push('/WelcomeScreen') }
+            { text: t('productDetail.cancel'), style: 'cancel' },
+            { text: t('productDetail.logIn'), onPress: () => router.push('/WelcomeScreen') }
           ]
-        )
-        return
+        );
+        return;
       }
 
       await cartService.addToCart(token, {
         productId: productId,
         quantity: quantity
-      })
+      });
       
-      await refreshCount()
+      await refreshCount();
 
       Alert.alert(
-        'Added to Cart',
-        `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${product.productName} added to your cart`,
+        t('productDetail.addedToCart'),
+        t('productDetail.itemsAdded', { quantity, item: quantity === 1 ? t('productDetail.item') : t('productDetail.items'), productName: product.productName }),
         [
-          { text: 'Continue Shopping', style: 'cancel' },
-          { text: 'View Cart', onPress: () => router.push('/(tabs)/CartScreen') }
+          { text: t('productDetail.continueShopping'), style: 'cancel' },
+          { text: t('productDetail.viewCart'), onPress: () => router.push('/(tabs)/CartScreen') }
         ]
-      )
+      );
 
-      setQuantity(1)
+      setQuantity(1);
 
     } catch (err: any) {
-      console.error('Error adding to cart:', err)
-      let errorMessage = 'Failed to add product to cart. Please try again.'
+      console.error('Error adding to cart:', err);
+      let errorMessage = 'Failed to add product to cart. Please try again.';
 
       if (err.message) {
         if (err.message.includes('không có sẵn') || err.message.includes('not available')) {
-          errorMessage = 'This product is currently out of stock in all warehouses.'
+          errorMessage = t('productDetail.outOfStock');
         } else if (err.message.includes('quantity') || err.message.includes('số lượng')) {
-          errorMessage = 'The requested quantity is not available.'
+          errorMessage = t('productDetail.quantityNotAvailable');
         } else if (err.message.includes('token') || err.message.includes('auth')) {
-          errorMessage = 'Your session has expired. Please log in again.'
+          errorMessage = t('productDetail.sessionExpired');
         } else {
-          errorMessage = err.message
+          errorMessage = err.message;
         }
       }
 
-      Alert.alert('Cannot Add to Cart', errorMessage, [{ text: 'OK' }])
+      Alert.alert(t('productDetail.cannotAddToCart'), errorMessage, [{ text: t('productDetail.ok') }]);
     } finally {
-      setIsAddingToCart(false)
+      setIsAddingToCart(false);
     }
-  }
+  };
+
+  // --- Helper to clean suitableFor data ---
+  const getCleanSuitableFor = (data: any): string[] => {
+    if (!data) return [];
+    
+    let items: string[] = [];
+
+    if (Array.isArray(data)) {
+      items = data;
+    } else if (typeof data === 'string') {
+      // If it's a string like '["oily", "dry"]', parse it
+      try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) items = parsed;
+        else items = [data];
+      } catch (e) {
+        // If not JSON, maybe comma separated?
+        items = data.split(',').map(s => s.trim());
+      }
+    }
+
+    // Final cleanup: remove quotes, brackets if they somehow persisted in string items
+    return items.map(item => {
+        return item.replace(/[\[\]"]/g, '').trim(); // Removes [ ] " characters
+    }).filter(item => item.length > 0);
+  };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-
         <View style={styles.loadingContainer}>
-          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <ActivityIndicator size="large" color={primaryColor} />
-          </View>
-          <Text style={styles.loadingText}>Loading product...</Text>
+          <ActivityIndicator size="large" color={primaryColor} />
+          <Text style={styles.loadingText}>{t('productDetail.loading')}</Text>
         </View>
       </View>
-    )
+    );
   }
 
   if (error || !product) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        
-        {/* Decorative Background */}
-        <View style={styles.backgroundPattern}>
-          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
-        </View>
-
         <View style={styles.errorContainer}>
           <View style={[styles.errorIcon, { backgroundColor: '#FFE8E8' }]}>
             <Ionicons name="alert-circle" size={56} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Oops!</Text>
-          <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+          <Text style={styles.errorTitle}>{t('productDetail.oops')}</Text>
+          <Text style={styles.errorText}>{error || t('productDetail.productNotFound')}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: primaryColor }]} 
             onPress={fetchProductDetails}
             activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('productDetail.tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
 
-  const discountedPrice = productService.calculateDiscountedPrice(product)
-  const discountAmount = productService.getDiscountAmount(product)
-  const avgRating = productService.calculateAverageRating(product)
-  const stockStatus = productService.getStockStatus(product)
-  const hasDiscount = parseFloat(product.salePercentage) > 0
+  const discountedPrice = productService.calculateDiscountedPrice(product);
+  const discountAmount = productService.getDiscountAmount(product);
+  const avgRating = reviewStats?.averageRating || 0;
+  const reviewCount = reviewStats?.totalReviews || 0;
+  const stockStatus = productService.getStockStatus(product);
+  const hasDiscount = parseFloat(product.salePercentage) > 0;
 
-  // Convert prices to VND
-  const discountedPriceVND = productService.convertToVND(discountedPrice)
-  const discountAmountVND = productService.convertToVND(discountAmount)
-  const originalPriceVND = productService.convertToVND(product.sellingPrice)
+  // Clean tags
+  const suitableForTags = getCleanSuitableFor(product.suitableFor);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
       
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Image Gallery */}
         <View style={styles.imageSection}>
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -322,18 +341,18 @@ export default function ProductDetailScreen() {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Ionicons
                     key={star}
-                    name={star <= avgRating ? 'star' : 'star-outline'}
+                    name={star <= avgRating ? 'star' : (star - 0.5 <= avgRating ? 'star-half' : 'star-outline')}
                     size={18}
                     color="#FFB800"
                   />
                 ))}
               </View>
               <Text style={styles.ratingValue}>
-                {avgRating > 0 ? avgRating.toFixed(1) : 'No reviews yet'}
+                {avgRating > 0 ? avgRating.toFixed(1) : t('productDetail.noReviews')}
               </Text>
             </View>
             <Text style={styles.reviewCount}>
-              {product.reviews?.length || 0} {product.reviews?.length === 1 ? 'review' : 'reviews'}
+              {reviewCount} {reviewCount === 1 ? t('productDetail.review') : t('productDetail.reviews')}
             </Text>
           </View>
 
@@ -341,25 +360,45 @@ export default function ProductDetailScreen() {
           <View style={styles.priceCard}>
             <View style={styles.priceRow}>
               <Text style={[styles.currentPrice, { color: primaryColor }]}>
-                {productService.formatPrice(discountedPriceVND)}
+                {productService.formatPrice(discountedPrice)}
               </Text>
               {hasDiscount && (
                 <View style={styles.savingsBadge}>
                   <Text style={styles.savingsText}>
-                    Save {productService.formatPrice(discountAmountVND)}
+                    Save {productService.formatPrice(discountAmount)}
                   </Text>
                 </View>
               )}
             </View>
             {hasDiscount && (
               <Text style={styles.originalPrice}>
-                {productService.formatPrice(originalPriceVND)}
+                {productService.formatPrice(product.sellingPrice)}
               </Text>
             )}
             <Text style={styles.stockInfo}>
-              <Ionicons name="cube" size={14} color="#666" /> {product.stock} units available
+              <Ionicons name="cube" size={14} color="#666" /> {t('productDetail.unitsAvailable', { stock: product.stock })}
             </Text>
           </View>
+
+          {/* Categories */}
+          {product.categories && product.categories.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="grid" size={18} color="#A855F7" />
+                </View>
+                <Text style={styles.sectionTitle}>{t('productDetail.categories')}</Text>
+              </View>
+              <View style={styles.tagsContainer}>
+                {product.categories.map((category) => (
+                  <View key={category.categoryId} style={styles.categoryTag}>
+                    <Ionicons name="pricetag" size={14} color="#666" />
+                    <Text style={styles.categoryTagText}>{category.categoryName}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Description */}
           <View style={styles.section}>
@@ -367,24 +406,25 @@ export default function ProductDetailScreen() {
               <View style={[styles.sectionIcon, { backgroundColor: '#F0F9FF' }]}>
                 <Ionicons name="document-text" size={18} color="#2196F3" />
               </View>
-              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.sectionTitle}>{t('productDetail.description')}</Text>
             </View>
             <Text style={styles.description}>{product.productDescription}</Text>
           </View>
 
-          {/* Suitable For */}
-          {product.suitableFor && product.suitableFor.length > 0 && (
+          {/* Suitable For (Corrected) */}
+          {suitableForTags.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
                   <Ionicons name="checkmark-done" size={18} color="#34C759" />
                 </View>
-                <Text style={styles.sectionTitle}>Suitable For</Text>
+                <Text style={styles.sectionTitle}>{t('productDetail.suitableFor')}</Text>
               </View>
               <View style={styles.tagsContainer}>
-                {product.suitableFor.map((item, index) => (
+                {suitableForTags.map((item, index) => (
                   <View key={index} style={[styles.tag, { backgroundColor: `${primaryColor}12` }]}>
                     <Ionicons name="checkmark-circle" size={14} color={primaryColor} />
+                    {/* Use the cleaned item text here */}
                     <Text style={[styles.tagText, { color: primaryColor }]}>{item}</Text>
                   </View>
                 ))}
@@ -399,70 +439,34 @@ export default function ProductDetailScreen() {
                 <View style={[styles.sectionIcon, { backgroundColor: '#FFF4E6' }]}>
                   <Ionicons name="flask" size={18} color="#FF9800" />
                 </View>
-                <Text style={styles.sectionTitle}>Ingredients</Text>
+                <Text style={styles.sectionTitle}>{t('productDetail.ingredients')}</Text>
               </View>
               <View style={styles.ingredientsCard}>
                 <Text style={styles.ingredients}>{product.ingredients}</Text>
               </View>
             </View>
           )}
-
-          {/* Categories */}
-          {product.categories && product.categories.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIcon, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="grid" size={18} color="#A855F7" />
-                </View>
-                <Text style={styles.sectionTitle}>Categories</Text>
-              </View>
-              <View style={styles.tagsContainer}>
-                {product.categories.map((category) => (
-                  <View key={category.categoryId} style={styles.categoryTag}>
-                    <Ionicons name="pricetag" size={14} color="#666" />
-                    <Text style={styles.categoryTagText}>{category.categoryName}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Reviews */}
-          {product.reviews && product.reviews.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIcon, { backgroundColor: '#FFE8F0' }]}>
-                  <Ionicons name="chatbubbles" size={18} color="#E91E63" />
-                </View>
-                <Text style={styles.sectionTitle}>Customer Reviews</Text>
-              </View>
-              {product.reviews.slice(0, 3).map((review, index) => (
-                <View key={index} style={styles.reviewCard}>
-                  <View style={styles.reviewHeader}>
-                    <View style={styles.reviewStars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name={star <= review.rating ? 'star' : 'star-outline'}
-                          size={14}
-                          color="#FFB800"
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.reviewDate}>
-                      {new Date(review.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </Text>
-                  </View>
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </Animated.View>
+
+        {/* Reviews Component */}
+        <ReviewsComponent
+          productId={productId!}
+          primaryColor={primaryColor}
+          onWriteReview={(reviewData) => {
+            router.push({
+              pathname: '/(stacks)/CreateReviewScreen',
+              params: { 
+                productId: productId!,
+                ...(reviewData && {
+                  reviewId: reviewData.reviewId,
+                  existingRating: reviewData.rating.toString(),
+                  existingContent: reviewData.content,
+                  isEditing: 'true'
+                })
+              }
+            })
+          }}
+        />
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -475,7 +479,6 @@ export default function ProductDetailScreen() {
         ]}
       >
         <View style={styles.quantitySection}>
-          <Text style={styles.quantityLabel}>Quantity</Text>
           <View style={styles.quantityControls}>
             <TouchableOpacity
               style={[styles.quantityButton, quantity <= 1 && styles.quantityButtonDisabled]}
@@ -509,13 +512,13 @@ export default function ProductDetailScreen() {
           {isAddingToCart ? (
             <>
               <ActivityIndicator size="small" color="#FFFFFF" />
-              <Text style={styles.addToCartText}>Adding...</Text>
+              <Text style={styles.addToCartText}>{t('productDetail.adding')}</Text>
             </>
           ) : (
             <>
               <Ionicons name="cart" size={20} color="#FFFFFF" />
               <Text style={styles.addToCartText}>
-                {productService.isInStock(product) ? 'Add to Cart' : 'Out of Stock'}
+                {productService.isInStock(product) ? t('productDetail.addToCart') : t('productDetail.outOfStockBtn')}
               </Text>
               {productService.isInStock(product) && (
                 <View style={styles.cartArrow}>
@@ -704,7 +707,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbnailSelected: {
-    borderColor: '#007AFF',
+    // borderColor handled dynamically
   },
   thumbnailImage: {
     width: '100%',
@@ -870,6 +873,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontWeight: '700',
+    textTransform: 'capitalize', // Ensure consistent capitalization
   },
   categoryTag: {
     flexDirection: 'row',
@@ -896,33 +900,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  reviewCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  reviewStars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  reviewDate: {
-    fontSize: 12,
-    color: '#999',
-    fontWeight: '600',
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -936,6 +913,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   quantitySection: {
     flex: 0.4,
@@ -998,4 +979,4 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
-})
+});

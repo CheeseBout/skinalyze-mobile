@@ -10,6 +10,7 @@ export interface PaymentStatusResponse {
   createdAt: string;
   expiredAt: string;
   paidAt?: string;
+  paymentType: 'order' | 'topup' | 'booking' | 'subscription';
   order?: {
     orderId: string;
     status: string;
@@ -42,6 +43,7 @@ class PaymentService {
       if (result.code === "00" && result.data) {
         return result.data;
       }
+      console.log(result.data)
       throw new Error("Failed to fetch banks");
     } catch (error) {
       console.error("Error fetching banks:", error);
@@ -56,7 +58,7 @@ class PaymentService {
       const response = await apiService.get<ApiResponse<PaymentStatusResponse>>(
         `/payments/check/${paymentCode}`
       );
-
+      console.log(response.data)
       return response.data;
     } catch (error) {
       console.error("Error checking payment status:", error);
