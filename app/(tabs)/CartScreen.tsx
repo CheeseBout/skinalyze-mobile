@@ -9,19 +9,23 @@ import {
   Alert,
   RefreshControl
 } from 'react-native'
-import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'expo-router'
+import React, { useState, useCallback } from 'react'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import cartService, { Cart, CartItem } from '@/services/cartService'
 import productService from '@/services/productService'
 import tokenService from '@/services/tokenService'
+import { useCartCount } from '@/hooks/userCartCount'
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 // Extended CartItem with product image
 interface CartItemWithImage extends CartItem {
   productImage?: string;
 }
-
+ 
 export default function CartScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [cart, setCart] = useState<Cart | null>(null)
   const [cartItemsWithImages, setCartItemsWithImages] = useState<CartItemWithImage[]>([])
@@ -29,25 +33,20 @@ export default function CartScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
+  const { refreshCount } = useCartCount()
+  const { primaryColor } = useThemeColor();
 
-  useEffect(() => {
-    loadCart()
-  }, [])
-
-  // Fetch product images when cart items change
-  useEffect(() => {
-    if (cart && cart.items.length > 0) {
-      fetchProductImages()
+  const fetchProductImages = useCallback(async (cartData: Cart) => {
+    if (!cartData || cartData.items.length === 0) {
+      setCartItemsWithImages([])
+      return
     }
-  }, [cart?.items])
-
-  const fetchProductImages = async () => {
-    if (!cart) return
 
     try {
-      // Fetch all product details in parallel
       const itemsWithImages = await Promise.all(
-        cart.items.map(async (item) => {
+        cartData.items.map(async (item) => {
           try {
             const product = await productService.getProductById(item.productId)
             return {
@@ -68,9 +67,9 @@ export default function CartScreen() {
     } catch (error) {
       console.error('Error fetching product images:', error)
     }
-  }
+  }, [])
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -79,26 +78,84 @@ export default function CartScreen() {
       
       if (!token) {
         setError('Please log in to view your cart')
+        setIsLoading(false)
         return
       }
 
-      const cartData = await cartService.getUserCart(token)
+      const cartData = await cartService.getUserCart()
       setCart(cartData)
+      
+      await fetchProductImages(cartData)
+      await refreshCount()
+      
+      // Select all items by default
+      const allProductIds = new Set(cartData.items.map(item => item.productId))
+      setSelectedItems(allProductIds)
+      setSelectAll(true)
     } catch (err) {
       console.error('Error loading cart:', err)
       setError('Failed to load cart')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [fetchProductImages, refreshCount])
+
+  useFocusEffect(
+    useCallback(() => {
+      ('📱 CartScreen focused - refreshing cart and badge')
+      loadCart()
+    }, [loadCart])
+  )
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true)
     await loadCart()
     setIsRefreshing(false)
-  }, [])
+  }, [loadCart])
 
-  const handleUpdateQuantity = async (item: CartItem, newQuantity: number) => {
+  const toggleSelectItem = useCallback((productId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(productId)) {
+        newSet.delete(productId)
+      } else {
+        newSet.add(productId)
+      }
+      
+      // Update select all state
+      setSelectAll(newSet.size === cart?.items.length)
+      
+      return newSet
+    })
+  }, [cart?.items.length])
+
+  const toggleSelectAll = useCallback(() => {
+    if (!cart) return
+    
+    if (selectAll) {
+      setSelectedItems(new Set())
+      setSelectAll(false)
+    } else {
+      const allProductIds = new Set(cart.items.map(item => item.productId))
+      setSelectedItems(allProductIds)
+      setSelectAll(true)
+    }
+  }, [selectAll, cart])
+
+  const calculateSelectedTotal = useCallback(() => {
+    if (!cart) return { items: 0, price: 0 }
+    
+    const selectedCartItems = cart.items.filter(item => 
+      selectedItems.has(item.productId)
+    )
+    
+    return {
+      items: selectedCartItems.reduce((sum, item) => sum + item.quantity, 0),
+      price: selectedCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    }
+  }, [cart, selectedItems])
+
+  const handleUpdateQuantity = useCallback(async (item: CartItem, newQuantity: number) => {
     if (newQuantity < 1) return
 
     try {
@@ -117,6 +174,11 @@ export default function CartScreen() {
       )
 
       setCart(updatedCart)
+      await fetchProductImages(updatedCart)
+      
+      setTimeout(async () => {
+        await refreshCount()
+      }, 100)
     } catch (err) {
       console.error('Error updating quantity:', err)
       Alert.alert('Error', 'Failed to update quantity')
@@ -127,16 +189,16 @@ export default function CartScreen() {
         return newSet
       })
     }
-  }
+  }, [fetchProductImages, refreshCount])
 
-  const handleRemoveItem = (item: CartItem) => {
+  const handleRemoveItem = useCallback((item: CartItem) => {
     Alert.alert(
-      'Remove Item',
-      `Remove ${item.productName} from cart?`,
+      t('cart.removeItem'),
+      t('cart.removeConfirm', { itemName: item.productName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cart.cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('cart.remove'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -150,6 +212,18 @@ export default function CartScreen() {
 
               const updatedCart = await cartService.removeFromCart(token, item.productId)
               setCart(updatedCart)
+              await fetchProductImages(updatedCart)
+              
+              // Remove from selected items
+              setSelectedItems(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(item.productId)
+                return newSet
+              })
+              
+              setTimeout(async () => {
+                await refreshCount()
+              }, 100)
             } catch (err) {
               console.error('Error removing item:', err)
               Alert.alert('Error', 'Failed to remove item')
@@ -164,18 +238,18 @@ export default function CartScreen() {
         }
       ]
     )
-  }
+  }, [fetchProductImages, refreshCount])
 
-  const handleClearCart = () => {
+  const handleClearCart = useCallback(() => {
     if (!cart || cart.items.length === 0) return
 
     Alert.alert(
-      'Clear Cart',
-      'Remove all items from your cart?',
+      t('cart.clearCart'),
+      t('cart.clearConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cart.cancel'), style: 'cancel' },
         {
-          text: 'Clear All',
+          text: t('cart.clearAll'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -186,6 +260,8 @@ export default function CartScreen() {
               }
 
               await cartService.clearCart(token)
+              setSelectedItems(new Set())
+              setSelectAll(false)
               await loadCart()
             } catch (err) {
               console.error('Error clearing cart:', err)
@@ -195,56 +271,80 @@ export default function CartScreen() {
         }
       ]
     )
-  }
+  }, [cart, loadCart])
 
-  const handleCheckout = () => {
+  const handleCheckout = useCallback(() => {
     if (!cart || cart.items.length === 0) return
+    
+    if (selectedItems.size === 0) {
+      Alert.alert(t('cart.noItemsSelected'), t('cart.selectItemsToCheckout'))
+      return
+    }
 
-    // TODO: Navigate to checkout screen
-    Alert.alert(
-      'Checkout',
-      'Checkout functionality coming soon!',
-      [{ text: 'OK' }]
-    )
-  }
+    // Get selected product IDs as array
+    const selectedProductIds = Array.from(selectedItems);
+    
+    router.push({
+      pathname: '/(stacks)/CheckoutScreen',
+      params: { 
+        selectedProductIds: JSON.stringify(selectedProductIds)
+      }
+    })
+  }, [cart, selectedItems, router])
 
-  const renderCartItem = ({ item }: { item: CartItemWithImage }) => {
+  const renderCartItem = useCallback(({ item }: { item: CartItemWithImage }) => {
     const isUpdating = updatingItems.has(item.productId)
+    const isSelected = selectedItems.has(item.productId)
 
     return (
       <View style={styles.cartItem}>
-        <TouchableOpacity
-          style={styles.itemContent}
-          onPress={() => router.push({
-            pathname: '/(stacks)/ProductDetailScreen',
-            params: { productId: item.productId }
-          })}
-        >
-          {/* Product Image */}
-          <View style={styles.itemImageContainer}>
-            {item.productImage ? (
-              <Image
-                source={{ uri: item.productImage + '.jpg' }}
-                style={styles.itemImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Ionicons name="image-outline" size={40} color="#CCC" />
-            )}
-          </View>
+        <View style={styles.itemHeader}>
+          {/* Checkbox */}
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => toggleSelectItem(item.productId)}
+            disabled={isUpdating}
+          >
+            <View style={[styles.checkbox, isSelected && styles.checkboxActive, {backgroundColor: primaryColor, borderColor: primaryColor}]}>
+              {isSelected && (
+                <Ionicons name="checkmark" size={16} color="#FFF" />
+              )}
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.itemDetails}>
-            <Text style={styles.itemName} numberOfLines={2}>
-              {item.productName}
-            </Text>
-            <Text style={styles.itemPrice}>
-              {productService.formatPrice(item.price)}
-            </Text>
-            <Text style={styles.itemSubtotal}>
-              Subtotal: {productService.formatPrice(item.price * item.quantity)}
-            </Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.itemContent}
+            onPress={() => router.push({
+              pathname: '/(stacks)/ProductDetailScreen',
+              params: { productId: item.productId }
+            })}
+          >
+            {/* Product Image */}
+            <View style={styles.itemImageContainer}>
+              {item.productImage ? (
+                <Image
+                  source={{ uri: item.productImage + '.jpg' }}
+                  style={styles.itemImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="image-outline" size={40} color="#CCC" />
+              )}
+            </View>
+
+            <View style={styles.itemDetails}>
+              <Text style={styles.itemName} numberOfLines={2}>
+                {item.productName}
+              </Text>
+              <Text style={[styles.itemPrice, { color: primaryColor }]}>
+                {productService.formatPrice(item.price)}
+              </Text>
+              <Text style={styles.itemSubtotal}>
+                Subtotal: {productService.formatPrice(item.price * item.quantity)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.itemActions}>
           {/* Quantity Controls */}
@@ -291,45 +391,45 @@ export default function CartScreen() {
         </View>
       </View>
     )
-  }
+  }, [updatingItems, selectedItems, handleUpdateQuantity, handleRemoveItem, toggleSelectItem, router])
 
-  const renderEmptyCart = () => (
+  const renderEmptyCart = useCallback(() => (
     <View style={styles.emptyContainer}>
       <Ionicons name="cart-outline" size={100} color="#E5E5E5" />
-      <Text style={styles.emptyTitle}>Your cart is empty</Text>
+      <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
       <Text style={styles.emptySubtitle}>
-        Add products to your cart to get started
+        {t('cart.emptyDesc')}
       </Text>
       <TouchableOpacity
-        style={styles.shopButton}
+        style={[styles.shopButton, { backgroundColor: primaryColor }]}
         onPress={() => router.push('/(tabs)/HomeScreen')}
       >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
+        <Text style={styles.shopButtonText}>{t('cart.startShopping')}</Text>
       </TouchableOpacity>
     </View>
-  )
+  ), [router, primaryColor])
 
-  const renderLoginRequired = () => (
+  const renderLoginRequired = useCallback(() => (
     <View style={styles.emptyContainer}>
       <Ionicons name="person-circle-outline" size={100} color="#E5E5E5" />
-      <Text style={styles.emptyTitle}>Login Required</Text>
+      <Text style={styles.emptyTitle}>{t('cart.loginRequiredTitle')}</Text>
       <Text style={styles.emptySubtitle}>
-        Please log in to view your cart
+        {t('cart.loginRequiredDesc')}
       </Text>
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => router.push('/WelcomeScreen')}
       >
-        <Text style={styles.shopButtonText}>Log In</Text>
+        <Text style={styles.shopButtonText}>{t('cart.logIn')}</Text>
       </TouchableOpacity>
     </View>
-  )
+  ), [router])
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading cart...</Text>
+        <ActivityIndicator size="large" color={primaryColor} />
+        <Text style={styles.loadingText}>{t('cart.loading')}</Text>
       </View>
     )
   }
@@ -342,9 +442,9 @@ export default function CartScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{t('cart.loadError')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadCart}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.retryButtonText}>{t('cart.retry')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -354,13 +454,28 @@ export default function CartScreen() {
     return renderEmptyCart()
   }
 
+  const selectedTotal = calculateSelectedTotal()
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Shopping Cart</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.selectAllContainer}
+            onPress={toggleSelectAll}
+          >
+            <View style={[styles.checkbox, selectAll && styles.checkboxActive, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+              {selectAll && (
+                <Ionicons name="checkmark" size={16} color="#FFF" />
+              )}
+            </View>
+            <Text style={styles.selectAllText}>{t('cart.all')}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.headerTitle}>{t('cart.title')}</Text>
         <TouchableOpacity onPress={handleClearCart}>
-          <Text style={styles.clearText}>Clear All</Text>
+          <Text style={styles.clearText}>{t('cart.clear')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -380,24 +495,36 @@ export default function CartScreen() {
       <View style={styles.bottomContainer}>
         <View style={styles.summarySection}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Items ({cart.totalItems})</Text>
+            <Text style={styles.summaryLabel}>
+              {t('cart.selectedItems', { 
+                count: selectedTotal.items, 
+                item: selectedTotal.items === 1 ? t('cart.item') : t('cart.items') 
+              })}
+            </Text>
             <Text style={styles.summaryValue}>
-              {productService.formatPrice(cart.totalPrice)}
+              {productService.formatPrice(selectedTotal.price)}
             </Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              {productService.formatPrice(cart.totalPrice)}
+            <Text style={styles.totalLabel}>{t('cart.total')}</Text>
+            <Text style={[styles.totalValue, { color: primaryColor }]}>
+              {productService.formatPrice(selectedTotal.price)}
             </Text>
           </View>
         </View>
 
         <TouchableOpacity
-          style={styles.checkoutButton}
+          style={[
+            styles.checkoutButton,
+            selectedItems.size === 0 && styles.checkoutButtonDisabled,
+            { backgroundColor: primaryColor }
+          ]}
           onPress={handleCheckout}
+          disabled={selectedItems.size === 0}
         >
-          <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+          <Text style={styles.checkoutButtonText}>
+            {t('cart.checkout', { count: selectedItems.size })}
+          </Text>
           <Ionicons name="arrow-forward" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
@@ -482,13 +609,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectAllText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1A1A1A',
   },
@@ -511,9 +652,30 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  itemContent: {
+  itemHeader: {
     flexDirection: 'row',
     marginBottom: 12,
+  },
+  checkboxContainer: {
+    paddingRight: 12,
+    justifyContent: 'center',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#CCC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  itemContent: {
+    flexDirection: 'row',
+    flex: 1,
   },
   itemImageContainer: {
     width: 80,
@@ -554,6 +716,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 12,
+    paddingLeft: 36,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
@@ -629,6 +792,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+  },
+  checkoutButtonDisabled: {
+    opacity: 0.5,
   },
   checkoutButtonText: {
     color: '#FFF',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,26 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderItem } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import reviewService from '@/services/reviewService';
+import { useTranslation } from 'react-i18next';
 
 export default function OrderDetailScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
+  
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [processingAction, setProcessingAction] = useState(false); // To handle button loading state
+  const [reviewEligibility, setReviewEligibility] = useState<Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }>>({});
 
   useEffect(() => {
     if (orderId && isAuthenticated) {
@@ -28,9 +36,20 @@ export default function OrderDetailScreen() {
     }
   }, [orderId, isAuthenticated]);
 
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (orderId && isAuthenticated && order) {
+        if (order.status === 'DELIVERED' || order.status === 'COMPLETED') {
+          checkReviewEligibility(order.orderItems);
+        }
+      }
+    }, [orderId, isAuthenticated, order])
+  );
+
   const fetchOrderDetail = async () => {
     if (!isAuthenticated || !orderId) {
-      Alert.alert('Lỗi', 'Thông tin không hợp lệ');
+      Alert.alert(t('orderDetail.error'), t('orderDetail.invalidInfo'));
       return;
     }
 
@@ -38,24 +57,129 @@ export default function OrderDetailScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Lỗi', 'Vui lòng đăng nhập để xem chi tiết đơn hàng');
+        Alert.alert(t('orderDetail.error'), t('orderDetail.loginToView'));
         return;
       }
       const data = await orderService.getOrderById(orderId, token);
       setOrder(data);
+      
+      if (data.status === 'DELIVERED' || data.status === 'COMPLETED') {
+        await checkReviewEligibility(data.orderItems);
+      }
     } catch (error: any) {
       console.error('Error fetching order detail:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tải chi tiết đơn hàng');
+      Alert.alert(t('orderDetail.error'), error.message || t('orderDetail.unableLoad'));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCompleteOrder = () => {
+    Alert.alert(
+      t('orderDetail.confirmReceipt'),
+      t('orderDetail.confirmMessage'),
+      [
+        { text: t('orderDetail.cancel'), style: "cancel" },
+        { 
+          text: t('orderDetail.yesReceived'), 
+          onPress: async () => {
+            try {
+              setProcessingAction(true);
+              const token = await tokenService.getToken();
+              
+              if (!token || !order) return;
+
+              // Call the service method (ensure this method exists in your orderService)
+              const updatedOrder = await orderService.confirmCompleteOrder(order.orderId, token);
+              
+              setOrder(updatedOrder);
+              Alert.alert(t('orderDetail.success'), t('orderDetail.orderCompleted'));
+              
+              // Refresh review eligibility based on new status
+              checkReviewEligibility(updatedOrder.orderItems);
+              
+            } catch (error: any) {
+              Alert.alert(t('orderDetail.error'), error.message || t('orderDetail.failedComplete'));
+            } finally {
+              setProcessingAction(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const checkReviewEligibility = async (orderItems: OrderItem[]) => {
+    const eligibilityMap: Record<string, { canReview: boolean; hasReviewed: boolean; hasPurchased: boolean }> = {};
+    
+    try {
+      if (!user) return;
+
+      const eligibilityPromises = orderItems.map(async (item) => {
+        try {
+          const reviews = await reviewService.getProductReviews(item.product.productId);
+          const userReview = reviews.find(review => review.userId === user.userId);
+          const hasReviewed = !!userReview;
+          const hasPurchased = true;
+          const canReview = !hasReviewed;
+          
+          return {
+            productId: item.product.productId,
+            eligibility: { canReview, hasReviewed, hasPurchased }
+          };
+        } catch (error) {
+          console.error(`Error checking eligibility for product ${item.product.productId}:`, error);
+          return {
+            productId: item.product.productId,
+            eligibility: { canReview: true, hasReviewed: false, hasPurchased: true }
+          };
+        }
+      });
+      
+      const results = await Promise.all(eligibilityPromises);
+      results.forEach(({ productId, eligibility }) => {
+        eligibilityMap[productId] = eligibility;
+      });
+      
+      setReviewEligibility(eligibilityMap);
+    } catch (error) {
+      console.error('Error checking review eligibility:', error);
+    }
+  };
+
   const renderOrderItem = (item: OrderItem) => {
     const itemTotal = parseFloat(item.priceAtTime) * item.quantity;
+    const isCompleted = order?.status === 'COMPLETED' || order?.status === 'DELIVERED';
+    const eligibility = reviewEligibility[item.product.productId];
+    
+    // Only allow review if order is effectively delivered/completed and user hasn't reviewed yet
+    const canShowReviewButton = isCompleted && eligibility?.canReview && eligibility?.hasPurchased && !eligibility?.hasReviewed;
+
+    const handleProductPress = () => {
+      router.push({
+        pathname: '/(stacks)/ProductDetailScreen',
+        params: { productId: item.product.productId }
+      });
+    };
+
+    const handleReviewPress = (e: any) => {
+      e.stopPropagation();
+      router.push({
+        pathname: '/(stacks)/CreateReviewScreen',
+        params: { 
+          productId: item.product.productId,
+          orderId: order?.orderId 
+        }
+      });
+    };
 
     return (
-      <View key={item.orderItemId} style={styles.orderItemCard}>
+      <TouchableOpacity 
+        key={item.orderItemId} 
+        style={styles.orderItemCard}
+        onPress={handleProductPress}
+        activeOpacity={0.7}
+      >
         <Image
           source={{ uri: item.product.productImages[0] }}
           style={styles.orderItemImage}
@@ -66,26 +190,47 @@ export default function OrderDetailScreen() {
           </Text>
           <Text style={styles.orderItemBrand}>{item.product.brand}</Text>
           <View style={styles.orderItemPriceRow}>
-            <Text style={styles.orderItemPrice}>
+            <Text style={[styles.orderItemPrice, { color: primaryColor }]}>
               {orderService.formatCurrency(parseFloat(item.priceAtTime))}
             </Text>
             <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
           </View>
+          
+          {/* Review Button */}
+          {canShowReviewButton && (
+            <TouchableOpacity
+              style={[styles.reviewButton, { borderColor: primaryColor }]}
+              onPress={handleReviewPress}
+            >
+              <Ionicons name="star-outline" size={16} color={primaryColor} />
+              <Text style={[styles.reviewButtonText, { color: primaryColor }]}>
+                {t('orderDetail.writeReview')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Reviewed Indicator */}
+          {isCompleted && eligibility?.hasReviewed && (
+            <View style={styles.reviewedIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.reviewedText}>{t('orderDetail.reviewed')}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.orderItemTotal}>
           <Text style={styles.orderItemTotalText}>
             {orderService.formatCurrency(itemTotal)}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Đang tải chi tiết đơn hàng...</Text>
+        <ActivityIndicator size="large" color={primaryColor} />
+        <Text style={styles.loadingText}>{t('orderDetail.loadingDetails')}</Text>
       </View>
     );
   }
@@ -94,22 +239,30 @@ export default function OrderDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={80} color="#ccc" />
-        <Text style={styles.errorText}>Không tìm thấy đơn hàng</Text>
+        <Text style={styles.errorText}>{t('orderDetail.orderNotFound')}</Text>
         <TouchableOpacity
-          style={styles.backToListButton}
+          style={[styles.backToListButton, { backgroundColor: primaryColor }]}
           onPress={() => router.back()}
         >
-          <Text style={styles.backToListButtonText}>Quay lại</Text>
+          <Text style={styles.backToListButtonText}>{t('orderDetail.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const totalAmount = orderService.calculateOrderTotal(order.orderItems);
-  const totalItems = orderService.calculateTotalItems(order.orderItems);
+  const totalAmount = orderService.calculateOrderTotal(order.orderItems);  // Subtotal
+  const shippingFee = order.shippingLogs?.find(log => log.shippingFee)?.shippingFee || '0';  // Extract shipping fee
+  const totalWithShipping = totalAmount + parseFloat(shippingFee);  // Total including shipping
+
+  // Determine icon based on status
+  let statusIconName: keyof typeof Ionicons.glyphMap = 'time';
+  if (order.status === 'DELIVERED') statusIconName = 'cube';
+  else if (order.status === 'COMPLETED') statusIconName = 'checkmark-done-circle';
+  else if (order.status === 'CANCELLED' || order.status === 'REJECTED') statusIconName = 'close-circle';
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -117,7 +270,7 @@ export default function OrderDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết đơn hàng</Text>
+        <Text style={styles.headerTitle}>{t('orderDetail.orderDetails')}</Text>
         <TouchableOpacity
           style={styles.trackingButton}
           onPress={() => router.push({
@@ -125,7 +278,7 @@ export default function OrderDetailScreen() {
             params: { orderId: order.orderId }
           } as any)}
         >
-          <Ionicons name="location" size={24} color="#4CAF50" />
+          <Ionicons name="map-outline" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
@@ -140,19 +293,13 @@ export default function OrderDetailScreen() {
               ]}
             >
               <Ionicons
-                name={
-                  order.status === 'DELIVERED'
-                    ? 'checkmark-circle'
-                    : order.status === 'CANCELLED' || order.status === 'REJECTED'
-                    ? 'close-circle'
-                    : 'time'
-                }
+                name={statusIconName}
                 size={40}
                 color={orderService.getStatusColor(order.status)}
               />
             </View>
             <Text style={styles.statusTitle}>
-              {orderService.getStatusLabel(order.status)}
+              {t('orders.' + order.status.toLowerCase())}
             </Text>
             {order.rejectionReason && (
               <View style={styles.rejectionBox}>
@@ -167,20 +314,20 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="information-circle-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Thông tin đơn hàng</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.orderInformation')}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Mã đơn hàng:</Text>
-            <Text style={styles.infoValue}>#{order.orderId.slice(0, 8)}</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.orderId')}</Text>
+            <Text style={styles.infoValue}>#{order.orderId.slice(0, 8).toUpperCase()}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Ngày đặt:</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.orderDate')}</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.createdAt)}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Cập nhật:</Text>
+            <Text style={styles.infoLabel}>{t('orderDetail.lastUpdated')}</Text>
             <Text style={styles.infoValue}>
               {orderService.formatDate(order.updatedAt)}
             </Text>
@@ -191,12 +338,12 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="location-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Địa chỉ giao hàng</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.shippingAddress')}</Text>
           </View>
           <Text style={styles.addressText}>{order.shippingAddress}</Text>
           {order.notes && (
             <View style={styles.notesContainer}>
-              <Text style={styles.notesLabel}>Ghi chú:</Text>
+              <Text style={styles.notesLabel}>{t('orderDetail.notes')}</Text>
               <Text style={styles.notesText}>{order.notes}</Text>
             </View>
           )}
@@ -206,14 +353,18 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Thông tin khách hàng</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.customerInformation')}</Text>
           </View>
           <View style={styles.customerInfo}>
-            {order.customer.user.photoUrl && (
+            {order.customer.user.photoUrl ? (
               <Image
                 source={{ uri: order.customer.user.photoUrl }}
                 style={styles.customerAvatar}
               />
+            ) : (
+              <View style={[styles.customerAvatar, { justifyContent: 'center', alignItems: 'center' }]}>
+                 <Ionicons name="person" size={30} color="#999" />
+              </View>
             )}
             <View style={styles.customerDetails}>
               <Text style={styles.customerName}>{order.customer.user.fullName}</Text>
@@ -227,7 +378,9 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="cart-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Sản phẩm ({totalItems})</Text>
+            <Text style={styles.sectionTitle}>
+              {t('orderDetail.products', { count: order.orderItems.length })}
+            </Text>
           </View>
           {order.orderItems.map(renderOrderItem)}
         </View>
@@ -236,23 +389,25 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="receipt-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Tổng cộng</Text>
+            <Text style={styles.sectionTitle}>{t('orderDetail.orderSummary')}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tạm tính:</Text>
+            <Text style={styles.summaryLabel}>{t('orderDetail.subtotal')}</Text>
             <Text style={styles.summaryValue}>
               {orderService.formatCurrency(totalAmount)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phí vận chuyển:</Text>
-            <Text style={styles.summaryValue}>Miễn phí</Text>
+            <Text style={styles.summaryLabel}>{t('orderDetail.shippingFee')}</Text>
+            <Text style={styles.summaryValue}>
+              {orderService.formatCurrency(parseFloat(shippingFee))}
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Tổng cộng:</Text>
-            <Text style={styles.totalValue}>
-              {orderService.formatCurrency(totalAmount)}
+            <Text style={styles.totalLabel}>{t('orderDetail.total')}</Text>
+            <Text style={[styles.totalValue, { color: primaryColor }]}>
+              {orderService.formatCurrency(totalWithShipping)}
             </Text>
           </View>
         </View>
@@ -262,22 +417,57 @@ export default function OrderDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="card-outline" size={20} color="#333" />
-              <Text style={styles.sectionTitle}>Thông tin thanh toán</Text>
+              <Text style={styles.sectionTitle}>{t('orderDetail.paymentInformation')}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phương thức:</Text>
+              <Text style={styles.infoLabel}>{t('orderDetail.method')}</Text>
               <Text style={styles.infoValue}>
-                {order.payment.method || 'Chưa xác định'}
+                {t('orderDetail.' + order.payment.paymentMethod)}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Trạng thái:</Text>
-              <Text style={styles.infoValue}>
-                {order.payment.status || 'Chưa thanh toán'}
+              <Text style={styles.infoLabel}>{t('orderDetail.status')}</Text>
+              <Text style={[
+                styles.infoValue, 
+                { color: order.payment.status === 'PAID' ? '#4CAF50' : '#FFA500' }
+              ]}>
+                {order.payment.status === 'PAID' ? t('orderDetail.paid') : t('orderDetail.unpaid')}
               </Text>
             </View>
           </View>
         )}
+
+        {/* COMPLETE ORDER BUTTON SECTION */}
+        {/* Only rendered when status is DELIVERED */}
+        {order.status === 'DELIVERED' && (
+          <View style={styles.actionContainer}>
+            <View style={styles.completeInfoBox}>
+              <Ionicons name="gift-outline" size={24} color={primaryColor} />
+              <Text style={styles.completeInfoText}>
+                {t('orderDetail.packageDelivered')}
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={[
+                styles.completeButton, 
+                { backgroundColor: primaryColor, opacity: processingAction ? 0.7 : 1 }
+              ]}
+              onPress={handleCompleteOrder}
+              disabled={processingAction}
+              activeOpacity={0.8}
+            >
+              {processingAction ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.completeButtonText}>{t('orderDetail.receivedCompleteOrder')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Bottom padding */}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -305,9 +495,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-  },
-  placeholder: {
-    width: 40,
   },
   trackingButton: {
     padding: 8,
@@ -355,6 +542,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginTop: 16,
+    width: '100%',
   },
   rejectionText: {
     flex: 1,
@@ -457,7 +645,6 @@ const styles = StyleSheet.create({
   orderItemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2196F3',
   },
   orderItemQuantity: {
     fontSize: 14,
@@ -473,6 +660,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  reviewButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  reviewedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  reviewedText: {
+    fontSize: 12,
+    color: '#34C759',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -500,7 +713,6 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2196F3',
   },
   loadingContainer: {
     flex: 1,
@@ -529,12 +741,53 @@ const styles = StyleSheet.create({
   backToListButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#2196F3',
     borderRadius: 8,
   },
   backToListButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  // NEW STYLES FOR ACTION SECTION
+  actionContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  completeInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  completeInfoText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  completeButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

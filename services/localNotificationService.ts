@@ -56,7 +56,7 @@ class LocalNotificationService {
     }
 
     this.isConfigured = true;
-    console.log("✅ Local notification configured");
+    ("✅ Local notification configured");
   }
 
   /**
@@ -75,7 +75,7 @@ class LocalNotificationService {
         channelId = "urgent";
       }
 
-      console.log(`📱 Showing local notification: ${notification.title}`);
+      (`📱 Showing local notification: ${notification.title}`);
 
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -123,7 +123,7 @@ class LocalNotificationService {
   async setBadgeCount(count: number) {
     if (Platform.OS === "ios") {
       await Notifications.setBadgeCountAsync(count);
-      console.log(`📊 Badge count set to: ${count}`);
+      (`📊 Badge count set to: ${count}`);
     }
   }
 
@@ -132,7 +132,7 @@ class LocalNotificationService {
    */
   async clearAllNotifications() {
     await Notifications.dismissAllNotificationsAsync();
-    console.log("🧹 All notifications cleared");
+    ("🧹 All notifications cleared");
   }
 
   /**
@@ -153,7 +153,7 @@ class LocalNotificationService {
       return false;
     }
 
-    console.log("✅ Notification permission granted");
+    ("✅ Notification permission granted");
     return true;
   }
 

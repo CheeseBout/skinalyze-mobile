@@ -1,13 +1,14 @@
 import apiService from "./apiService";
 
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay' | 'cash';
 
 export interface User {
   userId: string;
   email: string;
   fullName: string;
   dob: string;
-  photoUrl: string | null;
+  photoUrl: string | null;  
   phone: string;
   role: string;
   createdAt: string;
@@ -52,6 +53,28 @@ export interface OrderItem {
   quantity: number;
 }
 
+export interface ShippingLog {
+  shippingLogId: string;
+  orderId: string;
+  shippingFee: string | null;
+  carrierName: string | null;
+  note: string | null;
+  unexpectedCase: string | null;
+  isCodCollected: boolean;
+  isCodTransferred: boolean;
+  status: string;
+  totalAmount: string | null;
+  codCollectDate: string | null;
+  codTransferDate: string | null;
+  estimatedDeliveryDate: string | null;
+  returnedDate: string | null;
+  deliveredDate: string | null;
+  finishedPictures: string | null;
+  shippingStaffId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   orderId: string;
   customer: Customer;
@@ -64,6 +87,7 @@ export interface Order {
   rejectionReason: string | null;
   processedBy: string | null;
   orderItems: OrderItem[];
+  shippingLogs: ShippingLog[]; 
   createdAt: string;
   updatedAt: string;
 }
@@ -82,7 +106,42 @@ export interface OrderDetailResponse {
   timestamp: string;
 }
 
+export interface CheckoutPayload {
+  shippingAddress: string;
+  selectedProductIds: string[];
+  paymentMethod: PaymentMethod;
+  useWallet: boolean;
+  notes?: string;
+}
+
+export interface CheckoutResponse {
+  statusCode: number;
+  message: string;
+  data: Order;
+  timestamp: string;
+}
+
 class OrderService {
+
+  /**
+   * Checkout cart and create order
+   */
+  async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
+    try {
+      ('🛒 Creating checkout order...');
+      
+      const response = await apiService.post<CheckoutResponse>(
+        '/orders/checkout',
+        payload,
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Checkout error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get all orders for the current user
    */
@@ -90,7 +149,6 @@ class OrderService {
     try {
       const response = await apiService.get<OrdersResponse>(
         '/orders/my-orders',
-        { token }
       );
       return response.data;
     } catch (error) {
@@ -106,8 +164,8 @@ class OrderService {
     try {
       const response = await apiService.get<OrderDetailResponse>(
         `/orders/${orderId}`,
-        { token }
       );
+      console.log(response.data)
       return response.data;
     } catch (error) {
       console.error('Error fetching order detail:', error);
@@ -137,9 +195,11 @@ class OrderService {
   getStatusColor(status: OrderStatus): string {
     const colorMap: Record<OrderStatus, string> = {
       PENDING: '#FFA500',
+      CONFIRMED: '#FF9800',  
       PROCESSING: '#2196F3',
-      SHIPPED: '#9C27B0',
+      SHIPPING: '#9C27B0',   
       DELIVERED: '#4CAF50',
+      COMPLETED: '#4CAF50',
       CANCELLED: '#F44336',
       REJECTED: '#F44336',
     };
@@ -147,18 +207,53 @@ class OrderService {
   }
 
   /**
-   * Get status label in Vietnamese
+   * Get status label
    */
   getStatusLabel(status: OrderStatus): string {
     const labelMap: Record<OrderStatus, string> = {
-      PENDING: 'Chờ xử lý',
-      PROCESSING: 'Đang xử lý',
-      SHIPPED: 'Đang giao',
-      DELIVERED: 'Đã giao',
-      CANCELLED: 'Đã hủy',
-      REJECTED: 'Từ chối',
+      PENDING: 'Pending',
+      CONFIRMED: 'Confirmed',  // Added for CONFIRMED
+      PROCESSING: 'Processing',
+      SHIPPING: 'Shipping',    // Changed from SHIPPED to SHIPPING
+      DELIVERED: 'Delivered',
+      COMPLETED: 'Completed',
+      CANCELLED: 'Cancelled',
+      REJECTED: 'Rejected',
     };
     return labelMap[status] || status;
+  }
+
+  /**
+   * Get payment method label
+   */
+  getPaymentMethodLabel(method: PaymentMethod): string {
+    const labelMap: Record<PaymentMethod, string> = {
+      wallet: 'Wallet Balance',
+      cod: 'Cash on Delivery',
+      banking: 'Bank Transfer (SePay)',
+      bank_transfer: 'Direct Bank Transfer',
+      momo: 'MoMo',
+      zalopay: 'ZaloPay',
+      vnpay: 'VNPay',
+      cash: 'Cash', 
+    };
+    return labelMap[method] || method;
+  }
+
+  async confirmCompleteOrder(orderId: string, token: string, feedback?: string): Promise<Order> {
+    try {
+      const payload = feedback ? { feedback } : {};
+      
+      const response = await apiService.post<OrderDetailResponse>(
+        `/orders/${orderId}/complete`,
+        payload
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error completing order:', error);
+      throw error;
+    }
   }
 
   /**
@@ -176,10 +271,10 @@ class OrderService {
    */
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('vi-VN', {
+    return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);

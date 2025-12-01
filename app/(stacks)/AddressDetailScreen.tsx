@@ -10,32 +10,37 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native'
-import React, { useState, useEffect } from 'react'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { useAuth } from '@/hooks/useAuth'
-import tokenService from '@/services/tokenService'
-import userService from '@/services/userService'
-import Ionicons from '@expo/vector-icons/Ionicons'
+  Animated,
+} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
+import tokenService from '@/services/tokenService';
+import userService from '@/services/userService';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next'; // Import translation hook
 
 interface AddressFormData {
-  street: string
-  streetLine1: string
-  streetLine2: string
-  wardOrSubDistrict: string
-  district: string
-  city: string
+  street: string;
+  streetLine1: string;
+  streetLine2: string;
+  wardOrSubDistrict: string;
+  district: string;
+  city: string;
 }
 
 export default function AddressDetailScreen() {
-  const router = useRouter()
-  const { addressId } = useLocalSearchParams()
-  const { user, refreshUser } = useAuth()
+  const router = useRouter();
+  const { addressId } = useLocalSearchParams();
+  const { user, refreshUser } = useAuth();
+  const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
-  const isEditMode = !!addressId
+  const isEditMode = !!addressId;
 
-  const [loading, setLoading] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(isEditMode)
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [formData, setFormData] = useState<AddressFormData>({
     street: '',
     streetLine1: '',
@@ -43,22 +48,43 @@ export default function AddressDetailScreen() {
     wardOrSubDistrict: '',
     district: '',
     city: '',
-  })
-  const [errors, setErrors] = useState<Partial<AddressFormData>>({})
+  });
+  const [errors, setErrors] = useState<Partial<AddressFormData>>({});
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     if (isEditMode && addressId) {
-      loadAddressDetails()
+      loadAddressDetails();
+    } else {
+      startAnimations();
     }
-  }, [addressId])
+  }, [addressId]);
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const loadAddressDetails = async () => {
     try {
-      setInitialLoading(true)
-      const token = await tokenService.getToken()
-      if (!token) return
+      setInitialLoading(true);
+      const token = await tokenService.getToken();
+      if (!token) return;
 
-      const address = await userService.getAddress(addressId as string, token)
+      const address = await userService.getAddress(addressId as string, token);
       
       setFormData({
         street: address.street,
@@ -67,138 +93,113 @@ export default function AddressDetailScreen() {
         wardOrSubDistrict: address.wardOrSubDistrict,
         district: address.district,
         city: address.city,
-      })
+      });
+      
+      startAnimations();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load address details')
-      router.back()
+      Alert.alert(t('address.error'), error.message || t('address.loadError'));
+      router.back();
     } finally {
-      setInitialLoading(false)
+      setInitialLoading(false);
     }
-  }
+  };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<AddressFormData> = {}
+    const newErrors: Partial<AddressFormData> = {};
 
-    if (!formData.street.trim()) {
-      newErrors.street = 'Street is required'
-    }
+    if (!formData.street.trim()) newErrors.street = t('address.fillRequired'); // Or specific error key
+    if (!formData.streetLine1.trim()) newErrors.streetLine1 = t('address.fillRequired');
+    if (!formData.wardOrSubDistrict.trim()) newErrors.wardOrSubDistrict = t('address.fillRequired');
+    if (!formData.district.trim()) newErrors.district = t('address.fillRequired');
+    if (!formData.city.trim()) newErrors.city = t('address.fillRequired');
 
-    if (!formData.streetLine1.trim()) {
-      newErrors.streetLine1 = 'Street line 1 is required'
-    }
-
-    if (!formData.wardOrSubDistrict.trim()) {
-      newErrors.wardOrSubDistrict = 'Ward/Sub-district is required'
-    }
-
-    if (!formData.district.trim()) {
-      newErrors.district = 'District is required'
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fill in all required fields')
-      return
+      Alert.alert(t('address.validationError'), t('address.fillRequired'));
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const token = await tokenService.getToken()
+      const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Error', 'Please login again')
-        return
+        Alert.alert(t('address.error'), t('address.loginAgain'));
+        return;
       }
 
       if (isEditMode && addressId) {
-        // Update existing address
-        await userService.updateAddress(token, addressId as string, formData as any)
-        Alert.alert('Success', 'Address updated successfully', [
-          {
-            text: 'OK',
-            onPress: async () => {
-              router.back()
-            }
-          }
-        ])
+        await userService.updateAddress(token, addressId as string, formData as any);
+        await refreshUser();
+        Alert.alert(t('address.success'), t('address.updated'), [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
       } else {
-        // Create new address
         if (!user?.userId) {
-          Alert.alert('Error', 'User information not found')
-          return
+          Alert.alert(t('address.error'), t('address.userNotFound'));
+          return;
         }
-
         await userService.createAddress(token, {
           userId: user.userId,
           ...formData,
-        })
-        Alert.alert('Success', 'Address added successfully', [
-          {
-            text: 'OK',
-            onPress: async () => {
-              await refreshUser()
-              router.back()
-            }
-          }
-        ])
+        });
+        await refreshUser();
+        Alert.alert(t('address.success'), t('address.added'), [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || `Failed to ${isEditMode ? 'update' : 'create'} address`)
+      const msg = isEditMode ? t('address.updateError') : t('address.createError');
+      Alert.alert(t('address.error'), error.message || msg);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
     Alert.alert(
-      'Delete Address',
-      'Are you sure you want to delete this address?',
+      t('address.deleteTitle'),
+      t('address.deleteConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('profile.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('profile.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true)
-              const token = await tokenService.getToken()
-              if (!token || !addressId) return
+              setLoading(true);
+              const token = await tokenService.getToken();
+              if (!token || !addressId) return;
 
-              await userService.deleteAddress(token, addressId as string)
-              Alert.alert('Success', 'Address deleted successfully', [
-                {
-                  text: 'OK',
-                  onPress: async () => {
-                    await refreshUser()
-                    router.back()
-                  }
-                }
-              ])
+              await userService.deleteAddress(token, addressId as string);
+              await refreshUser();
+              
+              Alert.alert(t('address.success'), t('address.deleted'), [
+                { text: 'OK', onPress: () => router.back() }
+              ]);
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete address')
+              Alert.alert(t('address.error'), error.message || t('address.deleteError'));
             } finally {
-              setLoading(false)
+              setLoading(false);
             }
           }
         }
       ]
-    )
-  }
+    );
+  };
 
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading address details...</Text>
+        <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+          <ActivityIndicator size="large" color={primaryColor} />
+        </View>
+        <Text style={styles.loadingText}>{t('address.loading')}</Text>
       </View>
-    )
+    );
   }
 
   return (
@@ -206,18 +207,43 @@ export default function AddressDetailScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <Animated.View 
+        style={[
+          styles.header,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+        ]}
+      >
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {isEditMode ? 'Edit Address' : 'Add Address'}
-        </Text>
+        
+        <View style={styles.headerCenter}>
+          <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <Ionicons 
+              name={isEditMode ? "create-outline" : "add-circle-outline"} 
+              size={20} 
+              color={primaryColor} 
+            />
+          </View>
+          <Text style={styles.headerTitle}>
+            {isEditMode ? t('address.editTitle') : t('address.addTitle')}
+          </Text>
+        </View>
+        
         <View style={styles.placeholder} />
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scrollView}
@@ -225,125 +251,130 @@ export default function AddressDetailScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.form}>
-          {/* Street */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              Street <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, errors.street && styles.inputError]}
-              placeholder="e.g., DHT 13"
-              placeholderTextColor="#999"
-              value={formData.street}
-              onChangeText={(text) => {
-                setFormData({ ...formData, street: text })
-                if (errors.street) setErrors({ ...errors, street: '' })
-              }}
-            />
-            {errors.street && <Text style={styles.errorText}>{errors.street}</Text>}
+        <Animated.View 
+          style={[
+            styles.formCard,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={[styles.cardHeaderIcon, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="location" size={20} color={primaryColor} />
+            </View>
+            <View>
+              <Text style={styles.cardTitle}>{t('address.detailsTitle')}</Text>
+              <Text style={styles.cardSubtitle}>{t('address.detailsSubtitle')}</Text>
+            </View>
           </View>
 
-          {/* Street Line 1 */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              Street Line 1 <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, errors.streetLine1 && styles.inputError]}
-              placeholder="e.g., 41/12/16"
-              placeholderTextColor="#999"
-              value={formData.streetLine1}
-              onChangeText={(text) => {
-                setFormData({ ...formData, streetLine1: text })
-                if (errors.streetLine1) setErrors({ ...errors, streetLine1: '' })
-              }}
-            />
-            {errors.streetLine1 && (
-              <Text style={styles.errorText}>{errors.streetLine1}</Text>
-            )}
+          <InputField
+            label={t('address.street')}
+            placeholder={t('address.streetPlaceholder')}
+            icon="home-outline"
+            value={formData.street}
+            onChangeText={(text) => {
+              setFormData({ ...formData, street: text });
+              if (errors.street) setErrors({ ...errors, street: '' });
+            }}
+            error={errors.street}
+            required
+            primaryColor={primaryColor}
+          />
+
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              <InputField
+                label={t('address.streetLine1')}
+                placeholder={t('address.streetLine1Placeholder')}
+                icon="navigate-outline"
+                value={formData.streetLine1}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, streetLine1: text });
+                  if (errors.streetLine1) setErrors({ ...errors, streetLine1: '' });
+                }}
+                error={errors.streetLine1}
+                required
+                primaryColor={primaryColor}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <InputField
+                label={t('address.streetLine2')}
+                placeholder={t('address.streetLine2Placeholder')}
+                icon="navigate-outline"
+                value={formData.streetLine2}
+                onChangeText={(text) => setFormData({ ...formData, streetLine2: text })}
+                primaryColor={primaryColor}
+              />
+            </View>
           </View>
 
-          {/* Street Line 2 */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Street Line 2 (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Apartment 502"
-              placeholderTextColor="#999"
-              value={formData.streetLine2}
-              onChangeText={(text) => setFormData({ ...formData, streetLine2: text })}
-            />
+          <InputField
+            label={t('address.wardOrSubDistrict')}
+            placeholder={t('address.wardPlaceholder')}
+            icon="business-outline"
+            value={formData.wardOrSubDistrict}
+            onChangeText={(text) => {
+              setFormData({ ...formData, wardOrSubDistrict: text });
+              if (errors.wardOrSubDistrict)
+                setErrors({ ...errors, wardOrSubDistrict: '' });
+            }}
+            error={errors.wardOrSubDistrict}
+            required
+            primaryColor={primaryColor}
+          />
+
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              <InputField
+                label={t('address.district')}
+                placeholder={t('address.districtPlaceholder')}
+                icon="map-outline"
+                value={formData.district}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, district: text });
+                  if (errors.district) setErrors({ ...errors, district: '' });
+                }}
+                error={errors.district}
+                required
+                primaryColor={primaryColor}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <InputField
+                label={t('address.city')}
+                placeholder={t('address.cityPlaceholder')}
+                icon="globe-outline"
+                value={formData.city}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, city: text });
+                  if (errors.city) setErrors({ ...errors, city: '' });
+                }}
+                error={errors.city}
+                required
+                primaryColor={primaryColor}
+              />
+            </View>
           </View>
 
-          {/* Ward/Sub-district */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              Ward/Sub-district <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, errors.wardOrSubDistrict && styles.inputError]}
-              placeholder="e.g., Ben Nghe Ward"
-              placeholderTextColor="#999"
-              value={formData.wardOrSubDistrict}
-              onChangeText={(text) => {
-                setFormData({ ...formData, wardOrSubDistrict: text })
-                if (errors.wardOrSubDistrict)
-                  setErrors({ ...errors, wardOrSubDistrict: '' })
-              }}
-            />
-            {errors.wardOrSubDistrict && (
-              <Text style={styles.errorText}>{errors.wardOrSubDistrict}</Text>
-            )}
-          </View>
-
-          {/* District */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              District <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, errors.district && styles.inputError]}
-              placeholder="e.g., District 1"
-              placeholderTextColor="#999"
-              value={formData.district}
-              onChangeText={(text) => {
-                setFormData({ ...formData, district: text })
-                if (errors.district) setErrors({ ...errors, district: '' })
-              }}
-            />
-            {errors.district && <Text style={styles.errorText}>{errors.district}</Text>}
-          </View>
-
-          {/* City */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              City <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, errors.city && styles.inputError]}
-              placeholder="e.g., Ho Chi Minh City"
-              placeholderTextColor="#999"
-              value={formData.city}
-              onChangeText={(text) => {
-                setFormData({ ...formData, city: text })
-                if (errors.city) setErrors({ ...errors, city: '' })
-              }}
-            />
-            {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
-          </View>
-
-          {/* Info Text */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle-outline" size={20} color="#007AFF" />
+          <View style={[styles.infoBox, { backgroundColor: `${primaryColor}08` }]}>
+            <View style={[styles.infoIcon, { backgroundColor: primaryColor }]}>
+              <Ionicons name="information" size={16} color="#FFFFFF" />
+            </View>
             <Text style={styles.infoText}>
-              Fields marked with <Text style={styles.required}>*</Text> are required
+              {t('address.infoText')}
             </Text>
           </View>
+        </Animated.View>
 
-          {/* Save Button */}
+        <Animated.View 
+          style={[
+            styles.actionButtons,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
           <TouchableOpacity
-            style={[styles.saveButton, loading && styles.buttonDisabled]}
+            style={[styles.saveButton, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={loading}
             activeOpacity={0.8}
@@ -352,15 +383,14 @@ export default function AddressDetailScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
-                <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 <Text style={styles.saveButtonText}>
-                  {isEditMode ? 'Update Address' : 'Add Address'}
+                  {isEditMode ? t('address.updateButton') : t('address.addButton')}
                 </Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Delete Button (only in edit mode) */}
           {isEditMode && (
             <TouchableOpacity
               style={[styles.deleteButton, loading && styles.buttonDisabled]}
@@ -369,148 +399,313 @@ export default function AddressDetailScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              <Text style={styles.deleteButtonText}>Delete Address</Text>
+              <Text style={styles.deleteButtonText}>{t('address.deleteButton')}</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
-  )
+  );
 }
 
+// Input Field Component (Updated to accept translation strings directly)
+interface InputFieldProps {
+  label: string;
+  placeholder: string;
+  icon: any;
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: string;
+  required?: boolean;
+  primaryColor: string;
+}
+
+const InputField: React.FC<InputFieldProps> = ({
+  label,
+  placeholder,
+  icon,
+  value,
+  onChangeText,
+  error,
+  required,
+  primaryColor,
+}) => {
+  return (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>
+        {label} {required && <Text style={styles.required}>*</Text>}
+      </Text>
+      <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
+        <Ionicons name={icon} size={18} color="#666" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor="#999"
+          value={value}
+          onChangeText={onChangeText}
+        />
+        {value && !error && (
+          <Ionicons name="checkmark-circle" size={18} color="#34C759" />
+        )}
+      </View>
+      {error && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={13} color="#FF3B30" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#FAFAFA' 
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#FAFAFA' 
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666666',
+  loadingIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 16 
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  loadingText: { 
+    fontSize: 15, 
+    color: '#666', 
+    fontWeight: '500' 
   },
-  backButton: {
-    padding: 8,
+  backgroundPattern: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    height: 300, 
+    overflow: 'hidden' 
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
+  circle1: { 
+    position: 'absolute', 
+    width: 350, 
+    height: 350, 
+    borderRadius: 175, 
+    top: -150, 
+    right: -80 
   },
-  placeholder: {
-    width: 40,
+  circle2: { 
+    position: 'absolute', 
+    width: 250, 
+    height: 250, 
+    borderRadius: 125, 
+    top: -80, 
+    left: -60 
   },
-  scrollView: {
-    flex: 1,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 24, 
+    paddingTop: 60, 
+    paddingBottom: 20 
   },
-  scrollContent: {
-    paddingBottom: 40,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: '#FFFFFF', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 8, 
+    elevation: 3 
   },
-  form: {
-    padding: 20,
+  headerCenter: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10 
   },
-  inputContainer: {
-    marginBottom: 20,
+  headerIcon: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: '800', 
+    color: '#1A1A1A', 
+    letterSpacing: -0.3 
   },
-  required: {
-    color: '#FF3B30',
+  placeholder: { 
+    width: 40 
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  scrollView: { 
+    flex: 1 
   },
-  inputError: {
-    borderColor: '#FF3B30',
+  scrollContent: { 
+    paddingHorizontal: 24, 
+    paddingBottom: 40 
   },
-  errorText: {
-    color: '#FF3B30',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+  formCard: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 24, 
+    padding: 24, 
+    marginBottom: 20, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.08, 
+    shadowRadius: 12, 
+    elevation: 4 
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E3F2FF',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 24,
-    gap: 8,
+  cardHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 24, 
+    gap: 12 },
+  cardHeaderIcon: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#007AFF',
+  cardTitle: { 
+    fontSize: 18, 
+    fontWeight: '800', 
+    color: '#1A1A1A', 
+    marginBottom: 2, 
+    letterSpacing: -0.3 
   },
-  saveButton: {
-    flexDirection: 'row',
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 12,
+  cardSubtitle: { 
+    fontSize: 13, 
+    color: '#666', 
+    fontWeight: '500' 
   },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  inputContainer: { 
+    marginBottom: 20 
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  label: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: '#1A1A1A', 
+    marginBottom: 10, 
+    textTransform: 'uppercase', 
+    letterSpacing: 0.5 
   },
-  deleteButton: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: '#FF3B30',
+  required: { 
+    color: '#FF3B30' 
   },
-  deleteButtonText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: '600',
+  inputWrapper: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#F5F5F5', 
+    borderRadius: 14, 
+    paddingHorizontal: 16, 
+    borderWidth: 2, 
+    borderColor: '#E5E5E5' 
   },
-})
+  inputWrapperError: { 
+    borderColor: '#FF3B30', 
+    backgroundColor: '#FFF5F5' 
+  },
+  inputIcon: { 
+    marginRight: 10 
+  },
+  input: { 
+    flex: 1, 
+    paddingVertical: 14, 
+    fontSize: 15, 
+    color: '#1A1A1A', 
+    fontWeight: '500' 
+  },
+  errorContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 5, 
+    marginTop: 8 
+  },
+  errorText: { 
+    color: '#FF3B30', 
+    fontSize: 12, 
+    fontWeight: '500' 
+  },
+  row: { 
+    flexDirection: 'row', 
+    gap: 12 
+  },
+  halfInput: { 
+    flex: 1 
+  },
+  infoBox: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 14, 
+    borderRadius: 12, 
+    gap: 10, 
+    marginTop: 4 
+  },
+  infoIcon: { 
+    width: 28, 
+    height: 28, 
+    borderRadius: 14, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  infoText: { 
+    flex: 1, 
+    fontSize: 12, 
+    color: '#666', 
+    fontWeight: '600', 
+    lineHeight: 16 
+  },
+  actionButtons: { 
+    gap: 12 
+  },
+  saveButton: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 8, 
+    paddingVertical: 18, 
+    borderRadius: 16, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 6 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 12, 
+    elevation: 6 
+  },
+  saveButtonText: { 
+    color: '#FFFFFF', 
+    fontSize: 17, 
+    fontWeight: '700', 
+    letterSpacing: 0.3 
+  },
+  buttonDisabled: { 
+    opacity: 0.6 
+  },
+  deleteButton: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 8, 
+    paddingVertical: 18, 
+    borderRadius: 16, 
+    backgroundColor: '#FFFFFF', 
+    borderWidth: 2, 
+    borderColor: '#FF3B30' },
+  deleteButtonText: { 
+    color: '#FF3B30', 
+    fontSize: 17, 
+    fontWeight: '700', 
+    letterSpacing: 0.3 
+  },
+});

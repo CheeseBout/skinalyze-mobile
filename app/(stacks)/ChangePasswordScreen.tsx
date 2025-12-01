@@ -105,8 +105,8 @@ export default function ChangePasswordScreen() {
     }
   }
 
-  const getPasswordStrength = (password: string): { text: string; color: string; width: string } => {
-    if (!password) return { text: '', color: '#E0E0E0', width: '0%' }
+  const getPasswordStrength = (password: string): { text: string; color: string; width: number } => {
+    if (!password) return { text: '', color: '#E0E0E0', width: 0 }
     
     let strength = 0
     if (password.length >= 6) strength++
@@ -115,9 +115,9 @@ export default function ChangePasswordScreen() {
     if (/\d/.test(password)) strength++
     if (/[^A-Za-z0-9]/.test(password)) strength++
 
-    if (strength <= 2) return { text: 'Weak', color: '#FF3B30', width: '33%' }
-    if (strength <= 3) return { text: 'Medium', color: '#FF9500', width: '66%' }
-    return { text: 'Strong', color: '#34C759', width: '100%' }
+    if (strength <= 2) return { text: 'Weak', color: '#FF3B30', width: 0.33 }
+    if (strength <= 3) return { text: 'Medium', color: '#FF9500', width: 0.66 }
+    return { text: 'Strong', color: '#34C759', width: 1 }
   }
 
   const passwordStrength = getPasswordStrength(formData.newPassword)
@@ -226,7 +226,7 @@ export default function ChangePasswordScreen() {
                   <View 
                     style={[
                       styles.strengthFill, 
-                      { width: passwordStrength.width, backgroundColor: passwordStrength.color }
+                      { width: `${passwordStrength.width * 100}%`, backgroundColor: passwordStrength.color }
                     ]} 
                   />
                 </View>

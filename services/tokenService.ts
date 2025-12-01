@@ -7,7 +7,7 @@ class TokenService {
   async saveToken(token: string): Promise<void> {
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
-      console.log("✅ Token saved securely");
+      ("✅ Token saved securely");
     } catch (error) {
       console.error("Error saving token:", error);
       throw error;
@@ -18,9 +18,9 @@ class TokenService {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       if (token) {
-        console.log("✅ Token retrieved:", token.substring(0, 30) + "...");
+        ("✅ Token retrieved:", token.substring(0, 30) + "...");
       } else {
-        console.log("⚠️ No token found in secure store");
+        ("⚠️ No token found in secure store");
       }
       return token;
     } catch (error) {
@@ -32,7 +32,7 @@ class TokenService {
   async removeToken(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
-      console.log("✅ Token removed");
+      ("✅ Token removed");
     } catch (error) {
       console.error("Error removing token:", error);
       throw error;

@@ -64,7 +64,13 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="AnalysisDetailScreen"
+        name="AnalysisListScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="AnalysisDetailScreen" 
         options={{
           headerShown: false,
         }}
@@ -83,6 +89,30 @@ export default function StackLayout() {
       />
       <Stack.Screen
         name="OrderTrackingScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="CheckoutScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="ManualEntryScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="MyReviewsScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="CreateReviewScreen"
         options={{
           headerShown: false,
         }}

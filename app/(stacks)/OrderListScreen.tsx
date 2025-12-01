@@ -15,28 +15,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import orderService, { Order, OrderStatus } from '@/services/orderService';
 import tokenService from '@/services/tokenService';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+import { useTranslation } from 'react-i18next';
 
 export default function OrderListScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL');
 
   const statusFilters: Array<{ key: OrderStatus | 'ALL'; label: string }> = [
-    { key: 'ALL', label: 'Tất cả' },
-    { key: 'PENDING', label: 'Chờ xử lý' },
-    { key: 'PROCESSING', label: 'Đang xử lý' },
-    { key: 'SHIPPED', label: 'Đang giao' },
-    { key: 'DELIVERED', label: 'Đã giao' },
-    { key: 'CANCELLED', label: 'Đã hủy' },
-    { key: 'REJECTED', label: 'Từ chối' },
+    { key: 'ALL', label: t('orders.all') },
+    { key: 'PENDING', label: t('orders.pending') },
+    { key: 'CONFIRMED', label: t('orders.confirmed') },
+    { key: 'PROCESSING', label: t('orders.processing') },
+    { key: 'SHIPPING', label: t('orders.shipping') },    
+    { key: 'DELIVERED', label: t('orders.delivered') },
+    { key: 'COMPLETED', label: t('orders.completed') },
+    { key: 'CANCELLED', label: t('orders.cancelled') },
+    { key: 'REJECTED', label: t('orders.rejected') },
   ];
 
   const fetchOrders = useCallback(async () => {
     if (!isAuthenticated) {
-      Alert.alert('Lỗi', 'Vui lòng đăng nhập để xem đơn hàng');
+      Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
       return;
     }
 
@@ -44,14 +50,14 @@ export default function OrderListScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert('Lỗi', 'Vui lòng đăng nhập để xem đơn hàng');
+        Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
         return;
       }
       const data = await orderService.getMyOrders(token);
       setOrders(data);
     } catch (error: any) {
       console.error('Error fetching orders:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tải danh sách đơn hàng');
+      Alert.alert(t('orders.loadError'), error.message || t('orders.loadError'));
     } finally {
       setLoading(false);
     }
@@ -82,7 +88,7 @@ export default function OrderListScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              selectedStatus === item.key && styles.filterButtonActive,
+              selectedStatus === item.key && [styles.filterButtonActive, { backgroundColor: primaryColor }],
             ]}
             onPress={() => setSelectedStatus(item.key)}
           >
@@ -130,7 +136,7 @@ export default function OrderListScreen() {
                 { color: orderService.getStatusColor(item.status) },
               ]}
             >
-              {orderService.getStatusLabel(item.status)}
+              {t('orders.' + item.status.toLowerCase())}
             </Text>
           </View>
         </View>
@@ -150,8 +156,8 @@ export default function OrderListScreen() {
                 <Text style={styles.productQuantity}>
                   x{item.orderItems[0].quantity}
                   {item.orderItems.length > 1 && (
-                    <Text style={styles.moreItems}>
-                      {' '}+{item.orderItems.length - 1} sản phẩm khác
+                    <Text style={[styles.moreItems, { color: primaryColor }]}>
+                      {' '}+{item.orderItems.length - 1} {t('orders.moreItems')}
                     </Text>
                   )}
                 </Text>
@@ -169,8 +175,8 @@ export default function OrderListScreen() {
               </Text>
             </View>
             <View style={styles.orderInfoRow}>
-              <Text style={styles.totalItemsText}>{totalItems} sản phẩm</Text>
-              <Text style={styles.totalAmountText}>
+              <Text style={styles.totalItemsText}>{totalItems} {t('orders.items')}</Text>
+              <Text style={[styles.totalAmountText, { color: primaryColor }]}>
                 {orderService.formatCurrency(totalAmount)}
               </Text>
             </View>
@@ -192,8 +198,8 @@ export default function OrderListScreen() {
               params: { orderId: item.orderId }
             } as any)}
           >
-            <Text style={styles.viewDetailButtonText}>Xem chi tiết</Text>
-            <Ionicons name="chevron-forward" size={16} color="#2196F3" />
+            <Text style={[styles.viewDetailButtonText, { color: primaryColor }]}>{t('orders.viewDetails')}</Text>
+            <Ionicons name="chevron-forward" size={16} color={primaryColor} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -205,8 +211,8 @@ export default function OrderListScreen() {
       <Ionicons name="cart-outline" size={80} color="#ccc" />
       <Text style={styles.emptyText}>
         {selectedStatus === 'ALL' 
-          ? 'Bạn chưa có đơn hàng nào'
-          : `Không có đơn hàng ${orderService.getStatusLabel(selectedStatus as OrderStatus).toLowerCase()}`
+          ? t('orders.noOrders')
+          : t('orders.noStatusOrders', { status: orderService.getStatusLabel(selectedStatus as OrderStatus).toLowerCase() })
         }
       </Text>
     </View>
@@ -215,8 +221,8 @@ export default function OrderListScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Đang tải đơn hàng...</Text>
+        <ActivityIndicator size="large" color={primaryColor} />
+        <Text style={styles.loadingText}>{t('orders.loading')}</Text>
       </View>
     );
   }
@@ -230,7 +236,7 @@ export default function OrderListScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
+        <Text style={styles.headerTitle}>{t('orders.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -242,7 +248,7 @@ export default function OrderListScreen() {
         renderItem={renderOrderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
         }
         ListEmptyComponent={renderEmptyState}
       />
@@ -250,6 +256,7 @@ export default function OrderListScreen() {
   );
 }
 
+// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,

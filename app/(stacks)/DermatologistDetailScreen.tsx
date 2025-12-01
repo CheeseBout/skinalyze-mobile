@@ -1,10 +1,821 @@
-import { View, Text } from 'react-native'
-import React from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Animated,
+  Dimensions,
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import dermatologistService from "@/services/dermatologistService";
+import { Dermatologist } from "@/types/dermatologist.type";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
+
+const { width } = Dimensions.get('window');
 
 export default function DermatologistDetailScreen() {
+  const [dermatologist, setDermatologist] = useState<Dermatologist | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { primaryColor } = useThemeColor();
+  const router = useRouter();
+
+  const { dermatologistId } = useLocalSearchParams<{
+    dermatologistId: string;
+  }>();
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!dermatologistId) {
+      setError("No Dermatologist ID provided.");
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchDermatologistDetail = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const data = await dermatologistService.getDermatologistById(
+          dermatologistId
+        );
+        setDermatologist(data);
+      } catch (err: any) {
+        const errorMessage =
+          err.message || "Error fetching dermatologist details";
+        setError(errorMessage);
+        Alert.alert("Error", errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDermatologistDetail();
+  }, [dermatologistId]);
+
+  useEffect(() => {
+    if (!isLoading && dermatologist) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isLoading, dermatologist]);
+
+  // Animated header background
+  const headerBackgroundOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.centerContainer}>
+          <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </View>
+          <Text style={styles.loadingText}>Loading Details...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error || !dermatologist) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+        
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+          <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        </View>
+
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIcon}>
+            <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
+          </View>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorText}>{error || "Dermatologist not found"}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: primaryColor }]}
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            <Text style={styles.retryButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const fullName = dermatologist.user?.fullName || "Doctor";
+  const specialties = dermatologist.specialization?.join(", ") || "Dermatology Specialist";
+  const avatarUrl = dermatologist.user?.photoUrl;
+  const price = dermatologist.defaultSlotPrice;
+
   return (
-    <View>
-      <Text>DermatologistDetailScreen</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      
+      {/* Decorative Background */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
+        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+      </View>
+
+      {/* Animated Header */}
+      <Animated.View style={[styles.animatedHeader, { opacity: headerBackgroundOpacity }]}>
+        <View style={styles.animatedHeaderContent}>
+          <Text style={styles.animatedHeaderTitle} numberOfLines={1}>{fullName}</Text>
+        </View>
+      </Animated.View>
+
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+      </View>
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Profile Header */}
+        <Animated.View 
+          style={[
+            styles.profileHeader,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.avatarSection}>
+            <View style={[styles.avatarWrapper, { borderColor: `${primaryColor}30` }]}>
+              <Image
+                style={styles.avatar}
+                source={
+                  avatarUrl ? { uri: avatarUrl } : require("@/assets/images/icon.png")
+                }
+              />
+              <View style={[styles.verifiedBadge, { backgroundColor: primaryColor }]}>
+                <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
+              </View>
+            </View>
+            
+            <Text style={styles.doctorName}>{fullName}</Text>
+            <Text style={styles.specialty}>{specialties}</Text>
+            
+            <View style={styles.experienceChip}>
+              <Ionicons name="briefcase" size={16} color={primaryColor} />
+              <Text style={[styles.experienceText, { color: primaryColor }]}>
+                {dermatologist.yearsOfExperience} years of experience
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Quick Stats */}
+        <Animated.View
+          style={[
+            styles.statsContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.statBox}>
+            <View style={[styles.statIcon, { backgroundColor: '#F0F9FF' }]}>
+              <Ionicons name="star" size={24} color="#2196F3" />
+            </View>
+            <Text style={styles.statValue}>4.8</Text>
+            <Text style={styles.statLabel}>Rating</Text>
+          </View>
+
+          <View style={styles.statBox}>
+            <View style={[styles.statIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="people" size={24} color="#22C55E" />
+            </View>
+            <Text style={styles.statValue}>500+</Text>
+            <Text style={styles.statLabel}>Patients</Text>
+          </View>
+
+          <View style={styles.statBox}>
+            <View style={[styles.statIcon, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="calendar" size={24} color={primaryColor} />
+            </View>
+            <Text style={styles.statValue}>{dermatologist.yearsOfExperience}</Text>
+            <Text style={styles.statLabel}>Years</Text>
+          </View>
+        </Animated.View>
+
+        {/* About Section */}
+        <Animated.View
+          style={[
+            styles.infoCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={[styles.cardHeaderIcon, { backgroundColor: `${primaryColor}10` }]}>
+              <Ionicons name="information-circle" size={20} color={primaryColor} />
+            </View>
+            <Text style={styles.cardTitle}>About</Text>
+          </View>
+          <Text style={styles.bioText}>{dermatologist.bio}</Text>
+        </Animated.View>
+
+        {/* Clinic Location */}
+        <Animated.View
+          style={[
+            styles.infoCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={[styles.cardHeaderIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="location" size={20} color="#F59E0B" />
+            </View>
+            <Text style={styles.cardTitle}>Clinic Location</Text>
+          </View>
+          <View style={styles.locationContainer}>
+            <Ionicons name="navigate" size={18} color="#666" />
+            <Text style={styles.addressText}>{dermatologist.clinicAddress}</Text>
+          </View>
+        </Animated.View>
+
+        {/* Specializations */}
+        <Animated.View
+          style={[
+            styles.infoCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={[styles.cardHeaderIcon, { backgroundColor: '#FCE4EC' }]}>
+              <Ionicons name="medical" size={20} color="#E91E63" />
+            </View>
+            <Text style={styles.cardTitle}>Specializations</Text>
+          </View>
+          <View style={styles.specializationsContainer}>
+            {dermatologist.specialization?.map((spec, index) => (
+              <View key={index} style={[styles.specializationChip, { borderColor: `${primaryColor}30` }]}>
+                <Ionicons name="checkmark-circle" size={16} color={primaryColor} />
+                <Text style={[styles.specializationText, { color: primaryColor }]}>{spec}</Text>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Pricing */}
+        <Animated.View
+          style={[
+            styles.pricingCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.pricingHeader}>
+            <View>
+              <Text style={styles.pricingLabel}>Consultation Fee</Text>
+              <Text style={[styles.pricingValue, { color: primaryColor }]}>
+                {price ? `${price.toLocaleString()} VND` : "Contact for price"}
+              </Text>
+              <Text style={styles.pricingSubtext}>per session</Text>
+            </View>
+            <View style={[styles.pricingIcon, { backgroundColor: `${primaryColor}15` }]}>
+              <Ionicons name="cash" size={32} color={primaryColor} />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Action Buttons */}
+        <Animated.View
+          style={[
+            styles.actionsContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          {/* View Plans Button */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton, { borderColor: primaryColor }]}
+            onPress={() => {
+              router.push({
+                pathname: "/(stacks)/SubscriptionPlanListScreen",
+                params: {
+                  dermatologistId: dermatologistId,
+                  doctorName: fullName,
+                },
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="albums" size={22} color={primaryColor} />
+            <View style={styles.actionButtonContent}>
+              <Text style={[styles.actionButtonTitle, { color: primaryColor }]}>
+                Subscription Plans
+              </Text>
+              <Text style={styles.actionButtonSubtitle}>
+                View consultation packages
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={primaryColor} />
+          </TouchableOpacity>
+
+          {/* Book Appointment Button */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.primaryButton, { backgroundColor: primaryColor }]}
+            onPress={() => {
+              router.push({
+                pathname: "/(stacks)/BookingCalendarScreen",
+                params: {
+                  dermatologistId: dermatologistId,
+                },
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="calendar" size={22} color="#FFFFFF" />
+            <View style={styles.actionButtonContent}>
+              <Text style={styles.actionButtonTitlePrimary}>
+                Book Appointment
+              </Text>
+              <Text style={styles.actionButtonSubtitlePrimary}>
+                View available time slots
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
     </View>
-  )
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
+  },
+  animatedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+    backgroundColor: '#FFFFFF',
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  animatedHeaderContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  animatedHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 50,
+    paddingBottom: 16,
+    zIndex: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFE8E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  profileHeader: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 90,
+    marginHorizontal: 24,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  avatarSection: {
+    alignItems: 'center',
+  },
+  avatarWrapper: {
+    position: 'relative',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    padding: 3,
+    marginBottom: 16,
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 57,
+    backgroundColor: '#F0F0F0',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  doctorName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  specialty: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  experienceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  experienceText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 24,
+    marginTop: 20,
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  cardHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  bioText: {
+    fontSize: 15,
+    color: '#555',
+    lineHeight: 24,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  addressText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#555',
+    lineHeight: 22,
+  },
+  specializationsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  specializationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    backgroundColor: '#FAFAFA',
+  },
+  specializationText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pricingCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  pricingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pricingLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  pricingValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  pricingSubtext: {
+    fontSize: 13,
+    color: '#999',
+  },
+  pricingIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionsContainer: {
+    marginHorizontal: 24,
+    marginTop: 24,
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  secondaryButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  actionButtonContent: {
+    flex: 1,
+  },
+  actionButtonTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  actionButtonTitlePrimary: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  actionButtonSubtitle: {
+    fontSize: 13,
+    color: '#666',
+  },
+  actionButtonSubtitlePrimary: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+});
