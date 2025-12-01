@@ -1,8 +1,8 @@
-import apiService from "./apiService"; 
+import apiService from "./apiService";
 import tokenService from "./tokenService";
 
 // Adjust this if your API URL is different
-const BASE_URL = "http://192.168.1.35:3000/api/v1"; 
+const BASE_URL = process.env.EXPO_PUBLIC_BASE_API_URL;
 
 export interface ChatMessage {
   messageId: string;
@@ -43,10 +43,13 @@ class ChatbotService {
       if (!token) throw new Error("Authentication is required");
 
       const payload: CreateChatPayload = { userId };
-      const response = await apiService.post<ChatSession>("/chat-sessions", payload);
+      const response = await apiService.post<ChatSession>(
+        "/chat-sessions",
+        payload
+      );
       return response;
     } catch (error) {
-      console.error('❌ Error creating chat session:', error);
+      console.error("❌ Error creating chat session:", error);
       throw new Error("Failed to create chat session");
     }
   }
@@ -56,10 +59,12 @@ class ChatbotService {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
-      const response = await apiService.get<ChatSession[]>(`/chat-sessions/user/${userId}`);
+      const response = await apiService.get<ChatSession[]>(
+        `/chat-sessions/user/${userId}`
+      );
       return response;
     } catch (error) {
-      console.error('❌ Error fetching chat sessions:', error);
+      console.error("❌ Error fetching chat sessions:", error);
       throw new Error("Failed to fetch chat sessions");
     }
   }
@@ -69,10 +74,12 @@ class ChatbotService {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
-      const response = await apiService.get<ChatSession>(`/chat-sessions/${chatId}`);
+      const response = await apiService.get<ChatSession>(
+        `/chat-sessions/${chatId}`
+      );
       return response;
     } catch (error) {
-      console.error('❌ Error fetching chat session:', error);
+      console.error("❌ Error fetching chat session:", error);
       throw new Error("Failed to fetch chat session");
     }
   }
@@ -82,12 +89,17 @@ class ChatbotService {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
-      const response = await apiService.delete<DeleteResponse>(`/chat-sessions/${chatId}`);
-      console.log('✅ Chat session deleted:', response.message);
+      const response = await apiService.delete<DeleteResponse>(
+        `/chat-sessions/${chatId}`
+      );
+      console.log("✅ Chat session deleted:", response.message);
     } catch (error: any) {
-      console.error('❌ Error deleting chat session:', error);
-      if (error?.message?.includes('not found') || error?.message?.includes('404')) {
-        return; 
+      console.error("❌ Error deleting chat session:", error);
+      if (
+        error?.message?.includes("not found") ||
+        error?.message?.includes("404")
+      ) {
+        return;
       }
       throw new Error("Failed to delete chat session");
     }
@@ -97,10 +109,12 @@ class ChatbotService {
     try {
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
-      const response = await apiService.get<ChatMessage[]>(`/chat-messages/chat/${chatId}`);
+      const response = await apiService.get<ChatMessage[]>(
+        `/chat-messages/chat/${chatId}`
+      );
       return response;
     } catch (error) {
-      console.error('❌ Error fetching messages:', error);
+      console.error("❌ Error fetching messages:", error);
       throw new Error("Failed to fetch messages");
     }
   }
@@ -111,26 +125,26 @@ class ChatbotService {
     imageUri?: string | null
   ): Promise<SendMessageResponse> {
     try {
-      console.log('🤖 Sending message...');
+      console.log("🤖 Sending message...");
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
       const formData = new FormData();
-      formData.append('chatId', chatId);
-      
+      formData.append("chatId", chatId);
+
       // Only append text if it exists
       if (messageContent) {
-        formData.append('messageContent', messageContent);
+        formData.append("messageContent", messageContent);
       }
 
       // Append Image
       if (imageUri) {
-        const filename = imageUri.split('/').pop() || 'photo.jpg';
+        const filename = imageUri.split("/").pop() || "photo.jpg";
         const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const type = match ? `image/${match[1]}` : "image/jpeg";
 
         // @ts-ignore: React Native FormData
-        formData.append('image', {
+        formData.append("image", {
           uri: imageUri,
           name: filename,
           type: type,
@@ -138,9 +152,9 @@ class ChatbotService {
       }
 
       const response = await fetch(`${BASE_URL}/chat-messages`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           // Do not set Content-Type, fetch sets it automatically for FormData
         },
         body: formData,
@@ -153,10 +167,11 @@ class ChatbotService {
       }
 
       return responseData as SendMessageResponse;
-
     } catch (error) {
-      console.error('❌ Error sending message:', error);
-      throw error instanceof Error ? error : new Error("Failed to send message");
+      console.error("❌ Error sending message:", error);
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to send message");
     }
   }
 }

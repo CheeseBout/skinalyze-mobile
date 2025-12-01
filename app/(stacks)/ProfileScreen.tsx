@@ -19,10 +19,10 @@ import tokenService from "@/services/tokenService";
 import userService from "@/services/userService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
-import { useTranslation } from 'react-i18next';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/hooks/useLanguage";
 
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get("window");
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -43,8 +43,8 @@ export default function ProfileScreen() {
   });
 
   // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(30)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     if (user) {
@@ -52,9 +52,9 @@ export default function ProfileScreen() {
         fullName: user.fullName,
         phone: user.phone,
         dob: user.dob,
-      })
-      fetchBalance()
-      
+      });
+      fetchBalance();
+
       // Start animations
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -67,7 +67,7 @@ export default function ProfileScreen() {
           duration: 600,
           useNativeDriver: true,
         }),
-      ]).start()
+      ]).start();
     }
   }, [user]);
 
@@ -92,7 +92,7 @@ export default function ProfileScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t('profile.error'), t('profile.loginAgain'));
+        Alert.alert(t("profile.error"), t("profile.loginAgain"));
         return;
       }
 
@@ -100,9 +100,12 @@ export default function ProfileScreen() {
       await refreshUser();
 
       setIsEditing(false);
-      Alert.alert(t('profile.success'), t('profile.profileUpdated'));
+      Alert.alert(t("profile.success"), t("profile.profileUpdated"));
     } catch (error: any) {
-      Alert.alert(t('profile.error'), error.message || t('profile.failedUpdate'));
+      Alert.alert(
+        t("profile.error"),
+        error.message || t("profile.failedUpdate")
+      );
     } finally {
       setLoading(false);
     }
@@ -120,64 +123,59 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    Alert.alert(
-      t('profile.deleteAddress'),  
-      t('profile.deleteAddressConfirm'),  
-      [
-        { text: t('profile.cancel'), style: "cancel" },  
-        {
-          text: t('profile.delete'),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const token = await tokenService.getToken();
-              if (!token) return;
+    Alert.alert(t("profile.deleteAddress"), t("profile.deleteAddressConfirm"), [
+      { text: t("profile.cancel"), style: "cancel" },
+      {
+        text: t("profile.delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await tokenService.getToken();
+            if (!token) return;
 
-              await userService.deleteAddress(token, addressId);
-              await refreshUser();
-              Alert.alert(t('profile.success'), t('profile.addressDeleted'));  
-            } catch (error: any) {
-              Alert.alert(t('profile.error'), error.message || t('profile.failedDelete'));  
-            }
-          },
+            await userService.deleteAddress(token, addressId);
+            await refreshUser();
+            Alert.alert(t("profile.success"), t("profile.addressDeleted"));
+          } catch (error: any) {
+            Alert.alert(
+              t("profile.error"),
+              error.message || t("profile.failedDelete")
+            );
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      t('profile.logout'),
-      t('profile.logoutConfirm'),
-      [
-        { text: t('profile.cancel'), style: 'cancel' },
-        {
-          text: t('profile.logout'),
-          style: 'destructive',
-          onPress: async () => {
-            await logout()
-            router.replace('/WelcomeScreen')
-          }
-        }
-      ]
-    )
-  }
+    Alert.alert(t("profile.logout"), t("profile.logoutConfirm"), [
+      { text: t("profile.cancel"), style: "cancel" },
+      {
+        text: t("profile.logout"),
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/WelcomeScreen");
+        },
+      },
+    ]);
+  };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
-    })
-  }
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>{t('profile.loading')}</Text>
+        <Text style={styles.loadingText}>{t("profile.loading")}</Text>
       </View>
     );
   }
@@ -185,80 +183,102 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-      
+
       {/* Decorative Background */}
       <View style={styles.backgroundPattern}>
-        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        <View
+          style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]}
+        />
+        <View
+          style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]}
+        />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Header with Back Button */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.header,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
-          
-          <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-          
-          <TouchableOpacity 
-            onPress={() => isEditing ? handleCancel() : setIsEditing(true)}
-            style={[styles.editButton, isEditing && { backgroundColor: '#FFE8E8' }]}
+
+          <Text style={styles.headerTitle}>{t("profile.title")}</Text>
+
+          <TouchableOpacity
+            onPress={() => (isEditing ? handleCancel() : setIsEditing(true))}
+            style={[
+              styles.editButton,
+              isEditing && { backgroundColor: "#FFE8E8" },
+            ]}
             activeOpacity={0.7}
           >
-            <Ionicons 
-              name={isEditing ? "close" : "create-outline"} 
-              size={20} 
-              color={isEditing ? "#FF3B30" : primaryColor} 
+            <Ionicons
+              name={isEditing ? "close" : "create-outline"}
+              size={20}
+              color={isEditing ? "#FF3B30" : primaryColor}
             />
           </TouchableOpacity>
         </Animated.View>
 
         {/* Profile Card */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.profileCard,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
-            <View style={[styles.avatarWrapper, { borderColor: `${primaryColor}30` }]}>
+            <View
+              style={[
+                styles.avatarWrapper,
+                { borderColor: `${primaryColor}30` },
+              ]}
+            >
               {user.photoUrl ? (
                 <Image source={{ uri: user.photoUrl }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatarPlaceholder, { backgroundColor: primaryColor }]}>
+                <View
+                  style={[
+                    styles.avatarPlaceholder,
+                    { backgroundColor: primaryColor },
+                  ]}
+                >
                   <Text style={styles.avatarText}>
                     {user.fullName.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-              
+
               {/* Status Badge */}
-              <View style={[styles.statusBadge, { backgroundColor: user.isVerified ? '#34C759' : '#FF9500' }]}>
-                <Ionicons 
-                  name={user.isVerified ? "checkmark-circle" : "time"} 
-                  size={14} 
-                  color="#FFFFFF" 
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: user.isVerified ? "#34C759" : "#FF9500" },
+                ]}
+              >
+                <Ionicons
+                  name={user.isVerified ? "checkmark-circle" : "time"}
+                  size={14}
+                  color="#FFFFFF"
                 />
               </View>
             </View>
@@ -266,23 +286,46 @@ export default function ProfileScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{user.fullName}</Text>
               <Text style={styles.profileEmail}>{user.email}</Text>
-              
+
               {/* Status Pills */}
               <View style={styles.statusPills}>
-                <View style={[styles.statusPill, { backgroundColor: user.isVerified ? '#E8F9F0' : '#FFF4E6' }]}>
-                  <Ionicons 
-                    name={user.isVerified ? "shield-checkmark" : "shield-outline"} 
-                    size={11} 
-                    color={user.isVerified ? "#34C759" : "#FF9500"} 
+                <View
+                  style={[
+                    styles.statusPill,
+                    {
+                      backgroundColor: user.isVerified ? "#E8F9F0" : "#FFF4E6",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      user.isVerified ? "shield-checkmark" : "shield-outline"
+                    }
+                    size={11}
+                    color={user.isVerified ? "#34C759" : "#FF9500"}
                   />
-                  <Text style={[styles.statusPillText, { color: user.isVerified ? "#34C759" : "#FF9500" }]}>
-                    {user.isVerified ? t('profile.verified') : t('profile.unverified')}
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      { color: user.isVerified ? "#34C759" : "#FF9500" },
+                    ]}
+                  >
+                    {user.isVerified
+                      ? t("profile.verified")
+                      : t("profile.unverified")}
                   </Text>
                 </View>
-                
-                <View style={[styles.statusPill, { backgroundColor: `${primaryColor}12` }]}>
+
+                <View
+                  style={[
+                    styles.statusPill,
+                    { backgroundColor: `${primaryColor}12` },
+                  ]}
+                >
                   <Ionicons name="person" size={11} color={primaryColor} />
-                  <Text style={[styles.statusPillText, { color: primaryColor }]}>
+                  <Text
+                    style={[styles.statusPillText, { color: primaryColor }]}
+                  >
                     {user.role}
                   </Text>
                 </View>
@@ -291,93 +334,118 @@ export default function ProfileScreen() {
           </View>
 
           {/* Balance Card */}
-          <View style={[styles.balanceCard, { backgroundColor: `${primaryColor}08` }]}>
+          <View
+            style={[
+              styles.balanceCard,
+              { backgroundColor: `${primaryColor}08` },
+            ]}
+          >
             <View style={styles.balanceLeft}>
-              <View style={[styles.balanceIcon, { backgroundColor: primaryColor }]}>
+              <View
+                style={[styles.balanceIcon, { backgroundColor: primaryColor }]}
+              >
                 <Ionicons name="wallet-outline" size={22} color="#FFFFFF" />
               </View>
               <View>
-                <Text style={styles.balanceLabel}>{t('profile.walletBalance')}</Text>
+                <Text style={styles.balanceLabel}>
+                  {t("profile.walletBalance")}
+                </Text>
                 {balanceLoading ? (
                   <ActivityIndicator size="small" color={primaryColor} />
                 ) : (
                   <Text style={[styles.balanceAmount, { color: primaryColor }]}>
-                    {balance !== null ? `${balance.toLocaleString()} ${currency}` : 'N/A'}
+                    {balance !== null
+                      ? `${balance.toLocaleString()} ${currency}`
+                      : "N/A"}
                   </Text>
                 )}
               </View>
             </View>
-            <TouchableOpacity 
-              style={[styles.withdrawButton, { backgroundColor: primaryColor }]}
-              onPress={() => router.push('/(stacks)/WithdrawalScreen')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={styles.balanceActions}>
+              <TouchableOpacity
+                style={[styles.topUpButton, { backgroundColor: primaryColor }]}
+                onPress={() => router.push("/(stacks)/TopUpScreen")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.withdrawButton,
+                  { backgroundColor: primaryColor },
+                ]}
+                onPress={() => router.push("/(stacks)/WithdrawalScreen")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="download-outline" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
 
         {/* Quick Actions */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.quickActions,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <QuickActionButton
             icon="analytics"
-            label={t('profile.analysis')}
+            label={t("profile.analysis")}
             color="#FF9500"
             bgColor="#FFF4E6"
-            onPress={() => router.push('/(stacks)/AnalysisListScreen')}
+            onPress={() => router.push("/(stacks)/AnalysisListScreen")}
           />
           <QuickActionButton
             icon="receipt"
-            label={t('profile.orders')}
+            label={t("profile.orders")}
             color="#007AFF"
             bgColor="#F0F9FF"
-            onPress={() => router.push('/(stacks)/OrderListScreen')}
+            onPress={() => router.push("/(stacks)/OrderListScreen")}
           />
           <QuickActionButton
             icon="chatbubbles"
             label="Reviews"
             color="#34C759"
             bgColor="#F0FDF4"
-            onPress={() => router.push('/(stacks)/MyReviewsScreen')}
+            onPress={() => router.push("/(stacks)/MyReviewsScreen")}
           />
           <QuickActionButton
             icon="settings"
-            label={t('profile.settings')}
+            label={t("profile.settings")}
             color="#A855F7"
             bgColor="#F3E8FF"
-            onPress={() => router.push('/(stacks)/SettingsScreen')}
+            onPress={() => router.push("/(stacks)/SettingsScreen")}
           />
         </Animated.View>
 
         {/* Personal Information Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.section,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
+            <Text style={styles.sectionTitle}>{t("profile.personalInfo")}</Text>
           </View>
 
           <View style={styles.infoCard}>
             <InfoField
               icon="person-outline"
-              label={t('profile.fullName')}
+              label={t("profile.fullName")}
               value={formData.fullName}
               isEditing={isEditing}
-              onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, fullName: text })
+              }
               primaryColor={primaryColor}
             />
 
@@ -385,7 +453,7 @@ export default function ProfileScreen() {
 
             <InfoField
               icon="call-outline"
-              label={t('profile.phone')}
+              label={t("profile.phone")}
               value={formData.phone}
               isEditing={isEditing}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
@@ -396,14 +464,26 @@ export default function ProfileScreen() {
             <View style={styles.divider} />
 
             <View style={styles.fieldWrapper}>
-              <View style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}>
-                <Ionicons name="calendar-outline" size={18} color={primaryColor} />
+              <View
+                style={[
+                  styles.fieldIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={primaryColor}
+                />
               </View>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>{t('profile.dob')}</Text>
+                <Text style={styles.fieldLabel}>{t("profile.dob")}</Text>
                 {isEditing ? (
                   <TextInput
-                    style={[styles.fieldInput, { borderBottomColor: primaryColor }]}
+                    style={[
+                      styles.fieldInput,
+                      { borderBottomColor: primaryColor },
+                    ]}
                     value={formData.dob}
                     onChangeText={(text) =>
                       setFormData({ ...formData, dob: text })
@@ -413,7 +493,7 @@ export default function ProfileScreen() {
                   />
                 ) : (
                   <Text style={styles.fieldValue}>
-                    {formData.dob ? formatDate(formData.dob) : 'Not set'}
+                    {formData.dob ? formatDate(formData.dob) : "Not set"}
                   </Text>
                 )}
               </View>
@@ -422,33 +502,43 @@ export default function ProfileScreen() {
             <View style={styles.divider} />
 
             <View style={styles.fieldWrapper}>
-              <View style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}>
+              <View
+                style={[
+                  styles.fieldIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
                 <Ionicons name="mail-outline" size={18} color={primaryColor} />
               </View>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>{t('profile.email')}</Text>
+                <Text style={styles.fieldLabel}>{t("profile.email")}</Text>
                 <Text style={styles.fieldValue}>{user.email}</Text>
-                <Text style={styles.fieldHint}>{t('profile.emailHint')}</Text>
+                <Text style={styles.fieldHint}>{t("profile.emailHint")}</Text>
               </View>
             </View>
           </View>
         </Animated.View>
 
         {/* Addresses Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.section,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('profile.savedAddresses')}</Text>
-            <TouchableOpacity 
-              onPress={() => router.push('/(stacks)/AddressDetailScreen')}
-              style={[styles.addButton, { backgroundColor: `${primaryColor}15` }]}
+            <Text style={styles.sectionTitle}>
+              {t("profile.savedAddresses")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(stacks)/AddressDetailScreen")}
+              style={[
+                styles.addButton,
+                { backgroundColor: `${primaryColor}15` },
+              ]}
               activeOpacity={0.7}
             >
               <Ionicons name="add" size={18} color={primaryColor} />
@@ -459,74 +549,112 @@ export default function ProfileScreen() {
             user.addresses.map((address, index) => (
               <View key={address.addressId} style={styles.addressCard}>
                 <View style={styles.addressHeader}>
-                  <View style={[styles.addressBadge, { backgroundColor: `${primaryColor}15` }]}>
+                  <View
+                    style={[
+                      styles.addressBadge,
+                      { backgroundColor: `${primaryColor}15` },
+                    ]}
+                  >
                     <Ionicons name="location" size={16} color={primaryColor} />
                   </View>
-                  
+
                   <View style={styles.addressInfo}>
-                    <Text style={styles.addressTitle}>{t('profile.address')} {index + 1}</Text>
-                    <Text style={styles.addressType}>{t('profile.home')}</Text>
+                    <Text style={styles.addressTitle}>
+                      {t("profile.address")} {index + 1}
+                    </Text>
+                    <Text style={styles.addressType}>{t("profile.home")}</Text>
                   </View>
 
                   <View style={styles.addressActions}>
                     <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor: `${primaryColor}10` }]}
-                      onPress={() => router.push({
-                        pathname: '/(stacks)/AddressDetailScreen',
-                        params: { addressId: address.addressId }
-                      })}
+                      style={[
+                        styles.actionButton,
+                        { backgroundColor: `${primaryColor}10` },
+                      ]}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(stacks)/AddressDetailScreen",
+                          params: { addressId: address.addressId },
+                        })
+                      }
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="create-outline" size={16} color={primaryColor} />
+                      <Ionicons
+                        name="create-outline"
+                        size={16}
+                        color={primaryColor}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor: '#FFE8E8' }]}
+                      style={[
+                        styles.actionButton,
+                        { backgroundColor: "#FFE8E8" },
+                      ]}
                       onPress={() => handleDeleteAddress(address.addressId)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                      <Ionicons
+                        name="trash-outline"
+                        size={16}
+                        color="#FF3B30"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
-                
+
                 <View style={styles.addressDetails}>
                   <Text style={styles.addressLine}>
-                    {address.streetLine1}{address.streetLine2 ? `, ${address.streetLine2}` : ''}
+                    {address.streetLine1}
+                    {address.streetLine2 ? `, ${address.streetLine2}` : ""}
                   </Text>
                   <Text style={styles.addressLine}>{address.street}</Text>
                   <Text style={styles.addressLine}>
-                    {address.wardOrSubDistrict}, {address.district}, {address.city}
+                    {address.wardOrSubDistrict}, {address.district},{" "}
+                    {address.city}
                   </Text>
                 </View>
               </View>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
-                <Ionicons name="location-outline" size={40} color={primaryColor} />
+              <View
+                style={[
+                  styles.emptyIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={40}
+                  color={primaryColor}
+                />
               </View>
-              <Text style={styles.emptyTitle}>{t('profile.noAddresses')}</Text>
-              <Text style={styles.emptySubtitle}>{t('profile.addAddressDesc')}</Text>
+              <Text style={styles.emptyTitle}>{t("profile.noAddresses")}</Text>
+              <Text style={styles.emptySubtitle}>
+                {t("profile.addAddressDesc")}
+              </Text>
               <TouchableOpacity
                 style={[styles.emptyButton, { backgroundColor: primaryColor }]}
-                onPress={() => router.push('/(stacks)/AddressDetailScreen')}
+                onPress={() => router.push("/(stacks)/AddressDetailScreen")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.emptyButtonText}>{t('profile.addAddress')}</Text>
+                <Text style={styles.emptyButtonText}>
+                  {t("profile.addAddress")}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
         </Animated.View>
 
         {/* Action Buttons */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.actionButtons,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           {isEditing ? (
@@ -536,11 +664,17 @@ export default function ProfileScreen() {
                 onPress={handleCancel}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelButtonText}>{t('profile.cancel')}</Text>
+                <Text style={styles.cancelButtonText}>
+                  {t("profile.cancel")}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: primaryColor },
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 disabled={loading}
                 activeOpacity={0.8}
@@ -549,7 +683,9 @@ export default function ProfileScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Text style={styles.saveButtonText}>{t('profile.saveChanges')}</Text>
+                    <Text style={styles.saveButtonText}>
+                      {t("profile.saveChanges")}
+                    </Text>
                     <Ionicons name="checkmark" size={20} color="#FFFFFF" />
                   </>
                 )}
@@ -562,7 +698,7 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-              <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
+              <Text style={styles.logoutButtonText}>{t("profile.logout")}</Text>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -573,23 +709,27 @@ export default function ProfileScreen() {
 
 // Quick Action Button Component
 const QuickActionButton = ({ icon, label, color, bgColor, onPress }: any) => (
-  <TouchableOpacity style={styles.quickActionButton} onPress={onPress} activeOpacity={0.7}>
+  <TouchableOpacity
+    style={styles.quickActionButton}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
     <View style={[styles.quickActionIcon, { backgroundColor: bgColor }]}>
       <Ionicons name={icon} size={24} color={color} />
     </View>
     <Text style={styles.quickActionLabel}>{label}</Text>
   </TouchableOpacity>
-)
+);
 
 // Info Field Component
 interface InfoFieldProps {
-  icon: any
-  label: string
-  value: string
-  isEditing: boolean
-  onChangeText: (text: string) => void
-  keyboardType?: any
-  primaryColor: string
+  icon: any;
+  label: string;
+  value: string;
+  isEditing: boolean;
+  onChangeText: (text: string) => void;
+  keyboardType?: any;
+  primaryColor: string;
 }
 
 const InfoField: React.FC<InfoFieldProps> = ({
@@ -598,14 +738,16 @@ const InfoField: React.FC<InfoFieldProps> = ({
   value,
   isEditing,
   onChangeText,
-  keyboardType = 'default',
+  keyboardType = "default",
   primaryColor,
 }) => {
   const { t } = useTranslation(); // FIX: Using the hook inside the component
-  
+
   return (
     <View style={styles.fieldWrapper}>
-      <View style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}>
+      <View
+        style={[styles.fieldIcon, { backgroundColor: `${primaryColor}10` }]}
+      >
         <Ionicons name={icon} size={18} color={primaryColor} />
       </View>
       <View style={styles.fieldContent}>
@@ -616,11 +758,11 @@ const InfoField: React.FC<InfoFieldProps> = ({
             value={value}
             onChangeText={onChangeText}
             keyboardType={keyboardType}
-            placeholder={`${t('profile.enter')} ${label.toLowerCase()}`}
+            placeholder={`${t("profile.enter")} ${label.toLowerCase()}`}
             placeholderTextColor="#999"
           />
         ) : (
-          <Text style={styles.fieldValue}>{value || t('profile.notSet')}</Text>
+          <Text style={styles.fieldValue}>{value || t("profile.notSet")}</Text>
         )}
       </View>
       {!isEditing && value && (
@@ -628,35 +770,35 @@ const InfoField: React.FC<InfoFieldProps> = ({
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: "#FAFAFA",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FAFAFA",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 15,
-    color: '#666',
-    fontWeight: '500',
+    color: "#666",
+    fontWeight: "500",
   },
   backgroundPattern: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     height: 400,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   circle1: {
-    position: 'absolute',
+    position: "absolute",
     width: 350,
     height: 350,
     borderRadius: 175,
@@ -664,7 +806,7 @@ const styles = StyleSheet.create({
     right: -80,
   },
   circle2: {
-    position: 'absolute',
+    position: "absolute",
     width: 250,
     height: 250,
     borderRadius: 125,
@@ -679,9 +821,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 24,
     marginBottom: 32,
   },
@@ -689,10 +831,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -700,42 +842,42 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1A1A',
+    fontWeight: "800",
+    color: "#1A1A1A",
     letterSpacing: -0.5,
   },
   editButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 24,
     borderRadius: 24,
     padding: 24,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
   avatarSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   avatarWrapper: {
-    position: 'relative',
+    position: "relative",
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -744,58 +886,58 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatar: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 37,
   },
   avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 37,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
   statusBadge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
     width: 24,
     height: 24,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: "#FFFFFF",
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1A1A',
+    fontWeight: "800",
+    color: "#1A1A1A",
     marginBottom: 4,
     letterSpacing: -0.3,
   },
   profileEmail: {
     fontSize: 13,
-    color: '#666',
+    color: "#666",
     marginBottom: 10,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   statusPills: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 6,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
@@ -803,20 +945,20 @@ const styles = StyleSheet.create({
   },
   statusPillText: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   balanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     borderRadius: 16,
   },
   balanceLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     flex: 1,
   },
@@ -824,45 +966,61 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   balanceLabel: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
+    color: "#666",
+    fontWeight: "600",
     marginBottom: 4,
   },
   balanceAmount: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: -0.3,
+  },
+  balanceActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  topUpButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   withdrawButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   quickActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: 24,
     gap: 8,
     marginBottom: 20,
   },
   quickActionButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -872,117 +1030,117 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
   },
   quickActionLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
   },
   section: {
     paddingHorizontal: 24,
     marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A1A',
+    fontWeight: "800",
+    color: "#1A1A1A",
     letterSpacing: -0.3,
   },
   addButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
   fieldWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   fieldIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   fieldContent: {
     flex: 1,
   },
   fieldLabel: {
     fontSize: 11,
-    color: '#666',
-    fontWeight: '700',
+    color: "#666",
+    fontWeight: "700",
     marginBottom: 4,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   fieldValue: {
     fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '600',
+    color: "#1A1A1A",
+    fontWeight: "600",
   },
   fieldInput: {
     fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '600',
+    color: "#1A1A1A",
+    fontWeight: "600",
     borderBottomWidth: 2,
     paddingVertical: 6,
     paddingHorizontal: 0,
   },
   fieldHint: {
     fontSize: 11,
-    color: '#999',
+    color: "#999",
     marginTop: 4,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: "#F0F0F0",
     marginVertical: 16,
   },
   addressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
   addressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   addressBadge: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   addressInfo: {
@@ -990,44 +1148,44 @@ const styles = StyleSheet.create({
   },
   addressTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 2,
   },
   addressType: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+    color: "#666",
+    fontWeight: "500",
   },
   addressActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   actionButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   addressDetails: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
   },
   addressLine: {
     fontSize: 13,
-    color: '#1A1A1A',
-    fontWeight: '500',
+    color: "#1A1A1A",
+    fontWeight: "500",
     marginBottom: 3,
     lineHeight: 18,
   },
   emptyState: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 32,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1037,31 +1195,31 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 20,
     lineHeight: 18,
   },
   emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -1069,41 +1227,41 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   actionButtons: {
     paddingHorizontal: 24,
   },
   editActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: '#FF3B30',
+    borderColor: "#FF3B30",
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FF3B30',
+    fontWeight: "700",
+    color: "#FF3B30",
   },
   saveButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
     borderRadius: 14,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -1111,26 +1269,26 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: '#FF3B30',
+    borderColor: "#FF3B30",
   },
   logoutButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FF3B30',
+    fontWeight: "700",
+    color: "#FF3B30",
   },
 });
