@@ -44,6 +44,7 @@ export default function AnalysisDetailScreen() {
     ]).start();
   }, []);
 
+  // --- DATA PARSING ---
   const result: SkinAnalysisResult = params.result
     ? JSON.parse(params.result as string)
     : null;
@@ -54,40 +55,25 @@ export default function AnalysisDetailScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{t('analysis.noData')}</Text>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.errorButton, { backgroundColor: primaryColor }]}>
+             <Text style={styles.errorButtonText}>{t('analysis.goBack')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
+  // --- LOGIC & CALCULATIONS ---
   const isManual = result.source === 'MANUAL';
   const isConditionDetection = result.aiDetectedCondition !== null;
   const isDiseaseDetection = result.aiDetectedDisease !== null;
-  const imageUrl = result.imageUrls[0];
+  
+  // 1. Determine Image
+  const imageUrl = result.imageUrls && result.imageUrls.length > 0 
+    ? result.imageUrls[0] 
+    : null;
 
-  // Determine Display Values based on Source
-  let displayTitle = '';
-  let displayType = '';
-  let displayDescription = '';
-  let detectionColor = primaryColor;
-
-  if (isManual) {
-    displayTitle = result.chiefComplaint || t('analysis.manual');
-    displayType = t('analysis.manual');
-    displayDescription = result.patientSymptoms || result.notes || 'No details provided.';
-    detectionColor = '#666'; // Neutral color for manual
-  } else if (isConditionDetection) {
-    displayTitle = t('analysis.' + result.aiDetectedCondition);
-    displayType = t('analysis.condition');
-    displayDescription = t('analysis.' + result.aiDetectedCondition + '_desc');
-    detectionColor = primaryColor;
-  } else {
-    displayTitle = t('analysis.' + result.aiDetectedDisease);
-    displayType = t('analysis.disease');
-    displayDescription = t('analysis.' + result.aiDetectedDisease + '_desc');
-    detectionColor = '#E91E63';
-  }
-
-  // Mask Logic
+  // 2. Determine Mask (Only for AI Disease)
   let maskUrl: string | null = null;
   if (!isManual && result.mask) {
     if (Array.isArray(result.mask) && result.mask.length > 0) {
@@ -97,21 +83,80 @@ export default function AnalysisDetailScreen() {
     }
   }
 
-  const handleAskAI = () => {
-    const analysisText = `I have a skin analysis result:
-    Type: ${displayType}
-    Result: ${displayTitle}
-    Source: ${result.source}
-    Description: ${displayDescription}
+  // 3. Parse all predictions if available
+  const allPredictions = result.allPredictions 
+    ? Object.entries(result.allPredictions)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
+    : [];
+
+  const confidence = result.confidence;
+
+  // 4. Determine Colors & Icons & Texts
+  let displayTitle = '';
+  let displayType = '';
+  let displayDescription = '';
+  let themeColor = primaryColor;
+  let iconName: any = 'scan';
+
+  if (isManual) {
+    // MANUAL ENTRY LOOK
+    displayTitle = result.chiefComplaint || t('analysis.manualRecord');
+    displayType = t('analysis.manual');
+    themeColor = '#6D28D9'; // Purple
+    iconName = 'create';
     
-    Can you explain this condition and suggest skincare routines?`;
+    const symptoms = result.patientSymptoms ? `${t('analysis.symptoms')}: ${result.patientSymptoms}` : '';
+    const notes = result.notes ? `${t('analysis.notes')}: ${result.notes}` : '';
+    displayDescription = [symptoms, notes].filter(Boolean).join('\n\n') || t('analysis.noDetails');
+
+  } else if (isConditionDetection) {
+    // AI CONDITION LOOK
+    displayTitle = t('analysis.' + result.aiDetectedCondition);
+    displayType = t('analysis.skinCondition');
+    themeColor = primaryColor;
+    iconName = 'water';
+    displayDescription = t('analysis.' + result.aiDetectedCondition + '_desc');
+
+  } else {
+    // AI DISEASE LOOK
+    displayTitle = t('analysis.' + result.aiDetectedDisease);
+    displayType = t('analysis.diseaseDetection');
+    themeColor = '#E91E63'; // Pink/Red
+    iconName = 'medical';
+    displayDescription = t('analysis.' + result.aiDetectedDisease + '_desc');
+  }
+
+  const handleAskAI = () => {
+    const analysisText = `I need advice on this skin analysis:
+    Type: ${displayType}
+    Main Issue: ${displayTitle}
+    Details: ${displayDescription}
+    Source: ${result.source}
+    
+    Please analyze this and recommend a routine.`;
+
+    const navParams: any = {
+      prefillText: analysisText
+    };
+    
+    if (imageUrl) {
+      navParams.prefillImage = imageUrl;
+    }
 
     router.push({
       pathname: '/(tabs)/ChatbotScreen',
-      params: { prefillText: analysisText }
+      params: navParams
     });
   }
 
+  // Helper function to get confidence color
+  const getConfidenceColor = (value: number) => {
+    if (value >= 0.7) return '#34C759'; // Green
+    if (value >= 0.4) return '#FF9500'; // Orange
+    return '#FF3B30'; // Red
+  };
+
+  // --- RENDER ---
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
@@ -119,18 +164,26 @@ export default function AnalysisDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Image Section */}
+        {/* 1. HEADER IMAGE SECTION */}
         <View style={styles.imageSection}>
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.image}
-              resizeMode="cover"
-            />
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.image}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.placeholderImage, { backgroundColor: `${themeColor}10` }]}>
+                <Ionicons name="image-outline" size={64} color={themeColor} />
+                <Text style={{ color: themeColor, marginTop: 10, fontWeight: '600' }}>No Image Attached</Text>
+              </View>
+            )}
 
-            {/* Mask Overlay (Only for AI Disease) */}
-            {isDiseaseDetection && maskUrl && showMask && (
+            {/* Mask Overlay (AI Only) */}
+            {maskUrl && showMask && (
               <View style={styles.maskContainer}>
                 <Image
                   source={{ uri: maskUrl }}
@@ -140,10 +193,12 @@ export default function AnalysisDetailScreen() {
                 <View style={styles.redTintOverlay} />
               </View>
             )}
-            
+
+            {/* Gradient */}
             <View style={styles.gradientOverlay} />
           </View>
 
+          {/* Navigation Header */}
           <View style={styles.headerOverlay}>
             <TouchableOpacity
               style={styles.overlayButton}
@@ -152,28 +207,37 @@ export default function AnalysisDetailScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
+            
+            <View style={styles.headerBadgeContainer}>
+              <View style={[styles.headerBadge, { backgroundColor: themeColor }]}>
+                <Ionicons name={iconName} size={14} color="#FFFFFF" />
+              </View>
+              <Text style={styles.headerTitle}>{displayType}</Text>
+            </View>
+            
             <View style={styles.overlayButton} />
           </View>
 
-          {/* Mask Toggle (Only for AI Disease) */}
-          {isDiseaseDetection && maskUrl && result.aiDetectedDisease?.toLowerCase() !== "normal" && (
+          {/* Mask Toggle */}
+          {maskUrl && result.aiDetectedDisease?.toLowerCase() !== "normal" && (
             <View style={styles.maskControls}>
               <TouchableOpacity
                 style={[
                   styles.maskToggle,
-                  showMask && [styles.maskToggleActive, { backgroundColor: detectionColor }]
+                  showMask && [styles.maskToggleActive, { backgroundColor: themeColor }]
                 ]}
                 onPress={() => setShowMask(!showMask)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.maskToggleIcon, showMask && styles.maskToggleIconActive]}>
-                  <Ionicons
-                    name={showMask ? 'eye-off' : 'eye'}
-                    size={18}
-                    color={showMask ? '#FFFFFF' : detectionColor}
-                  />
-                </View>
-                <Text style={[styles.maskToggleText, showMask && styles.maskToggleTextActive]}>
+                <Ionicons
+                  name={showMask ? 'eye-off' : 'eye'}
+                  size={18}
+                  color={showMask ? '#FFFFFF' : themeColor}
+                />
+                <Text style={[
+                  styles.maskToggleText,
+                  showMask && { color: '#FFFFFF' }
+                ]}>
                   {showMask ? t('analysis.hideMask') : t('analysis.showMask')} 
                 </Text>
               </TouchableOpacity>
@@ -181,9 +245,10 @@ export default function AnalysisDetailScreen() {
           )}
         </View>
 
+        {/* 2. CONTENT BODY */}
         <View style={styles.contentSection}>
           
-          {/* Diagnosis Card */}
+          {/* MAIN DIAGNOSIS CARD */}
           <Animated.View
             style={[
               styles.resultCard,
@@ -191,21 +256,25 @@ export default function AnalysisDetailScreen() {
             ]}
           >
             <View style={styles.resultHeader}>
-              <View style={[styles.resultIconWrapper, { backgroundColor: `${detectionColor}15` }]}>
-                <View style={[styles.resultIcon, { backgroundColor: detectionColor }]}>
-                  <Ionicons
-                    name={isManual ? 'create' : (isConditionDetection ? 'water' : 'medical')}
-                    size={28}
-                    color="#FFFFFF"
-                  />
+              <View style={[styles.resultIconWrapper, { backgroundColor: `${themeColor}15` }]}>
+                <View style={[styles.resultIcon, { backgroundColor: themeColor }]}>
+                  <Ionicons name={iconName} size={32} color="#FFFFFF" />
                 </View>
               </View>
               
               <View style={styles.resultTitleContainer}>
-                <Text style={styles.resultLabel}>{displayType}</Text>
-                <Text style={[styles.resultValue, { color: detectionColor }]}>
+                <Text style={styles.resultLabel}>{t('analysis.resultLabel')}</Text>
+                <Text style={[styles.resultValue, { color: themeColor }]}>
                   {displayTitle}
                 </Text>
+                {confidence !== undefined && (
+                  <View style={styles.confidenceContainer}>
+                    <Text style={styles.confidenceLabel}>Confidence: </Text>
+                    <Text style={[styles.confidenceValue, { color: getConfidenceColor(confidence) }]}>
+                      {(confidence * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -213,8 +282,10 @@ export default function AnalysisDetailScreen() {
 
             <View style={styles.descriptionContainer}>
               <View style={styles.descriptionHeaderRow}>
-                <Ionicons name="information-circle-outline" size={18} color="#666" />
-                <Text style={styles.descriptionLabel}>{t('analysis.analysisDetails')}</Text>
+                <Ionicons name="information-circle" size={18} color="#666" />
+                <Text style={styles.descriptionLabel}>
+                   {isManual ? t('analysis.symptomsNotes') : t('analysis.aboutCondition')}
+                </Text>
               </View>
               <Text style={styles.resultDescription}>
                 {displayDescription}
@@ -222,7 +293,67 @@ export default function AnalysisDetailScreen() {
             </View>
           </Animated.View>
 
-          {/* Metadata Grid */}
+          {/* ALL PREDICTIONS CARD (Disease Detection Only) */}
+          {isDiseaseDetection && allPredictions.length > 0 && (
+            <Animated.View
+              style={[
+                styles.predictionsCard,
+                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+              ]}
+            >
+              <View style={styles.predictionsHeader}>
+                <Ionicons name="analytics" size={20} color={themeColor} />
+                <Text style={styles.predictionsTitle}>All Predictions</Text>
+              </View>
+              
+              <View style={styles.predictionsList}>
+                {allPredictions.map(([disease, prob], index) => {
+                  const probability = prob as number;
+                  const isTopPrediction = index === 0;
+                  
+                  return (
+                    <View key={disease} style={styles.predictionItem}>
+                      <View style={styles.predictionInfo}>
+                        {isTopPrediction && (
+                          <View style={[styles.topBadge, { backgroundColor: themeColor }]}>
+                            <Ionicons name="trophy" size={10} color="#FFFFFF" />
+                          </View>
+                        )}
+                        <Text style={[
+                          styles.predictionName,
+                          isTopPrediction && styles.topPredictionName
+                        ]}>
+                          {disease.replace(/_/g, ' ')}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.predictionRight}>
+                        <View style={styles.predictionBarContainer}>
+                          <View 
+                            style={[
+                              styles.predictionBar,
+                              { 
+                                width: `${probability * 100}%`,
+                                backgroundColor: getConfidenceColor(probability)
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={[
+                          styles.predictionPercent,
+                          { color: getConfidenceColor(probability) }
+                        ]}>
+                          {(probability * 100).toFixed(1)}%
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* METADATA GRID */}
           <Animated.View
             style={[
               styles.detailsSection,
@@ -238,9 +369,7 @@ export default function AnalysisDetailScreen() {
                 </View>
                 <Text style={styles.detailLabel}>{t('analysis.date')}</Text> 
                 <Text style={styles.detailValue}>
-                  {new Date(result.createdAt).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric'
-                  })}
+                  {new Date(result.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                 </Text>
               </View>
 
@@ -250,9 +379,7 @@ export default function AnalysisDetailScreen() {
                 </View>
                 <Text style={styles.detailLabel}>{t('analysis.time')}</Text> 
                 <Text style={styles.detailValue}>
-                  {new Date(result.createdAt).toLocaleTimeString('en-US', {
-                    hour: '2-digit', minute: '2-digit'
-                  })}
+                  {new Date(result.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
 
@@ -265,10 +392,20 @@ export default function AnalysisDetailScreen() {
                   {isManual ? t('analysis.manual') : t('analysis.aiScan')} 
                 </Text>
               </View>
+
+              <View style={styles.detailCard}>
+                <View style={[styles.detailIconWrapper, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="layers" size={20} color="#A855F7" />
+                </View>
+                <Text style={styles.detailLabel}>{t('analysis.type')}</Text> 
+                <Text style={styles.detailValue}>
+                  {isManual ? t('analysis.manual') : (isConditionDetection ? t('analysis.condition') : t('analysis.disease'))} 
+                </Text>
+              </View>
             </View>
           </Animated.View>
 
-          {/* Disclaimer */}
+          {/* DISCLAIMER */}
           <Animated.View
             style={[
               styles.disclaimer,
@@ -276,9 +413,7 @@ export default function AnalysisDetailScreen() {
             ]}
           >
             <View style={styles.disclaimerHeader}>
-              <View style={styles.disclaimerIconWrapper}>
-                <Ionicons name="shield-checkmark" size={18} color="#FF9800" />
-              </View>
+              <Ionicons name="shield-checkmark" size={20} color="#D97706" />
               <Text style={styles.disclaimerTitle}>{t('analysis.medicalDisclaimer')}</Text> 
             </View>
             <Text style={styles.disclaimerText}>
@@ -286,20 +421,20 @@ export default function AnalysisDetailScreen() {
             </Text>
           </Animated.View>
 
-          {/* Actions */}
+          {/* ACTIONS */}
           <Animated.View
             style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
           >
             <TouchableOpacity
-              style={[styles.askAIButton, { backgroundColor: '#F5F5F5', borderColor: detectionColor }]}
+              style={[styles.askAIButton, { backgroundColor: '#F8F9FA', borderColor: themeColor }]}
               onPress={handleAskAI}
               activeOpacity={0.8}
             >
-              <View style={[styles.askAIIcon, { backgroundColor: `${detectionColor}15` }]}>
-                <Ionicons name="chatbubbles" size={20} color={detectionColor} />
+              <View style={[styles.askAIIcon, { backgroundColor: `${themeColor}15` }]}>
+                <Ionicons name="chatbubbles" size={20} color={themeColor} />
               </View>
-              <Text style={[styles.askAIText, { color: detectionColor }]}>{t('analysis.askAI')}</Text> 
-              <Ionicons name="arrow-forward" size={18} color={detectionColor} />
+              <Text style={[styles.askAIText, { color: themeColor }]}>{t('analysis.askAI')}</Text> 
+              <Ionicons name="arrow-forward" size={18} color={themeColor} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -311,6 +446,7 @@ export default function AnalysisDetailScreen() {
               <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
             </TouchableOpacity>
           </Animated.View>
+
         </View>
       </ScrollView>
     </View>
@@ -337,17 +473,32 @@ const styles = StyleSheet.create({
   },
   imageSection: {
     position: 'relative',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   imageContainer: {
     width: width,
-    height: width * 1.1,
-    backgroundColor: '#000',
-    position: 'relative',
+    height: width * 1,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
     width: '100%',
     height: '100%',
-    transform: [{ scaleX: -1 }],
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   maskContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -355,18 +506,17 @@ const styles = StyleSheet.create({
   maskImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.6,
-    transform: [{ scaleX: -1 }],
+    opacity: 0.65,
   },
   redTintOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 0, 50, 0.15)',
+    backgroundColor: 'rgba(255, 0, 50, 0.1)',
   },
   gradientOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, height: 150,
     backgroundColor: 'transparent',
-    backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
+    backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)',
   },
   headerOverlay: {
     position: 'absolute',
@@ -380,29 +530,36 @@ const styles = StyleSheet.create({
   },
   overlayButton: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerBadgeContainer: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20,
+  },
+  headerBadge: {
+    width: 24, height: 24, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   maskControls: {
-    position: 'absolute', bottom: 20, left: 24, right: 24,
+    position: 'absolute', bottom: 24, left: 0, right: 0,
+    alignItems: 'center',
   },
   maskToggle: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', paddingVertical: 14, paddingHorizontal: 20,
-    borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 24,
+    borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
   maskToggleActive: {
-    // backgroundColor set inline
-  },
-  maskToggleIcon: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  maskToggleIconActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    // handled inline
   },
   maskToggleText: {
     fontSize: 14, fontWeight: '700', color: '#1A1A1A',
@@ -412,7 +569,7 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     padding: 24,
-    marginTop: -20, 
+    marginTop: -20,
   },
   resultCard: {
     backgroundColor: '#FFFFFF',
@@ -420,245 +577,222 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   resultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 16,
     marginBottom: 20,
   },
   resultIconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 64, height: 64, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
   },
   resultIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    width: 48, height: 48, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1, shadowRadius: 4,
   },
   resultTitleContainer: {
     flex: 1,
   },
   resultLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#666',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 12, fontWeight: '700', color: '#999',
+    marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1,
   },
   resultValue: {
-    fontSize: 24,
+    fontSize: 24, fontWeight: '800', lineHeight: 30,
+  },
+  confidenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  confidenceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  confidenceValue: {
+    fontSize: 14,
     fontWeight: '800',
-    lineHeight: 30,
-    letterSpacing: -0.5,
   },
   resultDivider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginBottom: 20,
+    height: 1, backgroundColor: '#F0F0F0', marginBottom: 20,
   },
   descriptionContainer: {
-    backgroundColor: '#FAFAFA',
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: '#FAFAFA', borderRadius: 16, padding: 16,
   },
   descriptionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8,
   },
   descriptionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#666',
+    fontSize: 12, fontWeight: '700', color: '#666',
+    textTransform: 'uppercase',
   },
   resultDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#333',
-    lineHeight: 22,
+    fontSize: 15, fontWeight: '400', color: '#333', lineHeight: 24,
   },
-  detailsSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 16,
-    letterSpacing: -0.3,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  detailCard: {
-    width: (width - 60) / 2,
+  predictionsCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  detailIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#666',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    textAlign: 'center',
-  },
-  disclaimer: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF9800',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  disclaimerHeader: {
+  predictionsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  disclaimerIconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disclaimerTitle: {
-    fontSize: 14,
+  predictionsTitle: {
+    fontSize: 18,
     fontWeight: '800',
     color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
-  disclaimerText: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 18,
-    fontWeight: '500',
+  predictionsList: {
+    gap: 12,
   },
-  askAIButton: {
+  predictionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 2,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
   },
-  askAIIcon: {
-    width: 32,
-    height: 32,
+  predictionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  topBadge: {
+    width: 20,
+    height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  askAIText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 18,
-    borderRadius: 16,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  actionButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  errorContainer: {
+  predictionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
   },
-  errorIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  errorTitle: {
-    fontSize: 22,
+  topPredictionName: {
     fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 8,
   },
-  errorText: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 28,
-    textAlign: 'center',
-  },
-  errorButton: {
+  predictionRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+    gap: 12,
+    flex: 1,
+  },
+  predictionBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  predictionBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  predictionPercent: {
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 50,
+    textAlign: 'right',
+  },
+  detailsSection: { marginBottom: 24 },
+  sectionTitle: {
+    fontSize: 18, fontWeight: '800', color: '#1A1A1A', marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  detailsGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+  },
+  detailCard: {
+    width: (width - 60) / 2, backgroundColor: '#FFFFFF', borderRadius: 16,
+    padding: 16, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+  },
+  detailIconWrapper: {
+    width: 44, height: 44, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 11, fontWeight: '700', color: '#999', marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  detailValue: {
+    fontSize: 13, fontWeight: '700', color: '#1A1A1A', textAlign: 'center',
+  },
+  disclaimer: {
+    backgroundColor: '#FFF8E1', borderRadius: 16, padding: 16, marginBottom: 24,
+    borderLeftWidth: 4, borderLeftColor: '#F59E0B',
+  },
+  disclaimerHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6,
+  },
+  disclaimerTitle: {
+    fontSize: 14, fontWeight: '800', color: '#B45309',
+  },
+  disclaimerText: {
+    fontSize: 12, color: '#78350F', lineHeight: 18, fontWeight: '500',
+  },
+  askAIButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 16, borderRadius: 18, borderWidth: 1.5,
+    marginBottom: 16, backgroundColor: '#FFFFFF',
+  },
+  askAIIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  askAIText: {
+    fontSize: 16, fontWeight: '700',
+  },
+  actionButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 18, borderRadius: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
+  },
+  actionButtonText: {
+    fontSize: 17, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3,
+  },
+  errorContainer: {
+    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40,
+  },
+  errorIcon: {
+    width: 100, height: 100, borderRadius: 50,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22, fontWeight: '800', color: '#1A1A1A', marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 15, color: '#666', marginBottom: 28, textAlign: 'center',
+  },
+  errorButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 14, paddingHorizontal: 28, borderRadius: 16,
   },
   errorButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
   },
 });

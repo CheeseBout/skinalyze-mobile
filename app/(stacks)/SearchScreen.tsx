@@ -9,7 +9,8 @@ import {
   ScrollView, 
   Dimensions, 
   StatusBar, 
-  Animated
+  Animated,
+  SafeAreaView
 } from 'react-native'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -23,13 +24,9 @@ import { useTranslation  } from 'react-i18next'
 const { width } = Dimensions.get('window')
 const CARD_WIDTH = (width - 60) / 2
 
+// ... (Keep constants: POPULAR_SEARCHES, SKIN_TYPES, SORT_OPTIONS, RECENT_SEARCHES_KEY)
 const POPULAR_SEARCHES = [
-  'Vitamin C',
-  'Sunscreen',
-  'Moisturizer',
-  'Cleanser',
-  'Eye Cream',
-  'Serum',
+  'Vitamin C', 'Sunscreen', 'Moisturizer', 'Cleanser', 'Eye Cream', 'Serum',
 ]
 
 const SKIN_TYPES = [
@@ -98,7 +95,6 @@ export default function SearchScreen() {
     sortBy: 'relevance',
   })
 
-  // UI State
   const [showFilters, setShowFilters] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [searchMode, setSearchMode] = useState<SearchMode>('idle')
@@ -118,20 +114,33 @@ export default function SearchScreen() {
     initializeScreen()
   }, [])
 
-  // Handle category navigation
+  // FIX: Handle category navigation more robustly
   useEffect(() => {
-    if (isCategoryMode) {
-      const name = typeof categoryName === 'string' ? categoryName : ''
-      handleCategoryLoad(categoryId as string, name)
+    if (isCategoryMode && categoryId) {
+      const name = typeof categoryName === 'string' ? categoryName : '';
+      // Reset state first to clear any previous search results
+      setSearchState(prev => ({
+         ...prev,
+         query: name,
+         products: [],
+         filteredProducts: [],
+         isLoading: true, // Show loading immediately
+         error: null
+      }));
+      setSearchMode('category');
+      
+      // Fetch
+      handleCategoryLoad(categoryId as string);
     }
-  }, [categoryId, isCategoryMode])
+  }, [categoryId, isCategoryMode]); // Depend on categoryId changes
 
   // Apply filters when products or filters change
   useEffect(() => {
-    if (searchState.products.length > 0) {
+    // Only apply filters if we have products OR we finished loading (to show empty state correctly)
+    if (searchState.products.length > 0 || !searchState.isLoading) {
       applyFiltersAndSort()
     }
-  }, [searchState.products, filters.skinType, filters.sortBy])
+  }, [searchState.products, filters, searchState.isLoading])
 
   // ============= Initialization =============
   const initializeScreen = async () => {
@@ -154,7 +163,6 @@ export default function SearchScreen() {
     ]).start()
   }
 
-  // ============= Recent Searches =============
   const loadRecentSearches = async () => {
     try {
       const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY)
@@ -178,32 +186,28 @@ export default function SearchScreen() {
   }
 
   // ============= Search Logic =============
-  const handleCategoryLoad = async (id: string, name: string) => {
-    setSearchMode('category')
-    setSearchState(prev => ({ 
-      ...prev, 
-      query: name, 
-      isLoading: true, 
-      error: null 
-    }))
-
+  const handleCategoryLoad = async (id: string) => {
     try {
-      const result = await productService.getProductsByCategory(id, 1, 50)
+      // Call the service
+      const result = await productService.getProductsByCategory(id, 1, 50);
+      
       setSearchState(prev => ({
         ...prev,
         products: result.products,
+        filteredProducts: result.products, // Initialize filtered with all
         pagination: result.pagination,
         isLoading: false,
-      }))
+        error: result.products.length === 0 ? 'No products found in this category' : null
+      }));
     } catch (err) {
       setSearchState(prev => ({
         ...prev,
         error: 'Failed to load category products',
         isLoading: false,
-      }))
-      console.error('Category load error:', err)
+      }));
+      console.error('Category load error:', err);
     }
-  }
+  };
 
   const performTextSearch = async (query: string, page: number = 1) => {
     if (!query.trim()) return
@@ -289,6 +293,7 @@ export default function SearchScreen() {
       setSearchState(prev => ({
         ...prev,
         products: [...prev.products, ...result.products],
+        filteredProducts: [...prev.filteredProducts, ...result.products], // Append to filtered too
         pagination: result.pagination,
         loadingMore: false,
       }))
@@ -300,6 +305,9 @@ export default function SearchScreen() {
 
   // ============= Filtering & Sorting =============
   const applyFiltersAndSort = useCallback(() => {
+    // If no products loaded yet, do nothing
+    if (searchState.products.length === 0) return;
+
     let results = [...searchState.products]
 
     // Apply skin type filter (client-side)
@@ -307,6 +315,19 @@ export default function SearchScreen() {
       results = results.filter(product =>
         product.suitableFor?.includes(filters.skinType as string)
       )
+    }
+
+    // Apply price filter (client-side fallback)
+    if (filters.minPrice !== undefined) {
+      results = results.filter(p => productService.calculateDiscountedPrice(p) >= filters.minPrice!)
+    }
+    if (filters.maxPrice !== undefined) {
+      results = results.filter(p => productService.calculateDiscountedPrice(p) <= filters.maxPrice!)
+    }
+    
+    // Apply in stock
+    if (filters.inStock) {
+      results = results.filter(p => productService.isInStock(p))
     }
 
     // Apply sorting
@@ -340,7 +361,7 @@ export default function SearchScreen() {
     }
 
     setSearchState(prev => ({ ...prev, filteredProducts: results }))
-  }, [searchState.products, filters.skinType, filters.sortBy])
+  }, [searchState.products, filters])
 
   const updateFilter = <K extends keyof SearchFilters>(
     key: K, 
@@ -371,6 +392,11 @@ export default function SearchScreen() {
     })
     setSearchMode('idle')
     resetFilters()
+    
+    // If in category mode, reload the category
+    if (isCategoryMode && categoryId) {
+      handleCategoryLoad(categoryId as string);
+    }
   }
 
   // ============= Render Functions =============
@@ -380,7 +406,7 @@ export default function SearchScreen() {
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder={t('search.placeholder')}
+          placeholder={isCategoryMode ? `Search in ${categoryName}...` : t('search.placeholder')}
           placeholderTextColor="#999"
           value={searchState.query}
           onChangeText={(text) => setSearchState(prev => ({ ...prev, query: text }))}
@@ -532,7 +558,7 @@ export default function SearchScreen() {
   )
 
   const renderEmptyState = () => {
-    if (searchMode === 'idle') {
+    if (searchMode === 'idle' && !isCategoryMode) {
       return (
         <Animated.View 
           style={[
@@ -654,8 +680,8 @@ export default function SearchScreen() {
   )
 
   const renderResults = () => {
-    const hasActiveFilters = filters.skinType || filters.sortBy !== 'relevance'
-    const totalCount = searchState.pagination?.total || searchState.filteredProducts.length
+    const hasActiveFilters = filters.skinType || filters.sortBy !== 'relevance' || filters.minPrice || filters.maxPrice || filters.inStock
+    const totalCount = searchState.filteredProducts.length
 
     return (
       <View style={styles.resultsContainer}>

@@ -9,7 +9,7 @@ export interface SkinAnalysis {
   aiDetectedDisease: string | null;
   aiDetectedCondition: string | null;
   aiRecommendedProducts: string[] | null;
-  mask: string | string[] | null; // Can be string or array
+  mask: string | string[] | null; 
   createdAt: string;
   updatedAt: string;
 }
