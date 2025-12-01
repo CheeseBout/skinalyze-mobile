@@ -63,18 +63,27 @@ export default function ChatbotScreen() {
   // Handle prefilled data
   useEffect(() => {
     const handlePrefill = async () => {
+      // Only run if we haven't applied prefill yet AND we have user data
       if (!hasPrefillAppliedRef.current && user?.userId) {
-        const hasPrefillData = params.prefillText || params.prefillImage;
         
-        if (hasPrefillData) {
+        const prefillText = params.prefillText;
+        const prefillImage = params.prefillImage;
+
+        const hasData = prefillText || prefillImage;
+        
+        if (hasData) {
+          // Create a new chat specifically for this analysis context
           await createNewChatForAnalysis();
+          
           hasPrefillAppliedRef.current = true;
           
-          if (params.prefillText && typeof params.prefillText === 'string') {
-            setInputMessage(params.prefillText);
+          if (prefillText && typeof prefillText === 'string') {
+            setInputMessage(prefillText);
           }
-          if (params.prefillImage && typeof params.prefillImage === 'string') {
-            setSelectedImage(params.prefillImage);
+          
+          if (prefillImage && typeof prefillImage === 'string') {
+            // This sets the image in the input preview area
+            setSelectedImage(prefillImage); 
           }
         }
       }
@@ -83,14 +92,7 @@ export default function ChatbotScreen() {
     handlePrefill();
   }, [params.prefillText, params.prefillImage, user?.userId]);
 
-  useEffect(() => {
-    if ((params.prefillText || params.prefillImage) && currentChatId && hasPrefillAppliedRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 300);
-    }
-  }, [params.prefillText, params.prefillImage, currentChatId, hasPrefillAppliedRef.current]);
-
+  // Auto-scroll when keyboard opens
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
@@ -108,6 +110,8 @@ export default function ChatbotScreen() {
       const sessions = await chatbotService.getChatSessionsByUserId(user.userId);
       setChatSessions(sessions);
 
+      // Normal load: pick most recent. 
+      // Prefill load: handlePrefill will override this with a new chat.
       if (sessions.length > 0 && !params.prefillText && !params.prefillImage) {
         const mostRecent = sessions.sort(
           (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -144,7 +148,8 @@ export default function ChatbotScreen() {
       setCurrentChatId(newChat.chatId);
       setMessages(newChat.messages || []);
       setShowChatList(false);
-      hasPrefillAppliedRef.current = false;
+      // Reset prefill ref so manual new chats don't get blocked if params persist
+      hasPrefillAppliedRef.current = false; 
     } catch (error) {
       Alert.alert('Error', 'Failed to start new chat');
     } finally {
@@ -156,11 +161,13 @@ export default function ChatbotScreen() {
     if (!user?.userId) return;
     try {
       setIsLoading(true);
-      const existingSessions = await chatbotService.getChatSessionsByUserId(user.userId);
+      // We don't need to fetch all sessions again, just create new one
       const newChat = await chatbotService.createChatSession(user.userId);
-      setChatSessions([newChat, ...existingSessions]);
+      
+      // Optimistically update list
+      setChatSessions(prev => [newChat, ...prev]);
       setCurrentChatId(newChat.chatId);
-      setMessages([]);
+      setMessages(newChat.messages || []); // usually contains greeting
       setShowChatList(false);
     } catch (error) {
       Alert.alert('Error', 'Failed to start new chat for analysis');
@@ -183,13 +190,18 @@ export default function ChatbotScreen() {
             if (currentChatId === chatId) {
               updated.length > 0 ? setCurrentChatId(updated[0].chatId) : createNewChat();
             }
-          } catch (e) { 
-            console.error(e); 
-          }
+          } catch (e) { console.error(e); }
         }
       }
     ]);
   };
+
+  const selectChat = (chatId: string) => {
+    setCurrentChatId(chatId);
+    setShowChatList(false);
+  };
+
+  // --- Image Handling ---
 
   const pickImage = async () => {
     try {
@@ -209,14 +221,7 @@ export default function ChatbotScreen() {
     setSelectedImage(null);
   };
 
-  // --- SIMPLIFIED IMAGE HELPER ---
-  const getMessageImageSource = (imagePath: string | null | undefined) => {
-    if (!imagePath) return null;
-    // 1. Local File (file://...) used for Optimistic UI
-    // 2. Cloudinary URL (https://...) used for Backend response
-    // Both work natively in <Image source={{ uri: ... }} />
-    return { uri: imagePath };
-  };
+  // --- Sending Message ---
 
   const sendMessage = async () => {
     if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending) return;
@@ -228,6 +233,7 @@ export default function ChatbotScreen() {
     setInputMessage('');
     setSelectedImage(null);
     setIsSending(true);
+    Keyboard.dismiss(); // Optional: hide keyboard after send
 
     // Create Optimistic Message
     const optimisticMessage: ChatMessage = {
@@ -235,7 +241,7 @@ export default function ChatbotScreen() {
       chatId: currentChatId,
       sender: 'user',
       messageContent: textToSend,
-      imageUrl: imageToSend, // Local "file://" path
+      imageUrl: imageToSend, 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -250,18 +256,21 @@ export default function ChatbotScreen() {
         imageToSend
       );
 
-      // Replace temp message with real response (which now has Cloudinary "https://" URL)
+      // Replace temp message with real response
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.messageId !== tempId);
         return [...filtered, userMessage, aiMessage];
       });
       
+      // Update title if needed
       const session = chatSessions.find(s => s.chatId === currentChatId);
       if (session?.title === 'New chat') {
-        loadChatSessions(); 
+        // In background, refresh list to get new title
+        chatbotService.getChatSessionsByUserId(user!.userId).then(setChatSessions);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send message');
+      // Revert state
       setMessages(prev => prev.filter(msg => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
@@ -274,8 +283,6 @@ export default function ChatbotScreen() {
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.sender === 'user';
-    const imageSource = getMessageImageSource(item.imageUrl);
-
     return (
       <View style={[
         styles.messageRow, 
@@ -291,14 +298,16 @@ export default function ChatbotScreen() {
           styles.bubble,
           isUser ? [styles.bubbleUser, { backgroundColor: primaryColor }] : styles.bubbleAi
         ]}>
-          {imageSource && (
-            <Image 
-              source={imageSource} 
-              style={styles.messageImage} 
-              resizeMode="cover"
-            />
+          {/* Render Image if present */}
+          {item.imageUrl && (
+             <Image 
+               source={{ uri: item.imageUrl }} 
+               style={styles.messageImage} 
+               resizeMode="cover"
+             />
           )}
 
+          {/* Render Text if present */}
           {item.messageContent ? (
             <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
               {item.messageContent}
@@ -315,7 +324,6 @@ export default function ChatbotScreen() {
 
   const renderFooter = () => {
     if (!isSending) return <View style={{ height: 20 }} />;
-
     return (
       <View style={[styles.messageRow, styles.messageRowAi, { marginBottom: 20 }]}>
         <View style={[styles.avatar, { backgroundColor: '#fff', borderColor: primaryColor, borderWidth: 1 }]}>
@@ -336,8 +344,8 @@ export default function ChatbotScreen() {
         style={[styles.chatItem, isActive && { backgroundColor: `${primaryColor}15`, borderColor: primaryColor }]}
         onPress={() => { 
           setCurrentChatId(item.chatId); 
-          setShowChatList(false);
-          hasPrefillAppliedRef.current = false;
+          setShowChatList(false); 
+          hasPrefillAppliedRef.current = false; // Allow new prefill if params change
         }}
       >
         <View style={styles.chatItemIcon}>
@@ -393,6 +401,7 @@ export default function ChatbotScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header - Fixed at top */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
           <Ionicons name="menu" size={24} color="#333" />
@@ -406,31 +415,34 @@ export default function ChatbotScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Keyboard Avoiding View Wrapper */}
       <KeyboardAvoidingView 
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
+        {/* Chat Area */}
         <FlatList
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={item => item.messageId}
           contentContainerStyle={styles.chatContent}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={[styles.center, { marginTop: 100 }]}>
               <Ionicons name="chatbubbles-outline" size={64} color="#ddd" />
               <Text style={{ color: '#999', marginTop: 16 }}>
-                {params.prefillText ? 'Ready to ask about your analysis' : 'Start a new conversation'}
+                {params.prefillText ? 'Ready to ask about your analysis...' : 'Start a new conversation'}
               </Text>
             </View>
           }
         />
 
+        {/* Input Area */}
         <View style={styles.inputContainer}>
+          {/* Image Preview Card (Pops up above input) */}
           {selectedImage && (
             <View style={styles.imagePreviewCard}>
               <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
@@ -444,6 +456,7 @@ export default function ChatbotScreen() {
             </View>
           )}
 
+          {/* Input Row */}
           <View style={styles.inputRow}>
             <TouchableOpacity onPress={pickImage} style={styles.attachBtn}>
               <Ionicons name="image-outline" size={24} color={primaryColor} />
@@ -459,11 +472,10 @@ export default function ChatbotScreen() {
                 onChangeText={setInputMessage}
                 maxLength={1000}
               />
-              
               {(inputMessage.length > 0 || selectedImage) && (
-                <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
-                  <Ionicons name="close-circle" size={20} color="#ccc" />
-                </TouchableOpacity>
+                 <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
+                   <Ionicons name="close-circle" size={20} color="#ccc" />
+                 </TouchableOpacity>
               )}
             </View>
 
@@ -500,6 +512,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -519,6 +533,8 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
   },
+
+  // Chat List (Sidebar)
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,6 +564,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
+
+  // Messages
   chatContent: {
     padding: 16,
     paddingBottom: 20,
@@ -594,7 +612,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#f0f0f0',
   },
   messageText: {
     fontSize: 15,
@@ -609,6 +627,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'right',
   },
+
+  // Input Area
   inputContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
@@ -672,7 +692,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     paddingVertical: 8,
-    marginRight: 4,
   },
   clearBtn: {
     padding: 4,

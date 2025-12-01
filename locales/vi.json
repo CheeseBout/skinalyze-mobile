@@ -152,7 +152,16 @@
     "Warts": "Mụn Cóc",
     "Warts_desc": "Các tăng trưởng da nhỏ, hạt do virus u nhú ở người (HPV). Chúng cảm thấy thô khi chạm và có thể lây lan, truyền qua da chạm da.",
     "Oily": "Da Dầu",
-    "Dry": "Da Khô"
+    "Oily_desc": "Một loại da được đặc trưng bởi các tuyến bã nhờn hoạt động quá mức sản xuất dầu thừa. Nó thường xuất hiện bóng hoặc nhờn, có lỗ chân lông lớn và dễ bị mụn trứng cá, đầu đen và vết thâm.",
+    "Dry": "Da Khô",
+    "Dry_desc": "Một loại da được đặc trưng bởi sự thiếu độ ẩm và dầu tự nhiên (lipid) đầy đủ. Nó thường cảm thấy căng, thô hoặc ngứa, xuất hiện xỉn màu hoặc vảy, và dễ bị nếp nhăn và kích ứng do hàng rào da bị tổn thương.",
+    "resultLabel": "Kết Quả",
+    "aboutCondition": "Về Tình Trạng Này",
+    "symptomsNotes": "Triệu Chứng & Ghi Chú",
+    "noDetails": "Không có chi tiết bổ sung",
+    "manualRecord": "Ghi Chép Thủ Công",
+    "symptoms": "Triệu Chứng",
+    "notes": "Ghi Chú"
   },
   "cart": {
     "loading": "Đang tải giỏ hàng...",
