@@ -117,7 +117,7 @@ class SkinAnalysisService {
 
       // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      console.log("✅ Disease detection completed");
+      console.log("✅ Disease detection completed", analysisResult);
 
       return analysisResult;
     } catch (error) {
@@ -173,7 +173,7 @@ class SkinAnalysisService {
 
       // Extract data from response
       const analysisResult: SkinAnalysisResult = result.data || result;
-      console.log("✅ Condition detection completed");
+      console.log("✅ Condition detection completed", analysisResult);
 
       return analysisResult;
     } catch (error) {
@@ -226,6 +226,8 @@ class SkinAnalysisService {
       const response = await apiService.get<SkinAnalysisResponse>(
         `/skin-analysis/${analysisId}`
       );
+
+      console.log("✅ Analysis fetched", response.data);
 
       return response.data;
     } catch (error) {

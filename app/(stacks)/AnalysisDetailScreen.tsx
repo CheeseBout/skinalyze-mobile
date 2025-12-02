@@ -7,14 +7,17 @@ import {
   TouchableOpacity, 
   Dimensions, 
   StatusBar, 
-  Animated
+  Animated,
+  ActivityIndicator
 } from 'react-native';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next';  
+import { useTranslation } from 'react-i18next';
+import Carousel, { ProductItem } from '@/components/Carousel';
+import { productService, Product } from '@/services/productService';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +27,8 @@ export default function AnalysisDetailScreen() {
   const { primaryColor } = useThemeColor();
   const { t } = useTranslation();
   const [showMask, setShowMask] = useState(false);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -48,6 +53,55 @@ export default function AnalysisDetailScreen() {
   const result: SkinAnalysisResult = params.result
     ? JSON.parse(params.result as string)
     : null;
+
+  // Create a stable string representation of the product IDs
+  const productIdsKey = useMemo(() => {
+    if (!result?.aiRecommendedProducts || result.aiRecommendedProducts.length === 0) {
+      return '';
+    }
+    return result.aiRecommendedProducts.join(',');
+  }, [result?.aiRecommendedProducts?.length, result?.aiRecommendedProducts?.[0]]);
+
+  // Fetch recommended products
+  useEffect(() => {
+    // Early return if no product IDs
+    if (!productIdsKey) {
+      setRecommendedProducts([]);
+      return;
+    }
+
+    const fetchRecommendedProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const productIds = productIdsKey.split(',');
+        const products: Product[] = [];
+        
+        // Fetch products in parallel for better performance
+        const productPromises = productIds.map(async (productId) => {
+          try {
+            return await productService.getProductById(productId);
+          } catch (error) {
+            console.error(`Failed to fetch product ${productId}:`, error);
+            return null;
+          }
+        });
+
+        const fetchedProducts = await Promise.all(productPromises);
+        
+        // Filter out null values (failed fetches)
+        const validProducts = fetchedProducts.filter((p): p is Product => p !== null);
+        
+        setRecommendedProducts(validProducts);
+      } catch (error) {
+        console.error('Error fetching recommended products:', error);
+        setRecommendedProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchRecommendedProducts();
+  }, [productIdsKey]); // Only depend on the stable string key
 
   if (!result) {
     return (
@@ -155,6 +209,21 @@ export default function AnalysisDetailScreen() {
     if (value >= 0.4) return '#FF9500'; // Orange
     return '#FF3B30'; // Red
   };
+
+  // Prepare product carousel items - memoize to prevent recreation
+  const productCarouselItems: ProductItem[] = useMemo(() => {
+    return recommendedProducts.map((product) => ({
+      type: 'product' as const,
+      id: product.productId,
+      product: product,
+      onPress: () => {
+        router.push({
+          pathname: '/(stacks)/ProductDetailScreen',
+          params: { productId: product.productId },
+        });
+      },
+    }));
+  }, [recommendedProducts, router]);
 
   // --- RENDER ---
   return (
@@ -293,66 +362,6 @@ export default function AnalysisDetailScreen() {
             </View>
           </Animated.View>
 
-          {/* ALL PREDICTIONS CARD (Disease Detection Only) */}
-          {isDiseaseDetection && allPredictions.length > 0 && (
-            <Animated.View
-              style={[
-                styles.predictionsCard,
-                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-              ]}
-            >
-              <View style={styles.predictionsHeader}>
-                <Ionicons name="analytics" size={20} color={themeColor} />
-                <Text style={styles.predictionsTitle}>All Predictions</Text>
-              </View>
-              
-              <View style={styles.predictionsList}>
-                {allPredictions.map(([disease, prob], index) => {
-                  const probability = prob as number;
-                  const isTopPrediction = index === 0;
-                  
-                  return (
-                    <View key={disease} style={styles.predictionItem}>
-                      <View style={styles.predictionInfo}>
-                        {isTopPrediction && (
-                          <View style={[styles.topBadge, { backgroundColor: themeColor }]}>
-                            <Ionicons name="trophy" size={10} color="#FFFFFF" />
-                          </View>
-                        )}
-                        <Text style={[
-                          styles.predictionName,
-                          isTopPrediction && styles.topPredictionName
-                        ]}>
-                          {disease.replace(/_/g, ' ')}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.predictionRight}>
-                        <View style={styles.predictionBarContainer}>
-                          <View 
-                            style={[
-                              styles.predictionBar,
-                              { 
-                                width: `${probability * 100}%`,
-                                backgroundColor: getConfidenceColor(probability)
-                              }
-                            ]} 
-                          />
-                        </View>
-                        <Text style={[
-                          styles.predictionPercent,
-                          { color: getConfidenceColor(probability) }
-                        ]}>
-                          {(probability * 100).toFixed(1)}%
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </Animated.View>
-          )}
-
           {/* METADATA GRID */}
           <Animated.View
             style={[
@@ -421,6 +430,53 @@ export default function AnalysisDetailScreen() {
             </Text>
           </Animated.View>
 
+          {/* RECOMMENDED PRODUCTS CAROUSEL */}
+          {!isManual && productIdsKey && (
+            <Animated.View
+              style={[
+                styles.recommendedSection,
+                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+              ]}
+            >
+              <View style={styles.recommendedHeader}>
+                <View style={styles.recommendedTitleContainer}>
+                  <View style={[styles.recommendedIcon, { backgroundColor: `${primaryColor}15` }]}>
+                    <Ionicons name="sparkles" size={20} color={primaryColor} />
+                  </View>
+                  <Text style={styles.recommendedTitle}>AI Recommended Products</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/ProductScreen')}
+                  style={styles.viewAllButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.viewAllText, { color: primaryColor }]}>View All</Text>
+                  <Ionicons name="arrow-forward" size={16} color={primaryColor} />
+                </TouchableOpacity>
+              </View>
+
+              {loadingProducts ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={primaryColor} />
+                  <Text style={styles.loadingText}>Loading recommendations...</Text>
+                </View>
+              ) : recommendedProducts.length > 0 ? (
+                <Carousel
+                  items={productCarouselItems}
+                  autoPlay={false}
+                  showPagination={true}
+                  itemWidth={width * 0.45}
+                  itemSpacing={16}
+                />
+              ) : (
+                <View style={styles.noProductsContainer}>
+                  <Ionicons name="cube-outline" size={48} color="#999" />
+                  <Text style={styles.noProductsText}>No products available</Text>
+                </View>
+              )}
+            </Animated.View>
+          )}
+
           {/* ACTIONS */}
           <Animated.View
             style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
@@ -454,6 +510,7 @@ export default function AnalysisDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ...existing styles...
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
@@ -558,9 +615,7 @@ const styles = StyleSheet.create({
     borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
-  maskToggleActive: {
-    // handled inline
-  },
+  maskToggleActive: {},
   maskToggleText: {
     fontSize: 14, fontWeight: '700', color: '#1A1A1A',
   },
@@ -636,86 +691,6 @@ const styles = StyleSheet.create({
   resultDescription: {
     fontSize: 15, fontWeight: '400', color: '#333', lineHeight: 24,
   },
-  predictionsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  predictionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-  },
-  predictionsTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    letterSpacing: -0.3,
-  },
-  predictionsList: {
-    gap: 12,
-  },
-  predictionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  predictionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  topBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  predictionName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    flex: 1,
-  },
-  topPredictionName: {
-    fontWeight: '800',
-    color: '#1A1A1A',
-  },
-  predictionRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  predictionBarContainer: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  predictionBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  predictionPercent: {
-    fontSize: 13,
-    fontWeight: '800',
-    minWidth: 50,
-    textAlign: 'right',
-  },
   detailsSection: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18, fontWeight: '800', color: '#1A1A1A', marginBottom: 16,
@@ -753,6 +728,62 @@ const styles = StyleSheet.create({
   },
   disclaimerText: {
     fontSize: 12, color: '#78350F', lineHeight: 18, fontWeight: '500',
+  },
+  recommendedSection: {
+    marginBottom: 24,
+  },
+  recommendedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  recommendedTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  recommendedIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recommendedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  noProductsContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  noProductsText: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '500',
   },
   askAIButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
