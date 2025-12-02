@@ -13,9 +13,9 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
-import * as Sharing from 'expo-sharing';
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 
 import paymentService, {
@@ -46,7 +46,7 @@ export default function PaymentScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  
+
   const { primaryColor } = useThemeColor();
 
   // ---  Parse Data ---
@@ -76,7 +76,7 @@ export default function PaymentScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [leaveAction, setLeaveAction] = useState<any>(null);
 
-const pollingInterval = useRef<number | null>(null);
+  const pollingInterval = useRef<number | null>(null);
   // ---  Logic Countdown Timer ---
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -148,9 +148,9 @@ const pollingInterval = useRef<number | null>(null);
           setScreenStatus("SUCCESS");
           router.replace({
             pathname: "/(stacks)/PaymentSuccessScreen",
-            params: { 
-              appointmentId: appointmentId || undefined, 
-              orderId: params.orderId || undefined ,
+            params: {
+              appointmentId: appointmentId || undefined,
+              orderId: params.orderId || undefined,
               paymentCode: paymentCode,
             },
           });
@@ -241,40 +241,64 @@ const pollingInterval = useRef<number | null>(null);
   };
 
   const downloadQRCode = async () => {
-    if (!bankingInfo.qrCodeUrl) {
-      Alert.alert('Error', 'QR code is not available for download');
+    const qrUrl = bankingInfo?.qrCodeUrl;
+
+    if (!qrUrl) {
+      console.log("[downloadQRCode] No QR code URL found");
+      Alert.alert("Error", "QR code is not available for download");
       return;
     }
 
     try {
       setIsDownloading(true);
-      
-      // Request media library permissions
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant access to save the QR code to your gallery');
+
+      // 1. Request permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please grant access to save the QR code to your gallery"
+        );
         return;
       }
 
-      // Download the QR code image using legacy API
+      // 2. Create file path (Use cacheDirectory to avoid documentDirectory type issues)
+      const cacheDir = FileSystem.cacheDirectory || "";
       const filename = `payment_qr_${paymentCode}_${Date.now()}.png`;
-      const downloadResult = await FileSystem.downloadAsync(
-        bankingInfo.qrCodeUrl,
-        FileSystem.documentDirectory + filename
-      );
+      const fileUri = `${cacheDir}${filename}`;
 
-      if (downloadResult.status === 200) {
-        // Save to media library
-        const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-        await MediaLibrary.createAlbumAsync('Skinalyze Payments', asset, false);
-        
-        Alert.alert('Success', 'QR code downloaded');
-      } else {
-        throw new Error('Download failed');
+      console.log("[downloadQRCode] Downloading to:", fileUri);
+
+      // 3. Download file
+      const downloadRes = await FileSystem.downloadAsync(qrUrl, fileUri);
+
+      if (downloadRes.status !== 200) {
+        throw new Error("Download failed status: " + downloadRes.status);
       }
-    } catch (error) {
-      console.error('Error downloading QR code:', error);
-      Alert.alert('Download Error', 'Failed to download QR code. Please try again.');
+
+      // 4. Save to Gallery
+      const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+
+      // 5. Create Album (Handle Android/iOS separately)
+      try {
+        if (Platform.OS === "android") {
+          await MediaLibrary.createAlbumAsync(
+            "Skinalyze Payments",
+            asset,
+            false
+          );
+        } else {
+          await MediaLibrary.createAlbumAsync("Skinalyze Payments", asset);
+        }
+      } catch (e) {
+        // Album creation error should not block main flow, as image is already saved
+        console.log("Album creation warning:", e);
+      }
+
+      Alert.alert("Success", "QR code has been saved to your gallery");
+    } catch (error: any) {
+      console.error("[downloadQRCode] Error:", error);
+      Alert.alert("Error", `Failed to download QR code: ${error.message}`);
     } finally {
       setIsDownloading(false);
     }
@@ -285,29 +309,29 @@ const pollingInterval = useRef<number | null>(null);
       const fileUri = uri || (await downloadQRToTemp());
       if (fileUri) {
         await Sharing.shareAsync(fileUri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Share Payment QR Code'
+          mimeType: "image/png",
+          dialogTitle: "Share Payment QR Code",
         });
       }
     } catch (error) {
-      console.error('Error sharing QR code:', error);
-      Alert.alert('Share Error', 'Failed to share QR code.');
+      console.error("Error sharing QR code:", error);
+      Alert.alert("Share Error", "Failed to share QR code.");
     }
   };
 
   const downloadQRToTemp = async (): Promise<string | null> => {
     if (!bankingInfo.qrCodeUrl) return null;
-    
+
     try {
       const filename = `temp_qr_${Date.now()}.png`;
       const downloadResult = await FileSystem.downloadAsync(
         bankingInfo.qrCodeUrl,
         FileSystem.cacheDirectory + filename
       );
-      
+
       return downloadResult.status === 200 ? downloadResult.uri : null;
     } catch (error) {
-      console.error('Error downloading QR to temp:', error);
+      console.error("Error downloading QR to temp:", error);
       return null;
     }
   };
@@ -411,11 +435,14 @@ const pollingInterval = useRef<number | null>(null);
                     resizeMode="contain"
                     onError={handleQrError}
                   />
-                  
+
                   {/* QR Action Buttons */}
                   <View style={styles.qrActionButtons}>
                     <Pressable
-                      style={[styles.qrActionButton, { backgroundColor: primaryColor }]}
+                      style={[
+                        styles.qrActionButton,
+                        { backgroundColor: primaryColor },
+                      ]}
                       onPress={downloadQRCode}
                       disabled={isDownloading}
                     >
@@ -429,10 +456,10 @@ const pollingInterval = useRef<number | null>(null);
                         />
                       )}
                       <Text style={styles.qrActionButtonText}>
-                        {isDownloading ? 'Downloading...' : 'Download'}
+                        {isDownloading ? "Downloading..." : "Download"}
                       </Text>
                     </Pressable>
-                    
+
                     <Pressable
                       style={[styles.qrActionButton, styles.shareButton]}
                       onPress={() => shareQRCode()}
@@ -442,7 +469,12 @@ const pollingInterval = useRef<number | null>(null);
                         size={20}
                         color={primaryColor}
                       />
-                      <Text style={[styles.qrActionButtonText, { color: primaryColor }]}>
+                      <Text
+                        style={[
+                          styles.qrActionButtonText,
+                          { color: primaryColor },
+                        ]}
+                      >
                         Share
                       </Text>
                     </Pressable>
@@ -627,32 +659,32 @@ const styles = StyleSheet.create({
   qrCode: {
     width: 240,
     height: 240,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   qrActionButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 16,
     gap: 12,
   },
   qrActionButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 6,
   },
   shareButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: '#007bff',
+    borderColor: "#007bff",
   },
   qrActionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
   },
   qrPlaceholder: {
     width: 240,

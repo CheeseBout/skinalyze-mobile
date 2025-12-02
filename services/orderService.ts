@@ -1,14 +1,30 @@
 import apiService from "./apiService";
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
-export type PaymentMethod = 'wallet' | 'cod' | 'banking' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay' | 'cash';
+export type OrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PROCESSING"
+  | "SHIPPING"
+  | "DELIVERED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REJECTED";
+export type PaymentMethod =
+  | "wallet"
+  | "cod"
+  | "banking"
+  | "bank_transfer"
+  | "momo"
+  | "zalopay"
+  | "vnpay"
+  | "cash";
 
 export interface User {
   userId: string;
   email: string;
   fullName: string;
   dob: string;
-  photoUrl: string | null;  
+  photoUrl: string | null;
   phone: string;
   role: string;
   createdAt: string;
@@ -87,7 +103,7 @@ export interface Order {
   rejectionReason: string | null;
   processedBy: string | null;
   orderItems: OrderItem[];
-  shippingLogs: ShippingLog[]; 
+  shippingLogs: ShippingLog[];
   createdAt: string;
   updatedAt: string;
 }
@@ -108,9 +124,12 @@ export interface OrderDetailResponse {
 
 export interface CheckoutPayload {
   shippingAddress: string;
-  selectedProductIds: string[];
+  province: string;
+  district: string;
+  ward: string;
+  shippingMethod: "INTERNAL" | "GHN";
+  totalAmount: number;
   paymentMethod: PaymentMethod;
-  useWallet: boolean;
   notes?: string;
 }
 
@@ -122,22 +141,21 @@ export interface CheckoutResponse {
 }
 
 class OrderService {
-
   /**
    * Checkout cart and create order
    */
   async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
     try {
-      ('🛒 Creating checkout order...');
-      
+      ("🛒 Creating checkout order...");
+
       const response = await apiService.post<CheckoutResponse>(
-        '/orders/checkout',
-        payload,
+        "/orders/checkout",
+        payload
       );
-      
+
       return response.data;
     } catch (error) {
-      console.error('❌ Checkout error:', error);
+      console.error("❌ Checkout error:", error);
       throw error;
     }
   }
@@ -148,11 +166,11 @@ class OrderService {
   async getMyOrders(token: string): Promise<Order[]> {
     try {
       const response = await apiService.get<OrdersResponse>(
-        '/orders/my-orders',
+        "/orders/my-orders"
       );
       return response.data;
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error("Error fetching orders:", error);
       throw error;
     }
   }
@@ -163,12 +181,12 @@ class OrderService {
   async getOrderById(orderId: string, token: string): Promise<Order> {
     try {
       const response = await apiService.get<OrderDetailResponse>(
-        `/orders/${orderId}`,
+        `/orders/${orderId}`
       );
-      console.log(response.data)
+      console.log(response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching order detail:', error);
+      console.error("Error fetching order detail:", error);
       throw error;
     }
   }
@@ -178,7 +196,7 @@ class OrderService {
    */
   calculateOrderTotal(orderItems: OrderItem[]): number {
     return orderItems.reduce((total, item) => {
-      return total + (parseFloat(item.priceAtTime) * item.quantity);
+      return total + parseFloat(item.priceAtTime) * item.quantity;
     }, 0);
   }
 
@@ -194,16 +212,16 @@ class OrderService {
    */
   getStatusColor(status: OrderStatus): string {
     const colorMap: Record<OrderStatus, string> = {
-      PENDING: '#FFA500',
-      CONFIRMED: '#FF9800',  
-      PROCESSING: '#2196F3',
-      SHIPPING: '#9C27B0',   
-      DELIVERED: '#4CAF50',
-      COMPLETED: '#4CAF50',
-      CANCELLED: '#F44336',
-      REJECTED: '#F44336',
+      PENDING: "#FFA500",
+      CONFIRMED: "#FF9800",
+      PROCESSING: "#2196F3",
+      SHIPPING: "#9C27B0",
+      DELIVERED: "#4CAF50",
+      COMPLETED: "#4CAF50",
+      CANCELLED: "#F44336",
+      REJECTED: "#F44336",
     };
-    return colorMap[status] || '#757575';
+    return colorMap[status] || "#757575";
   }
 
   /**
@@ -211,14 +229,14 @@ class OrderService {
    */
   getStatusLabel(status: OrderStatus): string {
     const labelMap: Record<OrderStatus, string> = {
-      PENDING: 'Pending',
-      CONFIRMED: 'Confirmed',  // Added for CONFIRMED
-      PROCESSING: 'Processing',
-      SHIPPING: 'Shipping',    // Changed from SHIPPED to SHIPPING
-      DELIVERED: 'Delivered',
-      COMPLETED: 'Completed',
-      CANCELLED: 'Cancelled',
-      REJECTED: 'Rejected',
+      PENDING: "Pending",
+      CONFIRMED: "Confirmed", // Added for CONFIRMED
+      PROCESSING: "Processing",
+      SHIPPING: "Shipping", // Changed from SHIPPED to SHIPPING
+      DELIVERED: "Delivered",
+      COMPLETED: "Completed",
+      CANCELLED: "Cancelled",
+      REJECTED: "Rejected",
     };
     return labelMap[status] || status;
   }
@@ -228,30 +246,34 @@ class OrderService {
    */
   getPaymentMethodLabel(method: PaymentMethod): string {
     const labelMap: Record<PaymentMethod, string> = {
-      wallet: 'Wallet Balance',
-      cod: 'Cash on Delivery',
-      banking: 'Bank Transfer (SePay)',
-      bank_transfer: 'Direct Bank Transfer',
-      momo: 'MoMo',
-      zalopay: 'ZaloPay',
-      vnpay: 'VNPay',
-      cash: 'Cash', 
+      wallet: "Wallet Balance",
+      cod: "Cash on Delivery",
+      banking: "Bank Transfer (SePay)",
+      bank_transfer: "Direct Bank Transfer",
+      momo: "MoMo",
+      zalopay: "ZaloPay",
+      vnpay: "VNPay",
+      cash: "Cash",
     };
     return labelMap[method] || method;
   }
 
-  async confirmCompleteOrder(orderId: string, token: string, feedback?: string): Promise<Order> {
+  async confirmCompleteOrder(
+    orderId: string,
+    token: string,
+    feedback?: string
+  ): Promise<Order> {
     try {
       const payload = feedback ? { feedback } : {};
-      
+
       const response = await apiService.post<OrderDetailResponse>(
         `/orders/${orderId}/complete`,
         payload
       );
-      
+
       return response.data;
     } catch (error) {
-      console.error('Error completing order:', error);
+      console.error("Error completing order:", error);
       throw error;
     }
   }
@@ -260,9 +282,9 @@ class OrderService {
    * Format currency (VND)
    */
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(amount);
   }
 
@@ -271,12 +293,12 @@ class OrderService {
    */
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date);
   }
 }
