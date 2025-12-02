@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next';
 const { width } = Dimensions.get('window');
 
 type ScreenState = 'options' | 'diseaseOptions' | 'camera';
-type DetectionType = 'skinCondition' | 'facialDisease' | 'otherDisease';
+type DetectionType = 'facialDisease' | 'otherDisease';
 
 export default function AnalyzeScreen() {
   const [screenState, setScreenState] = useState<ScreenState>('options');
@@ -61,11 +61,6 @@ export default function AnalyzeScreen() {
     ]).start();
   }, [screenState]);
 
-  const handleSkinConditionDetection = () => {
-    setDetectionType('skinCondition');
-    setScreenState('camera');
-  };
-
   const handleDiseaseDetection = () => {
     setScreenState('diseaseOptions');
   };
@@ -82,11 +77,7 @@ export default function AnalyzeScreen() {
 
   const handleBack = () => {
     if (screenState === 'camera') {
-      if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
-        setScreenState('diseaseOptions');
-      } else {
-        setScreenState('options');
-      }
+      setScreenState('diseaseOptions');
       setDetectionType(null);
     } else if (screenState === 'diseaseOptions') {
       setScreenState('options');
@@ -104,17 +95,9 @@ export default function AnalyzeScreen() {
     setIsAnalyzing(true);
 
     try {
-      let result;
-
-      if (detectionType === 'skinCondition') {
-        // 1. Skin Condition Analysis
-        result = await skinAnalysisService.detectCondition(user.userId, imageUri);
-
-      } else if (detectionType === 'facialDisease' || detectionType === 'otherDisease') {
-        // 2. Disease Detection (With Note)
-        const note = detectionType === 'facialDisease' ? 'facial' : 'other';
-        result = await skinAnalysisService.detectDisease(user.userId, imageUri, note);
-      }
+      // Disease Detection with Note
+      const note = detectionType === 'facialDisease' ? 'facial' : 'other';
+      const result = await skinAnalysisService.detectDisease(user.userId, imageUri, note);
 
       // Reset State
       setScreenState('options');
@@ -160,18 +143,14 @@ export default function AnalyzeScreen() {
 
   // --- RENDER: Camera Screen ---
   if (screenState === 'camera') {
-    if (detectionType === 'skinCondition' || detectionType === 'facialDisease') {
-      const title = detectionType === 'skinCondition'
-        ? t('analyze.positionFace')
-        : t('analyze.positionFaceDisease');
-
+    if (detectionType === 'facialDisease') {
       return (
         <>
           <FacialSkinCamera
             onCapture={handleCapture}
             onClose={handleBack}
             initialFacing="front"
-            title={title}
+            title={t('analyze.positionFaceDisease')}
           />
           {isAnalyzing && <LoadingOverlay />}
         </>
@@ -213,48 +192,14 @@ export default function AnalyzeScreen() {
             ]}
           >
             <Text style={styles.headerSuperTitle}>{t('analyze.aiSkinAnalysis').toUpperCase()}</Text>
-            <Text style={styles.headerTitle}>{t('analyze.chooseAnalysisType')}</Text>
+            {/* <Text style={styles.headerTitle}>{t('analyze.chooseAnalysisType')}</Text> */}
           </Animated.View>
 
           {/* Main Cards */}
           <Animated.View
             style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
           >
-            {/* Card 1: Skin Condition */}
-            <TouchableOpacity
-              style={[styles.mainCard, styles.shadowSm]}
-              onPress={handleSkinConditionDetection}
-              activeOpacity={0.9}
-            >
-              <View style={[styles.cardAccentLine, { backgroundColor: '#2196F3' }]} />
-              
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconBox, { backgroundColor: '#E3F2FF' }]}>
-                  <Ionicons name="water" size={26} color="#2196F3" />
-                </View>
-                <View style={[styles.badge, { backgroundColor: '#E3F2FF' }]}>
-                  <Text style={[styles.badgeText, { color: '#2196F3' }]}>{t('analyze.popular')}</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{t('analyze.skinCondition')}</Text>
-                <Text style={styles.cardDesc}>{t('analyze.analyzeDryness')}</Text>
-                
-                <View style={styles.featureList}>
-                  <View style={styles.featureRow}>
-                    <Ionicons name="scan-outline" size={14} color="#666" />
-                    <Text style={styles.featureText}>{t('analyze.faceAnalysis')}</Text>
-                  </View>
-                  <View style={styles.featureRow}>
-                    <Ionicons name="hardware-chip-outline" size={14} color="#666" />
-                    <Text style={styles.featureText}>{t('analyze.aiPowered')}</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            {/* Card 2: Disease Detection */}
+            {/* Disease Detection */}
             <TouchableOpacity
               style={[styles.mainCard, styles.shadowSm]}
               onPress={handleDiseaseDetection}
