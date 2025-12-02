@@ -35,7 +35,7 @@ import customerService from "@/services/customerService";
 import customerSubscriptionService from "@/services/customerSubscriptionService";
 import appointmentService from "@/services/appointmentService";
 import skinAnalysisService from "@/services/skinAnalysisService";
-import treatmentRoutineService from "@/services/treamentRoutineService";
+import treatmentRoutineService from "@/services/treatmentRoutineService";
 
 import { AuthContext } from "@/contexts/AuthContext";
 import userService from "@/services/userService";

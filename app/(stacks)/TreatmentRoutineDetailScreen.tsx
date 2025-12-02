@@ -5,23 +5,252 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Linking,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  Image, 
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 
 import treatmentRoutineService from "@/services/treatmentRoutineService";
+import productService from "@/services/productService";
+
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
-import { RoutineDetail } from "@/types/routineDetail.type";
+import { RoutineDetail, RoutineProductItem } from "@/types/routine-detail.type";
+
 
 const formatDate = (isoDate: string) => {
   if (!isoDate) return "N/A";
   return new Date(isoDate).toLocaleDateString("en-GB", {
     day: "2-digit",
-    month: "2-digit",
+    month: "short", // Changed to Short Month (e.g., 28 Oct 2025)
     year: "numeric",
   });
 };
+
+const STEP_ORDER: Record<string, number> = {
+  morning: 1,
+  noon: 2,
+  evening: 3,
+  oral: 4,
+  other: 5,
+};
+
+// Map Icon and Colors (Labels translated to English)
+const getStepConfig = (type?: string) => {
+  switch (type) {
+    case "morning":
+      return {
+        label: "Morning Routine",
+        iconName: "weather-sunny",
+        iconLib: MaterialCommunityIcons,
+        color: "#fff7ed",
+        iconColor: "#f59e0b",
+      };
+    case "noon":
+      return {
+        label: "Noon Routine",
+        iconName: "sun",
+        iconLib: Feather,
+        color: "#f0f9ff",
+        iconColor: "#0ea5e9",
+      };
+    case "evening":
+      return {
+        label: "Evening Routine",
+        iconName: "weather-night",
+        iconLib: MaterialCommunityIcons,
+        color: "#eef2ff",
+        iconColor: "#6366f1",
+      };
+    case "oral":
+      return {
+        label: "Oral Medication",
+        iconName: "pill",
+        iconLib: MaterialCommunityIcons,
+        color: "#fef2f2",
+        iconColor: "#ef4444",
+      };
+    default:
+      return {
+        label: "Other / Extra",
+        iconName: "sparkles",
+        iconLib: MaterialCommunityIcons,
+        color: "#f5f3ff",
+        iconColor: "#8b5cf6",
+      };
+  }
+};
+
+
+const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
+  const router = useRouter();
+  const [productImage, setProductImage] = useState<string | null>(null);
+
+  // --- NEW: Fetch Product Image Logic ---
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProductImage = async () => {
+      // Only fetch if it's an internal product and has an ID
+      if (!item.isExternal && item.productId) {
+        try {
+          const productData = await productService.getProductById(
+            item.productId
+          );
+          if (isMounted && productData?.productImages?.length > 0) {
+            setProductImage(productData.productImages[0]);
+          }
+        } catch (err) {
+          // Silently fail or log error (don't break UI)
+          console.log(`Failed to fetch image for ${item.productId}`, err);
+        }
+      }
+    };
+
+    fetchProductImage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [item.productId, item.isExternal]);
+
+  const handlePress = async () => {
+    if (item.isExternal) {
+      if (item.externalLink) {
+        const supported = await Linking.canOpenURL(item.externalLink);
+        if (supported) {
+          await Linking.openURL(item.externalLink);
+        } else {
+          Alert.alert("Error", "Cannot open this link.");
+        }
+      } else {
+        Alert.alert("Info", "No purchase link available for this product.");
+      }
+    } else {
+      if (item.productId) {
+        router.push({
+          pathname: "/(stacks)/ProductDetailScreen",
+          params: { productId: item.productId },
+        });
+      }
+    }
+  };
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.productCard,
+        pressed && styles.pressedCard,
+      ]}
+      onPress={handlePress}
+    >
+      {/* Icon Box OR Product Image */}
+      <View
+        style={[
+          styles.iconBox,
+          item.isExternal ? styles.iconExternal : styles.iconInternal,
+        ]}
+      >
+        {productImage ? (
+          // IF we have an image from API -> Show 
+          <Image
+            source={{ uri: productImage }}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : (
+          // ELSE -> Show default Icon
+          <>
+            {item.isExternal ? (
+              <Feather name="external-link" size={20} color="#64748b" />
+            ) : (
+              <MaterialCommunityIcons
+                name="flask-outline"
+                size={20}
+                color="#0ea5e9"
+              />
+            )}
+          </>
+        )}
+      </View>
+
+      {/* Main Info */}
+      <View style={styles.productInfo}>
+        <Text style={styles.productName}>{item.productName}</Text>
+
+        <View style={styles.metaRow}>
+          {item.usage && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Dose: {item.usage}</Text>
+            </View>
+          )}
+          {item.frequency && (
+            <Text style={styles.metaText}>• {item.frequency}</Text>
+          )}
+        </View>
+
+        {/* Doctor's Note */}
+        {item.note && <Text style={styles.doctorNote}>📝 {item.note}</Text>}
+      </View>
+
+      <Feather name="chevron-right" size={20} color="#cbd5e1" />
+    </Pressable>
+  );
+};
+
+// Component: Routine Section (Morning/Noon...)
+const RoutineSection = ({ data }: { data: RoutineDetail }) => {
+  const config = getStepConfig(data.stepType);
+
+  // Logic: Use description as Title if 'other', else use default label
+  const title =
+    data.stepType === "other" && data.description
+      ? data.description
+      : config.label;
+
+  const IconComponent = config.iconLib;
+
+  return (
+    <View style={styles.sectionContainer}>
+      {/* Section Header */}
+      <View style={[styles.sectionHeader, { backgroundColor: config.color }]}>
+        <View style={styles.headerTitleRow}>
+          <IconComponent
+            name={config.iconName as any}
+            size={24}
+            color={config.iconColor}
+          />
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        {/* General Instruction for this time of day */}
+        {data.content ? (
+          <Text style={styles.sectionContentNote}>{data.content}</Text>
+        ) : null}
+      </View>
+
+      {/* Product List */}
+      <View style={styles.productList}>
+        {data.products?.map((product, index) => (
+          <ProductItemRow
+            key={product.routineDetailProductId || index}
+            item={product}
+          />
+        ))}
+        {(!data.products || data.products.length === 0) && (
+          <Text style={styles.emptyProductsText}>
+            No products assigned for this step.
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+};
+
+// --- 3. MAIN SCREEN ---
 
 export default function TreatmentRoutineDetailScreen() {
   const router = useRouter();
@@ -59,81 +288,118 @@ export default function TreatmentRoutineDetailScreen() {
     fetchData();
   }, [routineId]);
 
-  //  Render
+  const processedDetails = useMemo(() => {
+    if (!details) return [];
+    return details
+      .filter((item) => item.isActive) // 1. Only Active
+      .sort((a, b) => {
+        // 2. Sort by Order
+        const orderA = STEP_ORDER[a.stepType || "other"] || 99;
+        const orderB = STEP_ORDER[b.stepType || "other"] || 99;
+        return orderA - orderB;
+      });
+  }, [details]);
+
+  // --- Render ---
   if (isLoading) {
-    return <ActivityIndicator size="large" style={styles.center} />;
+    return (
+      <ActivityIndicator size="large" color="#007bff" style={styles.center} />
+    );
   }
+
   if (error || !routine) {
     return (
       <View style={styles.center}>
+        <MaterialCommunityIcons
+          name="alert-circle-outline"
+          size={48}
+          color="#d9534f"
+        />
         <Text style={styles.errorText}>{error || "Routine not found."}</Text>
+        <Pressable style={styles.retryButton} onPress={() => router.back()}>
+          <Text style={styles.retryText}>Go Back</Text>
+        </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Back Button */}
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#007bff" />
-          <Text style={styles.backButtonText}>Back to Appointment</Text>
+          <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
 
-        {/* Header  */}
+        {/* Routine Header Info */}
         <View style={styles.header}>
-          <MaterialCommunityIcons
-            name="clipboard-text-clock"
-            size={40}
-            color="#007bff"
-          />
-          <Text style={styles.title}>{routine.routineName}</Text>
+          <Text style={styles.screenTitle}>{routine.routineName}</Text>
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaTag}>
+              <Feather name="calendar" size={12} color="#64748b" />
+              <Text style={styles.metaText}>
+                Created: {formatDate(routine.createdAt)}
+              </Text>
+            </View>
+            <View style={[styles.metaTag, { backgroundColor: "#dcfce7" }]}>
+              <Text
+                style={[
+                  styles.metaText,
+                  { color: "#166534", fontWeight: "bold" },
+                ]}
+              >
+                {routine.status}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.subTitle}>
-            Created: {formatDate(routine.createdAt)} | Status: {routine.status}
+            Follow the instructions below for best results.
           </Text>
         </View>
 
-        {/*Routine Details */}
-        {details.map((item) => (
-          <View style={styles.card} key={item.routineDetailId}>
-            <View style={styles.stepHeader}>
-              {item.description && (
-                <Text style={styles.stepTitle}>{item.description}</Text>
-              )}
-            </View>
-
-            <Text style={styles.content}>{item.content}</Text>
+        {/* Routine Sections List */}
+        {processedDetails.length > 0 ? (
+          processedDetails.map((item) => (
+            <RoutineSection key={item.routineDetailId} data={item} />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons
+              name="clipboard-text-off-outline"
+              size={48}
+              color="#cbd5e1"
+            />
+            <Text style={styles.emptyStateText}>
+              No details found for this routine.
+            </Text>
           </View>
-        ))}
-
-        {details.length === 0 && (
-          <Text style={styles.errorText}>
-            No details found for this routine.
-          </Text>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
+
+// --- 4. STYLES ---
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5ff",
+    backgroundColor: "#f8fafc",
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f8fafc",
   },
   scrollContent: {
     padding: 16,
-    paddingTop: 10,
+    paddingBottom: 40,
   },
-  errorText: {
-    fontSize: 16,
-    color: "#d9534f",
-  },
+
+  // Navigation
   backButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -143,58 +409,188 @@ const styles = StyleSheet.create({
     color: "#007bff",
     fontSize: 16,
     marginLeft: 4,
+    fontWeight: "500",
   },
+
+  // Screen Header
   header: {
-    alignItems: "center",
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    marginBottom: 24,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 8,
+  screenTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 8,
   },
   subTitle: {
     fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-    textTransform: "capitalize",
+    color: "#64748b",
+    lineHeight: 20,
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-  },
-  stepHeader: {
+  metaInfoRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 8,
     marginBottom: 8,
   },
-  stepTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#007bff",
+  metaTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  metaText: {
+    fontSize: 12,
+    color: "#64748b",
+    marginLeft: 4,
   },
 
-  content: {
-    fontSize: 14,
-    color: "#777",
-    fontStyle: "italic",
+  // Errors & Empty States
+  errorText: {
+    fontSize: 16,
+    color: "#d9534f",
+    marginTop: 12,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#d9534f",
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "#d9534f",
+    fontWeight: "600",
+  },
+  emptyState: {
+    alignItems: "center",
+    marginTop: 40,
+    padding: 20,
+  },
+  emptyStateText: {
+    color: "#94a3b8",
     marginTop: 10,
-    backgroundColor: "#f9f9f9",
-    padding: 8,
+    fontSize: 16,
+  },
+
+  // Section Styles
+  sectionContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 20,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  sectionHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#334155",
+    marginLeft: 10,
+    textTransform: "capitalize",
+  },
+  sectionContentNote: {
+    fontSize: 13,
+    color: "#64748b",
+    marginTop: 4,
+    fontStyle: "italic",
+    paddingLeft: 34,
+  },
+  productList: {
+    padding: 0,
+  },
+  emptyProductsText: {
+    padding: 16,
+    color: "#94a3b8",
+    fontStyle: "italic",
+    textAlign: "center",
+    fontSize: 13,
+  },
+
+  // Product Card Styles
+  productCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    backgroundColor: "#fff",
+  },
+  pressedCard: {
+    backgroundColor: "#f8fafc",
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+    overflow: "hidden", // Ensure image respects border radius
+  },
+  iconInternal: {
+    backgroundColor: "#e0f2fe",
+  },
+  iconExternal: {
+    backgroundColor: "#f1f5f9",
+  },
+  productImage: {
+    width: "100%",
+    height: "100%",
+  },
+  productInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0f172a",
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 4,
+  },
+  badge: {
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginRight: 8,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#15803d",
+  },
+
+  doctorNote: {
+    fontSize: 12,
+    color: "#d97706",
+    marginTop: 2,
+    fontStyle: "italic",
   },
 });
