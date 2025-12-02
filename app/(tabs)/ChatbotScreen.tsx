@@ -465,12 +465,19 @@ export default function ChatbotScreen() {
             <View style={styles.textInputWrapper}>
               <TextInput
                 style={styles.textInput}
-                placeholder={selectedImage ? "Ask about this image..." : "Type a message..."}
+                placeholder={selectedImage ? "Hỏi về ảnh này..." : "Nhập tin nhắn..."}
                 placeholderTextColor="#999"
                 multiline
                 value={inputMessage}
                 onChangeText={setInputMessage}
                 maxLength={1000}
+                autoCorrect={true}
+                autoCapitalize="sentences"
+                keyboardType="default"
+                returnKeyType="default"
+                blurOnSubmit={false}
+                enablesReturnKeyAutomatically={false}
+                textContentType="none"
               />
               {(inputMessage.length > 0 || selectedImage) && (
                  <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
