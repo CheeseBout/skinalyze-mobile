@@ -70,7 +70,7 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
-        name="AnalysisDetailScreen" 
+        name="AnalysisDetailScreen"
         options={{
           headerShown: false,
         }}
@@ -89,6 +89,12 @@ export default function StackLayout() {
       />
       <Stack.Screen
         name="OrderTrackingScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="ShippingTrackingScreen"
         options={{
           headerShown: false,
         }}
