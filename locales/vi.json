@@ -461,6 +461,7 @@
     "saveRecord": "Lưu Ghi Chép",
     "tapToUpload": "Nhấn để tải lên ảnh",
     "fileTypes": "JPG, PNG lên đến 10MB",
-    "fieldsRequired": "Các trường được đánh dấu * là bắt buộc"
+    "fieldsRequired": "Các trường được đánh dấu * là bắt buộc",
+    "ok": "OK"
   }
 }

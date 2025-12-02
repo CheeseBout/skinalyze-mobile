@@ -461,6 +461,7 @@
     "saveRecord": "Save Record",
     "tapToUpload": "Tap to upload photo",
     "fileTypes": "JPG, PNG up to 10MB",
-    "fieldsRequired": "Fields marked with * are required"
+    "fieldsRequired": "Fields marked with * are required",
+    "ok": "OK"
   }
 }

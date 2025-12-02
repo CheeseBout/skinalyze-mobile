@@ -336,7 +336,7 @@ export default function AnalysisDetailScreen() {
                 <Text style={[styles.resultValue, { color: themeColor }]}>
                   {displayTitle}
                 </Text>
-                {confidence !== undefined && (
+                {!isManual && confidence !== undefined && (
                   <View style={styles.confidenceContainer}>
                     <Text style={styles.confidenceLabel}>Confidence: </Text>
                     <Text style={[styles.confidenceValue, { color: getConfidenceColor(confidence) }]}>
@@ -443,10 +443,10 @@ export default function AnalysisDetailScreen() {
                   <View style={[styles.recommendedIcon, { backgroundColor: `${primaryColor}15` }]}>
                     <Ionicons name="sparkles" size={20} color={primaryColor} />
                   </View>
-                  <Text style={styles.recommendedTitle}>AI Recommended Products</Text>
+                  <Text style={styles.recommendedTitle}>AI Suggestions</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => router.push('/(tabs)/ProductScreen')}
+                  onPress={() => router.push('/(tabs)/HomeScreen')}
                   style={styles.viewAllButton}
                   activeOpacity={0.7}
                 >
@@ -491,6 +491,18 @@ export default function AnalysisDetailScreen() {
               </View>
               <Text style={[styles.askAIText, { color: themeColor }]}>{t('analysis.askAI')}</Text> 
               <Ionicons name="arrow-forward" size={18} color={themeColor} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.consultButton, { backgroundColor: '#FFFFFF', borderColor: '#2196F3' }]}
+              onPress={() => router.push('/(stacks)/DermatologistListScreen')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.consultIcon, { backgroundColor: '#E3F2FD' }]}>
+                <Ionicons name="medical" size={20} color="#2196F3" />
+              </View>
+              <Text style={[styles.consultText, { color: '#2196F3' }]}>Consult with Experts</Text>
+              <Ionicons name="arrow-forward" size={18} color="#2196F3" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -796,6 +808,32 @@ const styles = StyleSheet.create({
   },
   askAIText: {
     fontSize: 16, fontWeight: '700',
+  },
+  consultButton: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 10,
+    paddingVertical: 16, 
+    borderRadius: 18, 
+    borderWidth: 1.5,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  consultIcon: {
+    width: 32, 
+    height: 32, 
+    borderRadius: 10,
+    justifyContent: 'center', 
+    alignItems: 'center',
+  },
+  consultText: {
+    fontSize: 16, 
+    fontWeight: '700',
   },
   actionButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
