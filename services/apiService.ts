@@ -2,7 +2,7 @@ import tokenService from "./tokenService";
 
 // const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1'
 const API_URL =
-  process.env.EXPO_PUBLIC_BASE_API_URL || "http://192.168.1.11:3000/api/v1";
+  process.env.EXPO_PUBLIC_BASE_API_URL || "https://api.nhatlonh.id.vn/api/v1";
 
 interface RequestOptions {
   headers?: Record<string, string>;

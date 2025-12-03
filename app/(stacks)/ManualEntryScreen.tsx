@@ -103,11 +103,11 @@ export default function ManualEntryScreen() {
     setIsSubmitting(true);
 
     try {
-      await skinAnalysisService.createManualEntry(user.userId, {
+      await skinAnalysisService.createManualEntry({
         chiefComplaint: complaint,
         patientSymptoms: symptoms,
-        notes: notes,
-        imageUri: selectedImage,
+        notes: notes || undefined,
+        imageUris: selectedImage ? [selectedImage] : null,
       });
 
       Alert.alert(t('manualEntry.success'), t('manualEntry.recordSaved'), [

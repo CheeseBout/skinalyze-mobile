@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,15 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/hooks/useAuth';
-import orderService, { Order, OrderStatus } from '@/services/orderService';
-import tokenService from '@/services/tokenService';
-import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next';
+  Platform,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@/hooks/useAuth";
+import orderService, { Order, OrderStatus } from "@/services/orderService";
+import tokenService from "@/services/tokenService";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 export default function OrderListScreen() {
   const router = useRouter();
@@ -26,23 +27,25 @@ export default function OrderListScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "ALL">(
+    "ALL"
+  );
 
-  const statusFilters: Array<{ key: OrderStatus | 'ALL'; label: string }> = [
-    { key: 'ALL', label: t('orders.all') },
-    { key: 'PENDING', label: t('orders.pending') },
-    { key: 'CONFIRMED', label: t('orders.confirmed') },
-    { key: 'PROCESSING', label: t('orders.processing') },
-    { key: 'SHIPPING', label: t('orders.shipping') },    
-    { key: 'DELIVERED', label: t('orders.delivered') },
-    { key: 'COMPLETED', label: t('orders.completed') },
-    { key: 'CANCELLED', label: t('orders.cancelled') },
-    { key: 'REJECTED', label: t('orders.rejected') },
+  const statusFilters: Array<{ key: OrderStatus | "ALL"; label: string }> = [
+    { key: "ALL", label: t("orders.all") },
+    { key: "PENDING", label: t("orders.pending") },
+    { key: "CONFIRMED", label: t("orders.confirmed") },
+    { key: "PROCESSING", label: t("orders.processing") },
+    { key: "SHIPPING", label: t("orders.shipping") },
+    { key: "DELIVERED", label: t("orders.delivered") },
+    { key: "COMPLETED", label: t("orders.completed") },
+    { key: "CANCELLED", label: t("orders.cancelled") },
+    { key: "REJECTED", label: t("orders.rejected") },
   ];
 
   const fetchOrders = useCallback(async () => {
     if (!isAuthenticated) {
-      Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
+      Alert.alert(t("orders.loginRequired"), t("orders.loginRequired"));
       return;
     }
 
@@ -50,14 +53,17 @@ export default function OrderListScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t('orders.loginRequired'), t('orders.loginRequired'));
+        Alert.alert(t("orders.loginRequired"), t("orders.loginRequired"));
         return;
       }
       const data = await orderService.getMyOrders(token);
       setOrders(data);
     } catch (error: any) {
-      console.error('Error fetching orders:', error);
-      Alert.alert(t('orders.loadError'), error.message || t('orders.loadError'));
+      console.error("Error fetching orders:", error);
+      Alert.alert(
+        t("orders.loadError"),
+        error.message || t("orders.loadError")
+      );
     } finally {
       setLoading(false);
     }
@@ -73,9 +79,10 @@ export default function OrderListScreen() {
     setRefreshing(false);
   };
 
-  const filteredOrders = selectedStatus === 'ALL' 
-    ? orders 
-    : orders.filter(order => order.status === selectedStatus);
+  const filteredOrders =
+    selectedStatus === "ALL"
+      ? orders
+      : orders.filter((order) => order.status === selectedStatus);
 
   const renderStatusFilter = () => (
     <View style={styles.filterContainer}>
@@ -88,7 +95,10 @@ export default function OrderListScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              selectedStatus === item.key && [styles.filterButtonActive, { backgroundColor: primaryColor }],
+              selectedStatus === item.key && [
+                styles.filterButtonActive,
+                { backgroundColor: primaryColor },
+              ],
             ]}
             onPress={() => setSelectedStatus(item.key)}
           >
@@ -114,10 +124,12 @@ export default function OrderListScreen() {
     return (
       <TouchableOpacity
         style={styles.orderCard}
-        onPress={() => router.push({
-          pathname: '/(stacks)/OrderDetailScreen',
-          params: { orderId: item.orderId }
-        } as any)}
+        onPress={() =>
+          router.push({
+            pathname: "/(stacks)/OrderDetailScreen",
+            params: { orderId: item.orderId },
+          } as any)
+        }
       >
         <View style={styles.orderHeader}>
           <View style={styles.orderIdContainer}>
@@ -127,7 +139,10 @@ export default function OrderListScreen() {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: orderService.getStatusColor(item.status) + '20' },
+              {
+                backgroundColor:
+                  orderService.getStatusColor(item.status) + "20",
+              },
             ]}
           >
             <Text
@@ -136,7 +151,7 @@ export default function OrderListScreen() {
                 { color: orderService.getStatusColor(item.status) },
               ]}
             >
-              {t('orders.' + item.status.toLowerCase())}
+              {t("orders." + item.status.toLowerCase())}
             </Text>
           </View>
         </View>
@@ -157,7 +172,8 @@ export default function OrderListScreen() {
                   x{item.orderItems[0].quantity}
                   {item.orderItems.length > 1 && (
                     <Text style={[styles.moreItems, { color: primaryColor }]}>
-                      {' '}+{item.orderItems.length - 1} {t('orders.moreItems')}
+                      {" "}
+                      +{item.orderItems.length - 1} {t("orders.moreItems")}
                     </Text>
                   )}
                 </Text>
@@ -175,12 +191,58 @@ export default function OrderListScreen() {
               </Text>
             </View>
             <View style={styles.orderInfoRow}>
-              <Text style={styles.totalItemsText}>{totalItems} {t('orders.items')}</Text>
+              <Text style={styles.totalItemsText}>
+                {totalItems} {t("orders.items")}
+              </Text>
               <Text style={[styles.totalAmountText, { color: primaryColor }]}>
                 {orderService.formatCurrency(totalAmount)}
               </Text>
             </View>
           </View>
+
+          {/* Shipping Info */}
+          {item.shippingLogs && item.shippingLogs.length > 0 && (
+            <View style={styles.shippingInfoSection}>
+              {item.shippingLogs[0].shippingMethod && (
+                <View style={styles.shippingTag}>
+                  <Ionicons
+                    name={
+                      item.shippingLogs[0].shippingMethod === "GHN"
+                        ? "cube"
+                        : "bicycle"
+                    }
+                    size={12}
+                    color={primaryColor}
+                  />
+                  <Text
+                    style={[styles.shippingTagText, { color: primaryColor }]}
+                  >
+                    {item.shippingLogs[0].shippingMethod === "GHN"
+                      ? "GHN"
+                      : "Nội bộ"}
+                  </Text>
+                </View>
+              )}
+              {item.shippingLogs[0].batchCode && (
+                <View
+                  style={[
+                    styles.batchTag,
+                    { backgroundColor: `${primaryColor}15` },
+                  ]}
+                >
+                  <Ionicons name="albums" size={12} color={primaryColor} />
+                  <Text style={[styles.batchTagText, { color: primaryColor }]}>
+                    Batch: {item.shippingLogs[0].batchCode}
+                  </Text>
+                </View>
+              )}
+              {item.shippingLogs[0].ghnOrderCode && (
+                <Text style={styles.ghnCode}>
+                  GHN: {item.shippingLogs[0].ghnOrderCode}
+                </Text>
+              )}
+            </View>
+          )}
 
           {item.rejectionReason && (
             <View style={styles.rejectionContainer}>
@@ -193,12 +255,18 @@ export default function OrderListScreen() {
         <View style={styles.orderActions}>
           <TouchableOpacity
             style={styles.viewDetailButton}
-            onPress={() => router.push({
-              pathname: '/(stacks)/OrderDetailScreen',
-              params: { orderId: item.orderId }
-            } as any)}
+            onPress={() =>
+              router.push({
+                pathname: "/(stacks)/OrderDetailScreen",
+                params: { orderId: item.orderId },
+              } as any)
+            }
           >
-            <Text style={[styles.viewDetailButtonText, { color: primaryColor }]}>{t('orders.viewDetails')}</Text>
+            <Text
+              style={[styles.viewDetailButtonText, { color: primaryColor }]}
+            >
+              {t("orders.viewDetails")}
+            </Text>
             <Ionicons name="chevron-forward" size={16} color={primaryColor} />
           </TouchableOpacity>
         </View>
@@ -210,10 +278,13 @@ export default function OrderListScreen() {
     <View style={styles.emptyContainer}>
       <Ionicons name="cart-outline" size={80} color="#ccc" />
       <Text style={styles.emptyText}>
-        {selectedStatus === 'ALL' 
-          ? t('orders.noOrders')
-          : t('orders.noStatusOrders', { status: orderService.getStatusLabel(selectedStatus as OrderStatus).toLowerCase() })
-        }
+        {selectedStatus === "ALL"
+          ? t("orders.noOrders")
+          : t("orders.noStatusOrders", {
+              status: orderService
+                .getStatusLabel(selectedStatus as OrderStatus)
+                .toLowerCase(),
+            })}
       </Text>
     </View>
   );
@@ -222,7 +293,7 @@ export default function OrderListScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>{t('orders.loading')}</Text>
+        <Text style={styles.loadingText}>{t("orders.loading")}</Text>
       </View>
     );
   }
@@ -236,7 +307,7 @@ export default function OrderListScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('orders.title')}</Text>
+        <Text style={styles.headerTitle}>{t("orders.title")}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -248,7 +319,11 @@ export default function OrderListScreen() {
         renderItem={renderOrderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[primaryColor]}
+          />
         }
         ListEmptyComponent={renderEmptyState}
       />
@@ -260,85 +335,85 @@ export default function OrderListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   placeholder: {
     width: 40,
   },
   filterContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     marginRight: 8,
   },
   filterButtonActive: {
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   filterButtonTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
   },
   listContent: {
     padding: 16,
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 12,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: "#f8f8f8",
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
   orderIdContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   orderId: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginLeft: 6,
   },
   statusBadge: {
@@ -348,75 +423,118 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   orderBody: {
     padding: 12,
   },
   productRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 12,
   },
   productImage: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
   },
   productInfo: {
     flex: 1,
     marginLeft: 12,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   productName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   productBrand: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
   },
   productQuantity: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   moreItems: {
-    color: '#2196F3',
+    color: "#2196F3",
   },
   divider: {
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: "#e0e0e0",
     marginVertical: 12,
   },
   orderFooter: {
     gap: 8,
   },
   orderInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   orderDate: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginLeft: 6,
   },
   totalItemsText: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   totalAmountText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2196F3',
+    fontWeight: "bold",
+    color: "#2196F3",
+  },
+  shippingInfoSection: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  shippingTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#E3F2FD",
+    borderRadius: 12,
+  },
+  shippingTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#2196F3",
+  },
+  batchTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#FFF3E0",
+    borderRadius: 12,
+  },
+  batchTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FF9800",
+  },
+  ghnCode: {
+    fontSize: 10,
+    color: "#999",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   rejectionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFEBEE',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFEBEE",
     padding: 8,
     borderRadius: 8,
     marginTop: 12,
@@ -424,46 +542,46 @@ const styles = StyleSheet.create({
   rejectionText: {
     flex: 1,
     fontSize: 12,
-    color: '#F44336',
+    color: "#F44336",
     marginLeft: 6,
   },
   orderActions: {
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: "#e0e0e0",
     padding: 12,
   },
   viewDetailButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   viewDetailButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#2196F3',
+    fontWeight: "600",
+    color: "#2196F3",
     marginRight: 4,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 60,
   },
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
   },
 });

@@ -23,6 +23,7 @@ import { useCartCount } from '@/hooks/userCartCount';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import ReviewsComponent from '@/components/ReviewsComponent';
 import { useTranslation } from 'react-i18next';
+import Carousel, { ProductItem } from '@/components/Carousel';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +40,8 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number} | null>(null);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
   const { refreshCount } = useCartCount();
 
   // Animations
@@ -72,6 +75,9 @@ export default function ProductDetailScreen() {
           useNativeDriver: true,
         }),
       ]).start();
+      
+      // Fetch similar products after product details are loaded
+      fetchSimilarProducts();
     }
   }, [isLoading, product]);
 
@@ -90,6 +96,33 @@ export default function ProductDetailScreen() {
       console.error('Error fetching product:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchSimilarProducts = async () => {
+    if (!product || !product.categories || product.categories.length === 0) {
+      return;
+    }
+
+    try {
+      setLoadingSimilar(true);
+      // Get the first category of the product
+      const categoryId = product.categories[0].categoryId;
+      
+      // Fetch products from the same category
+      const { products } = await productService.getProductsByCategory(categoryId, 1, 10);
+      
+      // Filter out the current product and limit to 10 items
+      const filtered = products
+        .filter(p => p.productId !== productId)
+        .slice(0, 10);
+      
+      setSimilarProducts(filtered);
+    } catch (error) {
+      console.error('Error fetching similar products:', error);
+      setSimilarProducts([]);
+    } finally {
+      setLoadingSimilar(false);
     }
   };
 
@@ -160,7 +193,6 @@ export default function ProductDetailScreen() {
     }
   };
 
-  // --- Helper to clean suitableFor data ---
   const getCleanSuitableFor = (data: any): string[] => {
     if (!data) return [];
     
@@ -169,20 +201,17 @@ export default function ProductDetailScreen() {
     if (Array.isArray(data)) {
       items = data;
     } else if (typeof data === 'string') {
-      // If it's a string like '["oily", "dry"]', parse it
       try {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed)) items = parsed;
         else items = [data];
       } catch (e) {
-        // If not JSON, maybe comma separated?
         items = data.split(',').map(s => s.trim());
       }
     }
 
-    // Final cleanup: remove quotes, brackets if they somehow persisted in string items
     return items.map(item => {
-        return item.replace(/[\[\]"]/g, '').trim(); // Removes [ ] " characters
+        return item.replace(/[\[\]"]/g, '').trim();
     }).filter(item => item.length > 0);
   };
 
@@ -228,8 +257,21 @@ export default function ProductDetailScreen() {
   const stockStatus = productService.getStockStatus(product);
   const hasDiscount = parseFloat(product.salePercentage) > 0;
 
-  // Clean tags
   const suitableForTags = getCleanSuitableFor(product.suitableFor);
+
+  // Prepare carousel items for similar products
+  const carouselItems: ProductItem[] = similarProducts.map(similarProduct => ({
+    type: 'product' as const,
+    id: similarProduct.productId,
+    product: similarProduct,
+    onPress: () => {
+      // Navigate to the product detail screen
+      router.push({
+        pathname: '/(stacks)/ProductDetailScreen',
+        params: { productId: similarProduct.productId }
+      });
+    }
+  }));
 
   return (
     <View style={styles.container}>
@@ -424,7 +466,6 @@ export default function ProductDetailScreen() {
                 {suitableForTags.map((item, index) => (
                   <View key={index} style={[styles.tag, { backgroundColor: `${primaryColor}12` }]}>
                     <Ionicons name="checkmark-circle" size={14} color={primaryColor} />
-                    {/* Use the cleaned item text here */}
                     <Text style={[styles.tagText, { color: primaryColor }]}>{item}</Text>
                   </View>
                 ))}
@@ -448,7 +489,41 @@ export default function ProductDetailScreen() {
           )}
         </Animated.View>
 
-        {/* Reviews Component */}
+        {/* Similar Products Carousel */}
+        {similarProducts.length > 0 && (
+          <Animated.View 
+            style={[
+              styles.similarSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: `${primaryColor}15` }]}>
+                <Ionicons name="grid" size={18} color={primaryColor} />
+              </View>
+              <Text style={styles.sectionTitle}>Similar Products</Text>
+            </View>
+            <Carousel
+              items={carouselItems}
+              autoPlay={false}
+              showPagination={true}
+              itemWidth={width * 0.45}
+              itemSpacing={16}
+              loop={false}
+            />
+          </Animated.View>
+        )}
+
+        {loadingSimilar && (
+          <View style={styles.loadingSimilar}>
+            <ActivityIndicator size="small" color={primaryColor} />
+            <Text style={styles.loadingSimilarText}>Loading similar products...</Text>
+          </View>
+        )}
+
         <ReviewsComponent
           productId={productId!}
           primaryColor={primaryColor}
@@ -978,5 +1053,21 @@ const styles = StyleSheet.create({
   cartArrow: {
     position: 'absolute',
     right: 16,
+  },
+  similarSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  loadingSimilar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  loadingSimilarText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });

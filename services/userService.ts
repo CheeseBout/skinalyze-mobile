@@ -98,11 +98,9 @@ class UserService {
     token: string
   ): Promise<CustomerData> {
     try {
-      ("📋 Fetching customer data for user:", userId);
       const response = await apiService.get<CustomerResponse>(
         `/customers/user/${userId}`
       );
-      ("✅ Customer data retrieved:", response.data.customerId);
       return response.data;
     } catch (error) {
       console.error("Error fetching customer data:", error);

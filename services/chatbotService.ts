@@ -2,7 +2,7 @@ import apiService from "./apiService";
 import tokenService from "./tokenService";
 
 // Adjust this if your API URL is different
-const BASE_URL = process.env.EXPO_PUBLIC_BASE_API_URL;
+const BASE_URL = process.env.EXPO_PUBLIC_BASE_API_URL || "https://api.nhatlonh.id.vn/api/v1";
 
 export interface ChatMessage {
   messageId: string;

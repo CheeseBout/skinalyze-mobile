@@ -68,7 +68,7 @@ class DermatologistService {
           params: { month, year },
         }
       );
-      ("Calendar", response);
+      console.log("Calendar", response);
 
       return response.data;
     } catch (error) {

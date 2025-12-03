@@ -135,6 +135,8 @@
     "Acne_desc": "Một tình trạng da viêm mãn tính được đặc trưng bởi các nang lông bị tắc nghẽn. Nó biểu hiện dưới dạng mụn, đầu đen, đầu trắng hoặc u nang, chủ yếu trên mặt, vai, ngực và lưng.",
     "Actinic_Keratosis": "Dày Sừng Quang Hóa",
     "Actinic_Keratosis_desc": "Một mảng da thô, vảy do tiếp xúc với ánh nắng mặt trời trong nhiều năm. Nó được coi là tiền ung thư vì có thể phát triển thành ung thư tế bào vảy nếu không được điều trị.",
+    "Drug_Eruption": "Phát Ban Do Thuốc",
+    "Drug_Eruption_desc": "Phát ban do thuốc là một phản ứng da bất lợi, chẳng hạn như phát ban hoặc nổi mề đay, được kích hoạt bởi phản ứng miễn dịch hoặc hóa học của cơ thể đối với một loại thuốc cụ thể.",
     "Eczema": "Chàm",
     "Eczema_desc": "Còn được gọi là viêm da dị ứng, đây là tình trạng làm cho da đỏ, ngứa và viêm. Nó làm hỏng chức năng hàng rào da, khiến da nhạy cảm hơn và dễ khô.",
     "Normal": "Bình Thường",
@@ -461,6 +463,14 @@
     "saveRecord": "Lưu Ghi Chép",
     "tapToUpload": "Nhấn để tải lên ảnh",
     "fileTypes": "JPG, PNG lên đến 10MB",
-    "fieldsRequired": "Các trường được đánh dấu * là bắt buộc"
+    "fieldsRequired": "Các trường được đánh dấu * là bắt buộc",
+    "ok": "OK"
+  },
+  "tabBar": {
+    "home": "Trang Chủ",
+    "analyze": "Phân Tích",
+    "cart": "Giỏ Hàng",
+    "orders": "Đơn Hàng",
+    "profile": "Hồ Sơ"
   }
 }

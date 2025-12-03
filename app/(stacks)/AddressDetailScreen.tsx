@@ -11,22 +11,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-} from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
-import tokenService from '@/services/tokenService';
-import userService from '@/services/userService';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next'; // Import translation hook
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useAuth } from "@/hooks/useAuth";
+import tokenService from "@/services/tokenService";
+import userService from "@/services/userService";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
+import { WardPicker } from "@/components/WardPicker";
 
 interface AddressFormData {
   street: string;
   streetLine1: string;
   streetLine2: string;
   wardOrSubDistrict: string;
+  wardCode: string;
   district: string;
+  districtId: number | null;
   city: string;
 }
 
@@ -42,12 +45,14 @@ export default function AddressDetailScreen() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [formData, setFormData] = useState<AddressFormData>({
-    street: '',
-    streetLine1: '',
-    streetLine2: '',
-    wardOrSubDistrict: '',
-    district: '',
-    city: '',
+    street: "",
+    streetLine1: "",
+    streetLine2: "",
+    wardOrSubDistrict: "",
+    wardCode: "",
+    district: "",
+    districtId: null,
+    city: "",
   });
   const [errors, setErrors] = useState<Partial<AddressFormData>>({});
 
@@ -85,19 +90,21 @@ export default function AddressDetailScreen() {
       if (!token) return;
 
       const address = await userService.getAddress(addressId as string, token);
-      
+
       setFormData({
         street: address.street,
         streetLine1: address.streetLine1,
-        streetLine2: address.streetLine2 || '',
+        streetLine2: address.streetLine2 || "",
         wardOrSubDistrict: address.wardOrSubDistrict,
+        wardCode: "", // TODO: Get from backend if available
         district: address.district,
+        districtId: null, // TODO: Get from backend if available
         city: address.city,
       });
-      
+
       startAnimations();
     } catch (error: any) {
-      Alert.alert(t('address.error'), error.message || t('address.loadError'));
+      Alert.alert(t("address.error"), error.message || t("address.loadError"));
       router.back();
     } finally {
       setInitialLoading(false);
@@ -107,11 +114,14 @@ export default function AddressDetailScreen() {
   const validateForm = (): boolean => {
     const newErrors: Partial<AddressFormData> = {};
 
-    if (!formData.street.trim()) newErrors.street = t('address.fillRequired'); // Or specific error key
-    if (!formData.streetLine1.trim()) newErrors.streetLine1 = t('address.fillRequired');
-    if (!formData.wardOrSubDistrict.trim()) newErrors.wardOrSubDistrict = t('address.fillRequired');
-    if (!formData.district.trim()) newErrors.district = t('address.fillRequired');
-    if (!formData.city.trim()) newErrors.city = t('address.fillRequired');
+    if (!formData.street.trim()) newErrors.street = t("address.fillRequired"); // Or specific error key
+    if (!formData.streetLine1.trim())
+      newErrors.streetLine1 = t("address.fillRequired");
+    if (!formData.wardOrSubDistrict.trim())
+      newErrors.wardOrSubDistrict = t("address.fillRequired");
+    if (!formData.district.trim())
+      newErrors.district = t("address.fillRequired");
+    if (!formData.city.trim()) newErrors.city = t("address.fillRequired");
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -119,7 +129,7 @@ export default function AddressDetailScreen() {
 
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert(t('address.validationError'), t('address.fillRequired'));
+      Alert.alert(t("address.validationError"), t("address.fillRequired"));
       return;
     }
 
@@ -127,19 +137,23 @@ export default function AddressDetailScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t('address.error'), t('address.loginAgain'));
+        Alert.alert(t("address.error"), t("address.loginAgain"));
         return;
       }
 
       if (isEditMode && addressId) {
-        await userService.updateAddress(token, addressId as string, formData as any);
+        await userService.updateAddress(
+          token,
+          addressId as string,
+          formData as any
+        );
         await refreshUser();
-        Alert.alert(t('address.success'), t('address.updated'), [
-          { text: 'OK', onPress: () => router.back() }
+        Alert.alert(t("address.success"), t("address.updated"), [
+          { text: "OK", onPress: () => router.back() },
         ]);
       } else {
         if (!user?.userId) {
-          Alert.alert(t('address.error'), t('address.userNotFound'));
+          Alert.alert(t("address.error"), t("address.userNotFound"));
           return;
         }
         await userService.createAddress(token, {
@@ -147,57 +161,60 @@ export default function AddressDetailScreen() {
           ...formData,
         });
         await refreshUser();
-        Alert.alert(t('address.success'), t('address.added'), [
-          { text: 'OK', onPress: () => router.back() }
+        Alert.alert(t("address.success"), t("address.added"), [
+          { text: "OK", onPress: () => router.back() },
         ]);
       }
     } catch (error: any) {
-      const msg = isEditMode ? t('address.updateError') : t('address.createError');
-      Alert.alert(t('address.error'), error.message || msg);
+      const msg = isEditMode
+        ? t("address.updateError")
+        : t("address.createError");
+      Alert.alert(t("address.error"), error.message || msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    Alert.alert(
-      t('address.deleteTitle'),
-      t('address.deleteConfirm'),
-      [
-        { text: t('profile.cancel'), style: 'cancel' },
-        {
-          text: t('profile.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const token = await tokenService.getToken();
-              if (!token || !addressId) return;
+    Alert.alert(t("address.deleteTitle"), t("address.deleteConfirm"), [
+      { text: t("profile.cancel"), style: "cancel" },
+      {
+        text: t("profile.delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            const token = await tokenService.getToken();
+            if (!token || !addressId) return;
 
-              await userService.deleteAddress(token, addressId as string);
-              await refreshUser();
-              
-              Alert.alert(t('address.success'), t('address.deleted'), [
-                { text: 'OK', onPress: () => router.back() }
-              ]);
-            } catch (error: any) {
-              Alert.alert(t('address.error'), error.message || t('address.deleteError'));
-            } finally {
-              setLoading(false);
-            }
+            await userService.deleteAddress(token, addressId as string);
+            await refreshUser();
+
+            Alert.alert(t("address.success"), t("address.deleted"), [
+              { text: "OK", onPress: () => router.back() },
+            ]);
+          } catch (error: any) {
+            Alert.alert(
+              t("address.error"),
+              error.message || t("address.deleteError")
+            );
+          } finally {
+            setLoading(false);
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <View style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}>
+        <View
+          style={[styles.loadingIcon, { backgroundColor: `${primaryColor}15` }]}
+        >
           <ActivityIndicator size="large" color={primaryColor} />
         </View>
-        <Text style={styles.loadingText}>{t('address.loading')}</Text>
+        <Text style={styles.loadingText}>{t("address.loading")}</Text>
       </View>
     );
   }
@@ -205,43 +222,52 @@ export default function AddressDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
 
       <View style={styles.backgroundPattern}>
-        <View style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]} />
-        <View style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]} />
+        <View
+          style={[styles.circle1, { backgroundColor: `${primaryColor}08` }]}
+        />
+        <View
+          style={[styles.circle2, { backgroundColor: `${primaryColor}05` }]}
+        />
       </View>
 
       {/* Header */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.header,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
         ]}
       >
-        <TouchableOpacity 
-          onPress={() => router.back()} 
+        <TouchableOpacity
+          onPress={() => router.back()}
           style={styles.backButton}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        
+
         <View style={styles.headerCenter}>
-          <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <Ionicons 
-              name={isEditMode ? "create-outline" : "add-circle-outline"} 
-              size={20} 
-              color={primaryColor} 
+          <View
+            style={[
+              styles.headerIcon,
+              { backgroundColor: `${primaryColor}15` },
+            ]}
+          >
+            <Ionicons
+              name={isEditMode ? "create-outline" : "add-circle-outline"}
+              size={20}
+              color={primaryColor}
             />
           </View>
           <Text style={styles.headerTitle}>
-            {isEditMode ? t('address.editTitle') : t('address.addTitle')}
+            {isEditMode ? t("address.editTitle") : t("address.addTitle")}
           </Text>
         </View>
-        
+
         <View style={styles.placeholder} />
       </Animated.View>
 
@@ -251,30 +277,37 @@ export default function AddressDetailScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View 
+        <Animated.View
           style={[
             styles.formCard,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
           <View style={styles.cardHeader}>
-            <View style={[styles.cardHeaderIcon, { backgroundColor: `${primaryColor}10` }]}>
+            <View
+              style={[
+                styles.cardHeaderIcon,
+                { backgroundColor: `${primaryColor}10` },
+              ]}
+            >
               <Ionicons name="location" size={20} color={primaryColor} />
             </View>
             <View>
-              <Text style={styles.cardTitle}>{t('address.detailsTitle')}</Text>
-              <Text style={styles.cardSubtitle}>{t('address.detailsSubtitle')}</Text>
+              <Text style={styles.cardTitle}>{t("address.detailsTitle")}</Text>
+              <Text style={styles.cardSubtitle}>
+                {t("address.detailsSubtitle")}
+              </Text>
             </View>
           </View>
 
           <InputField
-            label={t('address.street')}
-            placeholder={t('address.streetPlaceholder')}
+            label={t("address.street")}
+            placeholder={t("address.streetPlaceholder")}
             icon="home-outline"
             value={formData.street}
             onChangeText={(text) => {
               setFormData({ ...formData, street: text });
-              if (errors.street) setErrors({ ...errors, street: '' });
+              if (errors.street) setErrors({ ...errors, street: "" });
             }}
             error={errors.street}
             required
@@ -284,13 +317,14 @@ export default function AddressDetailScreen() {
           <View style={styles.row}>
             <View style={styles.halfInput}>
               <InputField
-                label={t('address.streetLine1')}
-                placeholder={t('address.streetLine1Placeholder')}
+                label={t("address.streetLine1")}
+                placeholder={t("address.streetLine1Placeholder")}
                 icon="navigate-outline"
                 value={formData.streetLine1}
                 onChangeText={(text) => {
                   setFormData({ ...formData, streetLine1: text });
-                  if (errors.streetLine1) setErrors({ ...errors, streetLine1: '' });
+                  if (errors.streetLine1)
+                    setErrors({ ...errors, streetLine1: "" });
                 }}
                 error={errors.streetLine1}
                 required
@@ -299,82 +333,135 @@ export default function AddressDetailScreen() {
             </View>
             <View style={styles.halfInput}>
               <InputField
-                label={t('address.streetLine2')}
-                placeholder={t('address.streetLine2Placeholder')}
+                label={t("address.streetLine2")}
+                placeholder={t("address.streetLine2Placeholder")}
                 icon="navigate-outline"
                 value={formData.streetLine2}
-                onChangeText={(text) => setFormData({ ...formData, streetLine2: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, streetLine2: text })
+                }
                 primaryColor={primaryColor}
               />
             </View>
           </View>
 
+          {/* District Input - Để user nhập tay district ID */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>
+              {t("address.district")} <Text style={styles.required}>*</Text>
+            </Text>
+            <Text style={styles.helperText}>
+              Nhập District ID (số) để load danh sách phường/xã từ GHN
+            </Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                errors.district && styles.inputWrapperError,
+              ]}
+            >
+              <Ionicons
+                name="map-outline"
+                size={18}
+                color="#666"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="VD: 1442 (Quận 1)"
+                placeholderTextColor="#999"
+                value={formData.districtId?.toString() || ""}
+                onChangeText={(text) => {
+                  const districtId = text ? parseInt(text) : null;
+                  setFormData({
+                    ...formData,
+                    districtId,
+                    district: text,
+                    wardCode: "", // Reset ward when district changes
+                    wardOrSubDistrict: "",
+                  });
+                  if (errors.district) setErrors({ ...errors, district: "" });
+                }}
+                keyboardType="numeric"
+              />
+            </View>
+            {errors.district && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={13} color="#FF3B30" />
+                <Text style={styles.errorText}>{errors.district}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Ward Picker - Uses GHN API */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>
+              {t("address.wardOrSubDistrict")}{" "}
+              <Text style={styles.required}>*</Text>
+            </Text>
+            <WardPicker
+              districtId={formData.districtId}
+              selectedWardCode={formData.wardCode}
+              onWardSelect={(wardCode, wardName) => {
+                setFormData({
+                  ...formData,
+                  wardCode,
+                  wardOrSubDistrict: wardName,
+                });
+                if (errors.wardOrSubDistrict) {
+                  setErrors({ ...errors, wardOrSubDistrict: "" });
+                }
+              }}
+              primaryColor={primaryColor}
+              disabled={!formData.districtId}
+              placeholder={
+                formData.districtId
+                  ? t("address.wardPlaceholder")
+                  : "Nhập District ID trước"
+              }
+              error={errors.wardOrSubDistrict}
+            />
+          </View>
+
+          {/* City Input */}
           <InputField
-            label={t('address.wardOrSubDistrict')}
-            placeholder={t('address.wardPlaceholder')}
-            icon="business-outline"
-            value={formData.wardOrSubDistrict}
+            label={t("address.city")}
+            placeholder={t("address.cityPlaceholder")}
+            icon="globe-outline"
+            value={formData.city}
             onChangeText={(text) => {
-              setFormData({ ...formData, wardOrSubDistrict: text });
-              if (errors.wardOrSubDistrict)
-                setErrors({ ...errors, wardOrSubDistrict: '' });
+              setFormData({ ...formData, city: text });
+              if (errors.city) setErrors({ ...errors, city: "" });
             }}
-            error={errors.wardOrSubDistrict}
+            error={errors.city}
             required
             primaryColor={primaryColor}
           />
 
-          <View style={styles.row}>
-            <View style={styles.halfInput}>
-              <InputField
-                label={t('address.district')}
-                placeholder={t('address.districtPlaceholder')}
-                icon="map-outline"
-                value={formData.district}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, district: text });
-                  if (errors.district) setErrors({ ...errors, district: '' });
-                }}
-                error={errors.district}
-                required
-                primaryColor={primaryColor}
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <InputField
-                label={t('address.city')}
-                placeholder={t('address.cityPlaceholder')}
-                icon="globe-outline"
-                value={formData.city}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, city: text });
-                  if (errors.city) setErrors({ ...errors, city: '' });
-                }}
-                error={errors.city}
-                required
-                primaryColor={primaryColor}
-              />
-            </View>
-          </View>
-
-          <View style={[styles.infoBox, { backgroundColor: `${primaryColor}08` }]}>
+          <View
+            style={[styles.infoBox, { backgroundColor: `${primaryColor}08` }]}
+          >
             <View style={[styles.infoIcon, { backgroundColor: primaryColor }]}>
               <Ionicons name="information" size={16} color="#FFFFFF" />
             </View>
             <Text style={styles.infoText}>
-              {t('address.infoText')}
+              💡 District ID: Tìm mã quận/huyện từ GHN API hoặc tài liệu. VD:
+              1442 (Quận 1 TP.HCM)
             </Text>
           </View>
         </Animated.View>
 
-        <Animated.View 
+        <Animated.View
           style={[
             styles.actionButtons,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
           <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]}
+            style={[
+              styles.saveButton,
+              { backgroundColor: primaryColor },
+              loading && styles.buttonDisabled,
+            ]}
             onPress={handleSave}
             disabled={loading}
             activeOpacity={0.8}
@@ -385,7 +472,9 @@ export default function AddressDetailScreen() {
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 <Text style={styles.saveButtonText}>
-                  {isEditMode ? t('address.updateButton') : t('address.addButton')}
+                  {isEditMode
+                    ? t("address.updateButton")
+                    : t("address.addButton")}
                 </Text>
               </>
             )}
@@ -399,7 +488,9 @@ export default function AddressDetailScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              <Text style={styles.deleteButtonText}>{t('address.deleteButton')}</Text>
+              <Text style={styles.deleteButtonText}>
+                {t("address.deleteButton")}
+              </Text>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -459,253 +550,261 @@ const InputField: React.FC<InputFieldProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#FAFAFA' 
+  container: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
   },
-  loadingContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#FAFAFA' 
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FAFAFA",
   },
-  loadingIcon: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 16 
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  loadingText: { 
-    fontSize: 15, 
-    color: '#666', 
-    fontWeight: '500' 
+  loadingText: {
+    fontSize: 15,
+    color: "#666",
+    fontWeight: "500",
   },
-  backgroundPattern: { 
-    position: 'absolute', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    height: 300, 
-    overflow: 'hidden' 
+  backgroundPattern: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    overflow: "hidden",
   },
-  circle1: { 
-    position: 'absolute', 
-    width: 350, 
-    height: 350, 
-    borderRadius: 175, 
-    top: -150, 
-    right: -80 
+  circle1: {
+    position: "absolute",
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    top: -150,
+    right: -80,
   },
-  circle2: { 
-    position: 'absolute', 
-    width: 250, 
-    height: 250, 
-    borderRadius: 125, 
-    top: -80, 
-    left: -60 
+  circle2: {
+    position: "absolute",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -80,
+    left: -60,
   },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 24, 
-    paddingTop: 60, 
-    paddingBottom: 20 
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
-  backButton: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: '#FFFFFF', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 8, 
-    elevation: 3 
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  headerCenter: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 10 
+  headerCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  headerIcon: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  headerTitle: { 
-    fontSize: 20, 
-    fontWeight: '800', 
-    color: '#1A1A1A', 
-    letterSpacing: -0.3 
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    letterSpacing: -0.3,
   },
-  placeholder: { 
-    width: 40 
+  placeholder: {
+    width: 40,
   },
-  scrollView: { 
-    flex: 1 
+  scrollView: {
+    flex: 1,
   },
-  scrollContent: { 
-    paddingHorizontal: 24, 
-    paddingBottom: 40 
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  formCard: { 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 24, 
-    padding: 24, 
-    marginBottom: 20, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.08, 
-    shadowRadius: 12, 
-    elevation: 4 
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  cardHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 24, 
-    gap: 12 },
-  cardHeaderIcon: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    gap: 12,
   },
-  cardTitle: { 
-    fontSize: 18, 
-    fontWeight: '800', 
-    color: '#1A1A1A', 
-    marginBottom: 2, 
-    letterSpacing: -0.3 
+  cardHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  cardSubtitle: { 
-    fontSize: 13, 
-    color: '#666', 
-    fontWeight: '500' 
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginBottom: 2,
+    letterSpacing: -0.3,
   },
-  inputContainer: { 
-    marginBottom: 20 
+  cardSubtitle: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
   },
-  label: { 
-    fontSize: 13, 
-    fontWeight: '700', 
-    color: '#1A1A1A', 
-    marginBottom: 10, 
-    textTransform: 'uppercase', 
-    letterSpacing: 0.5 
+  inputContainer: {
+    marginBottom: 20,
   },
-  required: { 
-    color: '#FF3B30' 
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  inputWrapper: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#F5F5F5', 
-    borderRadius: 14, 
-    paddingHorizontal: 16, 
-    borderWidth: 2, 
-    borderColor: '#E5E5E5' 
+  helperText: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 8,
+    fontStyle: "italic",
   },
-  inputWrapperError: { 
-    borderColor: '#FF3B30', 
-    backgroundColor: '#FFF5F5' 
+  required: {
+    color: "#FF3B30",
   },
-  inputIcon: { 
-    marginRight: 10 
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderColor: "#E5E5E5",
   },
-  input: { 
-    flex: 1, 
-    paddingVertical: 14, 
-    fontSize: 15, 
-    color: '#1A1A1A', 
-    fontWeight: '500' 
+  inputWrapperError: {
+    borderColor: "#FF3B30",
+    backgroundColor: "#FFF5F5",
   },
-  errorContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 5, 
-    marginTop: 8 
+  inputIcon: {
+    marginRight: 10,
   },
-  errorText: { 
-    color: '#FF3B30', 
-    fontSize: 12, 
-    fontWeight: '500' 
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1A1A1A",
+    fontWeight: "500",
   },
-  row: { 
-    flexDirection: 'row', 
-    gap: 12 
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 8,
   },
-  halfInput: { 
-    flex: 1 
+  errorText: {
+    color: "#FF3B30",
+    fontSize: 12,
+    fontWeight: "500",
   },
-  infoBox: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    padding: 14, 
-    borderRadius: 12, 
-    gap: 10, 
-    marginTop: 4 
+  row: {
+    flexDirection: "row",
+    gap: 12,
   },
-  infoIcon: { 
-    width: 28, 
-    height: 28, 
-    borderRadius: 14, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  halfInput: {
+    flex: 1,
   },
-  infoText: { 
-    flex: 1, 
-    fontSize: 12, 
-    color: '#666', 
-    fontWeight: '600', 
-    lineHeight: 16 
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 12,
+    gap: 10,
+    marginTop: 4,
   },
-  actionButtons: { 
-    gap: 12 
+  infoIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  saveButton: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 8, 
-    paddingVertical: 18, 
-    borderRadius: 16, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 12, 
-    elevation: 6 
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
+    lineHeight: 16,
   },
-  saveButtonText: { 
-    color: '#FFFFFF', 
-    fontSize: 17, 
-    fontWeight: '700', 
-    letterSpacing: 0.3 
+  actionButtons: {
+    gap: 12,
   },
-  buttonDisabled: { 
-    opacity: 0.6 
+  saveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  deleteButton: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 8, 
-    paddingVertical: 18, 
-    borderRadius: 16, 
-    backgroundColor: '#FFFFFF', 
-    borderWidth: 2, 
-    borderColor: '#FF3B30' },
-  deleteButtonText: { 
-    color: '#FF3B30', 
-    fontSize: 17, 
-    fontWeight: '700', 
-    letterSpacing: 0.3 
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#FF3B30",
+  },
+  deleteButtonText: {
+    color: "#FF3B30",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

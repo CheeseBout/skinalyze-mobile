@@ -165,34 +165,24 @@ class ProductService {
     }
   }
 
-  async getProductsByCategory(categoryId: string, page: number = 1, limit: number = 50): Promise<{ products: Product[], pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+  async getProductsByCategory(
+    categoryId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ products: Product[]; total: number; totalPages: number }> {
     try {
-      const params = new URLSearchParams();
-      if (page > 1) params.append('page', page.toString());
-      if (limit !== 50) params.append('limit', limit.toString());
+      const response = await apiService.get<ProductListResponse>(
+        `/products?categoryId=${categoryId}&page=${page}&limit=${limit}`
+      );
       
-      const queryString = params.toString();
-      const url = `/products/category/${categoryId}${queryString ? `?${queryString}` : ''}`;
-      const response = await apiService.get<ProductListResponse>(url);
-      
-      if (Array.isArray(response)) {
-        return { products: response, pagination: { total: response.length, page, limit, totalPages: 1 } };
-      }
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        return {
-          products: response.data.data,
-          pagination: {
-            total: response.data.total,
-            page: response.data.page,
-            limit: response.data.limit,
-            totalPages: response.data.totalPages
-          }
-        };
-      }
-      
-      return { products: [], pagination: { total: 0, page, limit, totalPages: 0 } };
+      return {
+        products: response.data.data,
+        total: response.data.total,
+        totalPages: response.data.totalPages,
+      };
     } catch (error) {
-      throw new Error('Failed to fetch products by category');
+      console.error('Error fetching products by category:', error);
+      return { products: [], total: 0, totalPages: 0 };
     }
   }
 

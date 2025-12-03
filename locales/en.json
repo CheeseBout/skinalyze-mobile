@@ -133,6 +133,7 @@
     "diseaseDetection": "Disease Detection",
     "Acne": "Acne",
     "Actinic_Keratosis": "Actinic Keratosis",
+    "Drug_Eruption": "Drug Eruption",
     "Eczema": "Eczema",
     "Normal": "Normal",
     "Psoriasis": "Psoriasis",
@@ -145,6 +146,7 @@
     "Dry": "Dry",
     "Acne_desc": "A chronic inflammatory skin condition characterized by clogged hair follicles. It presents as pimples, blackheads, whiteheads, or cysts, primarily on the face, shoulders, chest, and back.",
     "Actinic_Keratosis_desc": "A rough, scaly patch on the skin caused by years of sun exposure. It is considered precancerous because it can potentially develop into squamous cell carcinoma if left untreated.",
+    "Drug_Eruption_desc": "A drug eruption is an adverse skin reaction, such as a rash or hives, triggered by the body's immune or chemical response to a specific medication.",
     "Eczema_desc": "Also known as atopic dermatitis, this is a condition that makes the skin red, itchy, and inflamed. It damages the skin barrier function, making the skin more sensitive and prone to dryness.",
     "Psoriasis_desc": "An autoimmune disease that accelerates the growth cycle of skin cells. This causes cells to build up rapidly on the surface of the skin, forming thick, silvery scales and itchy, dry, red patches.",
     "Rosacea_desc": "A chronic skin condition that affects the face, causing redness, flushing, and visible blood vessels. It can also produce small, red, pus-filled bumps often mistaken for acne.",
@@ -461,6 +463,14 @@
     "saveRecord": "Save Record",
     "tapToUpload": "Tap to upload photo",
     "fileTypes": "JPG, PNG up to 10MB",
-    "fieldsRequired": "Fields marked with * are required"
+    "fieldsRequired": "Fields marked with * are required",
+    "ok": "OK"
+  },
+  "tabBar": {
+    "home": "Home",
+    "analyze": "Analyze",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile"
   }
 }

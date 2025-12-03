@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,19 +9,20 @@ import {
   Alert,
   Linking,
   RefreshControl,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/hooks/useAuth';
-import { useOrderTrackingWebSocket } from '@/hooks/useOrderTrackingWebSocket';
-import trackingService from '@/services/trackingService';
-import GoongMap from '@/components/GoongMap';
-import { useThemeColor } from '@/contexts/ThemeColorContext';
+  Platform,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@/hooks/useAuth";
+import { useOrderTrackingWebSocket } from "@/hooks/useOrderTrackingWebSocket";
+import trackingService from "@/services/trackingService";
+import GoongMap from "@/components/GoongMap";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 // Simple time ago formatter
 const formatTimeAgo = (date: Date): string => {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return `${seconds} seconds ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} minutes ago`;
@@ -50,17 +51,17 @@ export default function OrderTrackingScreen() {
     isConnected,
     isLocationStale,
   } = useOrderTrackingWebSocket({
-    orderId: orderId || '',
+    orderId: orderId || "",
     enabled: !!orderId && isAuthenticated,
     onLocationUpdate: (location) => {
-      ('📍 Shipper moved to:', location);
+      "📍 Shipper moved to:", location;
     },
     onETAUpdate: (eta) => {
-      ('⏱️ ETA updated:', eta.text);
-      
+      "⏱️ ETA updated:", eta.text;
+
       // Show notification if shipper is very close (< 5 minutes)
       if (eta.duration < 300 && eta.duration > 0) {
-        ('🔔 Shipper arriving soon!');
+        ("🔔 Shipper arriving soon!");
       }
     },
   });
@@ -75,12 +76,12 @@ export default function OrderTrackingScreen() {
     if (!trackingData?.shipper) return;
 
     Alert.alert(
-      'Call Shipper',
+      "Call Shipper",
       `Do you want to call ${trackingData.shipper.fullName}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Call',
+          text: "Call",
           onPress: () => {
             const phoneNumber = trackingData.shipper!.phone;
             Linking.openURL(`tel:${phoneNumber}`);
@@ -105,7 +106,9 @@ export default function OrderTrackingScreen() {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={primaryColor} />
-          <Text style={styles.loadingText}>Loading tracking information...</Text>
+          <Text style={styles.loadingText}>
+            Loading tracking information...
+          </Text>
         </View>
       </View>
     );
@@ -128,7 +131,10 @@ export default function OrderTrackingScreen() {
           <Ionicons name="time-outline" size={80} color="#FF9800" />
           <Text style={styles.errorTitle}>Order is being processed</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={[styles.retryButton, { backgroundColor: primaryColor }]} onPress={refresh}>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: primaryColor }]}
+            onPress={refresh}
+          >
             <Ionicons name="refresh" size={20} color="#fff" />
             <Text style={styles.retryButtonText}>Check again</Text>
           </TouchableOpacity>
@@ -153,7 +159,9 @@ export default function OrderTrackingScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="time-outline" size={80} color="#ccc" />
           <Text style={styles.errorTitle}>Order is being processed</Text>
-          <Text style={styles.errorText}>Shipper will start delivery soon. Please check again later.</Text>
+          <Text style={styles.errorText}>
+            Shipper will start delivery soon. Please check again later.
+          </Text>
         </View>
       </View>
     );
@@ -198,10 +206,7 @@ export default function OrderTrackingScreen() {
         >
           <View style={styles.cardHeaderLeft}>
             <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: statusColor },
-              ]}
+              style={[styles.statusDot, { backgroundColor: statusColor }]}
             />
             <View>
               <Text style={styles.cardTitle}>{statusLabel}</Text>
@@ -213,7 +218,7 @@ export default function OrderTrackingScreen() {
             </View>
           </View>
           <Ionicons
-            name={isInfoExpanded ? 'chevron-down' : 'chevron-up'}
+            name={isInfoExpanded ? "chevron-down" : "chevron-up"}
             size={24}
             color="#666"
           />
@@ -232,11 +237,66 @@ export default function OrderTrackingScreen() {
 
             {/* ETA Info */}
             {eta && (
-              <View style={[styles.etaContainer, { backgroundColor: `${primaryColor}15` }]}>
+              <View
+                style={[
+                  styles.etaContainer,
+                  { backgroundColor: `${primaryColor}15` },
+                ]}
+              >
                 <Ionicons name="time-outline" size={20} color={primaryColor} />
                 <Text style={[styles.etaText, { color: primaryColor }]}>
-                  Estimated delivery: <Text style={styles.etaBold}>{eta.text}</Text>
+                  Estimated delivery:{" "}
+                  <Text style={styles.etaBold}>{eta.text}</Text>
                 </Text>
+              </View>
+            )}
+
+            {/* Shipping Method & Info */}
+            {shippingLog && (
+              <View style={styles.shippingInfoContainer}>
+                <View style={styles.shippingInfoRow}>
+                  <Ionicons name="cube-outline" size={18} color="#666" />
+                  <Text style={styles.shippingInfoLabel}>Phương thức:</Text>
+                  <Text style={styles.shippingInfoValue}>
+                    {shippingLog.shippingMethod === "GHN"
+                      ? "Giao Hàng Nhanh"
+                      : "Nội bộ"}
+                  </Text>
+                </View>
+                {shippingLog.ghnOrderCode && (
+                  <View style={styles.shippingInfoRow}>
+                    <Ionicons name="barcode-outline" size={18} color="#666" />
+                    <Text style={styles.shippingInfoLabel}>Mã GHN:</Text>
+                    <Text style={[styles.shippingInfoValue, styles.monospace]}>
+                      {shippingLog.ghnOrderCode}
+                    </Text>
+                  </View>
+                )}
+                {shippingLog.batchCode && (
+                  <View style={styles.shippingInfoRow}>
+                    <Ionicons name="albums-outline" size={18} color="#666" />
+                    <Text style={styles.shippingInfoLabel}>Batch:</Text>
+                    <Text
+                      style={[
+                        styles.shippingInfoValue,
+                        { color: primaryColor, fontWeight: "700" },
+                      ]}
+                    >
+                      {shippingLog.batchCode}
+                    </Text>
+                  </View>
+                )}
+                {shippingLog.estimatedDeliveryDate && (
+                  <View style={styles.shippingInfoRow}>
+                    <Ionicons name="calendar-outline" size={18} color="#666" />
+                    <Text style={styles.shippingInfoLabel}>Dự kiến:</Text>
+                    <Text style={styles.shippingInfoValue}>
+                      {new Date(
+                        shippingLog.estimatedDeliveryDate
+                      ).toLocaleDateString("vi-VN")}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -260,7 +320,12 @@ export default function OrderTrackingScreen() {
             style={styles.cardHeader}
           >
             <View style={styles.cardHeaderLeft}>
-              <View style={[styles.shipperAvatarSmall, { backgroundColor: primaryColor }]}>
+              <View
+                style={[
+                  styles.shipperAvatarSmall,
+                  { backgroundColor: primaryColor },
+                ]}
+              >
                 <Ionicons name="person" size={20} color="#fff" />
               </View>
               <View>
@@ -270,13 +335,16 @@ export default function OrderTrackingScreen() {
             </View>
             <View style={styles.cardActions}>
               <TouchableOpacity
-                style={[styles.callButtonSmall, { backgroundColor: primaryColor }]}
+                style={[
+                  styles.callButtonSmall,
+                  { backgroundColor: primaryColor },
+                ]}
                 onPress={handleCallShipper}
               >
                 <Ionicons name="call" size={20} color="#fff" />
               </TouchableOpacity>
               <Ionicons
-                name={isShipperExpanded ? 'chevron-down' : 'chevron-up'}
+                name={isShipperExpanded ? "chevron-down" : "chevron-up"}
                 size={24}
                 color="#666"
                 style={{ marginLeft: 8 }}
@@ -294,7 +362,8 @@ export default function OrderTrackingScreen() {
                 <View style={styles.shipperDetail}>
                   <Ionicons name="location-outline" size={18} color="#666" />
                   <Text style={styles.shipperDetailText}>
-                    {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                    {currentLocation.lat.toFixed(6)},{" "}
+                    {currentLocation.lng.toFixed(6)}
                   </Text>
                 </View>
               )}
@@ -317,50 +386,50 @@ export default function OrderTrackingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   fullScreenMap: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
   map: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   headerOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    fontWeight: "bold",
+    color: "#fff",
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -368,45 +437,45 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   floatingCard: {
-    position: 'absolute',
+    position: "absolute",
     top: 110,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   floatingShipperCard: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
   },
   cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   statusDot: {
@@ -417,63 +486,90 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
     marginTop: 2,
   },
   cardContent: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: "#f0f0f0",
   },
   staleBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF3E0",
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
   },
   staleText: {
-    color: '#E65100',
+    color: "#E65100",
     fontSize: 13,
     marginLeft: 8,
     flex: 1,
   },
   etaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
   },
   etaText: {
     fontSize: 14,
-    color: '#2E7D32',
+    color: "#2E7D32",
     marginLeft: 8,
     flex: 1,
   },
   etaBold: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
   },
-  addressContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  shippingInfoContainer: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: "#f0f0f0",
+  },
+  shippingInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  shippingInfoLabel: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "600",
+  },
+  shippingInfoValue: {
+    fontSize: 13,
+    color: "#1A1A1A",
+    fontWeight: "500",
+    flex: 1,
+  },
+  monospace: {
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontSize: 12,
+  },
+  addressContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
   },
   addressText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginLeft: 8,
     flex: 1,
     lineHeight: 20,
@@ -482,100 +578,100 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   callButtonSmall: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
   },
   shipperDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 12,
   },
   shipperDetailText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginLeft: 8,
   },
   connectionBanner: {
-    position: 'absolute',
+    position: "absolute",
     top: 90,
     left: 16,
     right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF3E0",
     padding: 12,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
   },
   connectionText: {
-    color: '#FF9800',
+    color: "#FF9800",
     fontSize: 13,
     marginLeft: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   errorTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     lineHeight: 22,
   },
   retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 24,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     borderRadius: 8,
   },
   retryButtonText: {
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   placeholder: {
     width: 40,

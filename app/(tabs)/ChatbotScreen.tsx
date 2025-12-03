@@ -63,18 +63,13 @@ export default function ChatbotScreen() {
   // Handle prefilled data
   useEffect(() => {
     const handlePrefill = async () => {
-      // Only run if we haven't applied prefill yet AND we have user data
       if (!hasPrefillAppliedRef.current && user?.userId) {
-        
         const prefillText = params.prefillText;
         const prefillImage = params.prefillImage;
-
         const hasData = prefillText || prefillImage;
         
         if (hasData) {
-          // Create a new chat specifically for this analysis context
           await createNewChatForAnalysis();
-          
           hasPrefillAppliedRef.current = true;
           
           if (prefillText && typeof prefillText === 'string') {
@@ -82,7 +77,6 @@ export default function ChatbotScreen() {
           }
           
           if (prefillImage && typeof prefillImage === 'string') {
-            // This sets the image in the input preview area
             setSelectedImage(prefillImage); 
           }
         }
@@ -96,7 +90,11 @@ export default function ChatbotScreen() {
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
-      () => flatListRef.current?.scrollToEnd({ animated: true })
+      () => {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     );
     return () => keyboardDidShowListener.remove();
   }, []);
@@ -110,8 +108,6 @@ export default function ChatbotScreen() {
       const sessions = await chatbotService.getChatSessionsByUserId(user.userId);
       setChatSessions(sessions);
 
-      // Normal load: pick most recent. 
-      // Prefill load: handlePrefill will override this with a new chat.
       if (sessions.length > 0 && !params.prefillText && !params.prefillImage) {
         const mostRecent = sessions.sort(
           (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -148,7 +144,6 @@ export default function ChatbotScreen() {
       setCurrentChatId(newChat.chatId);
       setMessages(newChat.messages || []);
       setShowChatList(false);
-      // Reset prefill ref so manual new chats don't get blocked if params persist
       hasPrefillAppliedRef.current = false; 
     } catch (error) {
       Alert.alert('Error', 'Failed to start new chat');
@@ -161,13 +156,10 @@ export default function ChatbotScreen() {
     if (!user?.userId) return;
     try {
       setIsLoading(true);
-      // We don't need to fetch all sessions again, just create new one
       const newChat = await chatbotService.createChatSession(user.userId);
-      
-      // Optimistically update list
       setChatSessions(prev => [newChat, ...prev]);
       setCurrentChatId(newChat.chatId);
-      setMessages(newChat.messages || []); // usually contains greeting
+      setMessages(newChat.messages || []);
       setShowChatList(false);
     } catch (error) {
       Alert.alert('Error', 'Failed to start new chat for analysis');
@@ -233,9 +225,8 @@ export default function ChatbotScreen() {
     setInputMessage('');
     setSelectedImage(null);
     setIsSending(true);
-    Keyboard.dismiss(); // Optional: hide keyboard after send
+    Keyboard.dismiss();
 
-    // Create Optimistic Message
     const optimisticMessage: ChatMessage = {
       messageId: tempId,
       chatId: currentChatId,
@@ -256,21 +247,17 @@ export default function ChatbotScreen() {
         imageToSend
       );
 
-      // Replace temp message with real response
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.messageId !== tempId);
         return [...filtered, userMessage, aiMessage];
       });
       
-      // Update title if needed
       const session = chatSessions.find(s => s.chatId === currentChatId);
       if (session?.title === 'New chat') {
-        // In background, refresh list to get new title
         chatbotService.getChatSessionsByUserId(user!.userId).then(setChatSessions);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send message');
-      // Revert state
       setMessages(prev => prev.filter(msg => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
@@ -298,7 +285,6 @@ export default function ChatbotScreen() {
           styles.bubble,
           isUser ? [styles.bubbleUser, { backgroundColor: primaryColor }] : styles.bubbleAi
         ]}>
-          {/* Render Image if present */}
           {item.imageUrl && (
              <Image 
                source={{ uri: item.imageUrl }} 
@@ -307,7 +293,6 @@ export default function ChatbotScreen() {
              />
           )}
 
-          {/* Render Text if present */}
           {item.messageContent ? (
             <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
               {item.messageContent}
@@ -345,7 +330,7 @@ export default function ChatbotScreen() {
         onPress={() => { 
           setCurrentChatId(item.chatId); 
           setShowChatList(false); 
-          hasPrefillAppliedRef.current = false; // Allow new prefill if params change
+          hasPrefillAppliedRef.current = false;
         }}
       >
         <View style={styles.chatItemIcon}>
@@ -400,27 +385,26 @@ export default function ChatbotScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header - Fixed at top */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
-          <Ionicons name="menu" size={24} color="#333" />
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="sparkles" size={18} color={primaryColor} />
-          <Text style={styles.headerTitle}>Assistant</Text>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <SafeAreaView style={styles.flex1}>
+        {/* Header - Fixed at top */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
+            <Ionicons name="menu" size={24} color="#333" />
+          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="sparkles" size={18} color={primaryColor} />
+            <Text style={styles.headerTitle}>Assistant</Text>
+          </View>
+          <TouchableOpacity onPress={createNewChat} style={styles.iconButton}>
+            <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={createNewChat} style={styles.iconButton}>
-          <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
-        </TouchableOpacity>
-      </View>
 
-      {/* Keyboard Avoiding View Wrapper */}
-      <KeyboardAvoidingView 
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
         {/* Chat Area */}
         <FlatList
           ref={flatListRef}
@@ -442,7 +426,7 @@ export default function ChatbotScreen() {
 
         {/* Input Area */}
         <View style={styles.inputContainer}>
-          {/* Image Preview Card (Pops up above input) */}
+          {/* Image Preview Card */}
           {selectedImage && (
             <View style={styles.imagePreviewCard}>
               <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
@@ -465,12 +449,19 @@ export default function ChatbotScreen() {
             <View style={styles.textInputWrapper}>
               <TextInput
                 style={styles.textInput}
-                placeholder={selectedImage ? "Ask about this image..." : "Type a message..."}
+                placeholder={selectedImage ? "Hỏi về ảnh này..." : "Nhập tin nhắn..."}
                 placeholderTextColor="#999"
                 multiline
                 value={inputMessage}
                 onChangeText={setInputMessage}
                 maxLength={1000}
+                autoCorrect={true}
+                autoCapitalize="sentences"
+                keyboardType="default"
+                returnKeyType="default"
+                blurOnSubmit={false}
+                enablesReturnKeyAutomatically={false}
+                textContentType="none"
               />
               {(inputMessage.length > 0 || selectedImage) && (
                  <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
@@ -495,8 +486,8 @@ export default function ChatbotScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -534,7 +525,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
 
-  // Chat List (Sidebar)
+  // Chat List
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -634,8 +625,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 10,
+    paddingVertical: 10,
   },
   imagePreviewCard: {
     flexDirection: 'row',

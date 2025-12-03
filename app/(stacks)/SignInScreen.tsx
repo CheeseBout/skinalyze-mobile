@@ -18,6 +18,11 @@ import { login, LoginPayload } from '@/services/authService'
 import { useAuth } from '@/hooks/useAuth'
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const REMEMBER_ME_KEY = '@remember_me';
+const SAVED_EMAIL_KEY = '@saved_email';
+const SAVED_PASSWORD_KEY = '@saved_password';
 
 export default function SignInScreen() {
   const router = useRouter()
@@ -29,6 +34,7 @@ export default function SignInScreen() {
   const [errors, setErrors] = useState<Partial<LoginPayload>>({})
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const { primaryColor } = useThemeColor();
 
   // Animation values
@@ -36,6 +42,11 @@ export default function SignInScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    loadSavedCredentials();
+    startAnimations();
+  }, []);
+
+  const startAnimations = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -48,7 +59,47 @@ export default function SignInScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  };
+
+  const loadSavedCredentials = async () => {
+    try {
+      const [savedRememberMe, savedEmail, savedPassword] = await Promise.all([
+        AsyncStorage.getItem(REMEMBER_ME_KEY),
+        AsyncStorage.getItem(SAVED_EMAIL_KEY),
+        AsyncStorage.getItem(SAVED_PASSWORD_KEY),
+      ]);
+
+      if (savedRememberMe === 'true' && savedEmail && savedPassword) {
+        setRememberMe(true);
+        setFormData({
+          email: savedEmail,
+          password: savedPassword,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading saved credentials:', error);
+    }
+  };
+
+  const saveCredentials = async () => {
+    try {
+      if (rememberMe) {
+        await Promise.all([
+          AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
+          AsyncStorage.setItem(SAVED_EMAIL_KEY, formData.email),
+          AsyncStorage.setItem(SAVED_PASSWORD_KEY, formData.password),
+        ]);
+      } else {
+        await Promise.all([
+          AsyncStorage.removeItem(REMEMBER_ME_KEY),
+          AsyncStorage.removeItem(SAVED_EMAIL_KEY),
+          AsyncStorage.removeItem(SAVED_PASSWORD_KEY),
+        ]);
+      }
+    } catch (error) {
+      console.error('Error saving credentials:', error);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginPayload> = {}
@@ -77,6 +128,8 @@ export default function SignInScreen() {
     setLoading(true)
     try {
       const response = await login(formData)
+      
+      await saveCredentials();
       
       await authLogin(response.data.access_token, response.data.user)
 
@@ -216,12 +269,30 @@ export default function SignInScreen() {
             )}
           </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity style={styles.forgotPassword} activeOpacity={0.7}>
-            <Text style={[styles.forgotPasswordText, { color: primaryColor }]}>
-              Forgot Password?
-            </Text>
-          </TouchableOpacity>
+          {/* Remember Me & Forgot Password */}
+          <View style={styles.optionsRow}>
+            <TouchableOpacity 
+              style={styles.rememberMeContainer}
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.7}
+            >
+              <View style={[
+                styles.checkbox,
+                rememberMe && { backgroundColor: primaryColor, borderColor: primaryColor }
+              ]}>
+                {rememberMe && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                )}
+              </View>
+              <Text style={styles.rememberMeText}>Remember me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.forgotPassword} activeOpacity={0.7}>
+              <Text style={[styles.forgotPasswordText, { color: primaryColor }]}>
+                Forgot Password?
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Login Button */}
           <TouchableOpacity 
@@ -235,6 +306,7 @@ export default function SignInScreen() {
             ) : (
               <>
                 <Text style={styles.loginButtonText}>Sign In</Text>
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               </>
             )}
           </TouchableOpacity>
@@ -412,9 +484,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  forgotPassword: {
+    padding: 4,
   },
   forgotPasswordText: {
     fontSize: 14,

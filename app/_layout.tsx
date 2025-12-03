@@ -23,7 +23,7 @@ import '@/config/i18n';
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "WelcomeScreen",
 };
 
 SplashScreen.preventAutoHideAsync();
