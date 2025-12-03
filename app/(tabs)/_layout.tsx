@@ -6,6 +6,7 @@ import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import HeaderComponent from "@/components/HeaderComponent";
 import { useCartCount } from "@/hooks/userCartCount";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from 'react-i18next';
 
 function CartTabBarIcon({ color, focused }: { color: string; focused: boolean }) {
   const { count } = useCartCount();
@@ -63,6 +64,7 @@ function TabBarIcon({
 
 export default function TabLayout() {
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
   return (
     <Tabs
@@ -94,7 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="HomeScreen"
         options={{
-          title: "Home",
+          title: t('tabBar.home'),
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "home" : "home-outline"}
@@ -120,7 +122,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="AnalyzeScreen"
         options={{
-          title: "Analyze",
+          title: t('tabBar.analyze'),
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.analyzeIconContainer}>
               <View style={[styles.analyzeButton, { backgroundColor: primaryColor }]}>
@@ -137,7 +139,7 @@ export default function TabLayout() {
               styles.analyzeLabel,
               { color: focused ? primaryColor : '#999' }
             ]}>
-              Analyze
+              {t('tabBar.analyze')}
             </Text>
           ),
         }}
@@ -151,7 +153,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ScheduleScreen"
         options={{
-          title: "Schedule",
+          title: t('tabBar.orders'),
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "calendar" : "calendar-outline"}
@@ -164,7 +166,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="CartScreen"
         options={{
-          title: "Cart",
+          title: t('tabBar.cart'),
           tabBarIcon: ({ color, focused }) => (
             <CartTabBarIcon color={color} focused={focused} />
           ),

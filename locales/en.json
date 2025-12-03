@@ -465,5 +465,12 @@
     "fileTypes": "JPG, PNG up to 10MB",
     "fieldsRequired": "Fields marked with * are required",
     "ok": "OK"
+  },
+  "tabBar": {
+    "home": "Home",
+    "analyze": "Analyze",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile"
   }
 }

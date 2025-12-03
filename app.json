@@ -26,11 +26,9 @@
         "backgroundColor": "#ffffff"
       },
       "usesCleartextTraffic": true,
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.baolncse183721.skinalyzemobile",
       "notificationPermission": "Allow $(PRODUCT_NAME) to send you notifications.",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

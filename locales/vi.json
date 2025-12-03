@@ -465,5 +465,12 @@
     "fileTypes": "JPG, PNG lên đến 10MB",
     "fieldsRequired": "Các trường được đánh dấu * là bắt buộc",
     "ok": "OK"
+  },
+  "tabBar": {
+    "home": "Trang Chủ",
+    "analyze": "Phân Tích",
+    "cart": "Giỏ Hàng",
+    "orders": "Đơn Hàng",
+    "profile": "Hồ Sơ"
   }
 }
