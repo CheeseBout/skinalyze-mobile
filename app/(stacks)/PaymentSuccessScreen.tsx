@@ -9,7 +9,7 @@ import {
   ScrollView,
   Image,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -18,11 +18,13 @@ import appointmentService from "@/services/appointmentService";
 import orderService from "@/services/orderService";
 import tokenService from "@/services/tokenService";
 import paymentService from "@/services/paymentService"; // Added for payment status
-import {
-  AppointmentWithRelations,
-} from "@/types/appointment.type";
+import { AppointmentWithRelations } from "@/types/appointment.type";
 import { Order } from "@/services/orderService";
 import { PaymentStatusResponse } from "@/services/paymentService"; // Added
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
+import { PaymentType } from "@/types/payment.type";
+
+type DisplayPaymentType = PaymentType | "other";
 
 // --- Helpers ---
 // (Helpers remain unchanged)
@@ -48,23 +50,104 @@ const formatAppointmentType = (type: string) => {
   if (type === "FOLLOW_UP") return "Follow-up";
   return "Appointment";
 };
+
+const formatCurrency = (amount?: number | null) => {
+  if (amount === undefined || amount === null || Number.isNaN(amount)) {
+    return "--";
+  }
+  return `${amount.toLocaleString("vi-VN")} VND`;
+};
+
+const normalizeNumberParam = (value?: string) => {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 // --- End Helpers ---
 
 export default function PaymentSuccessScreen() {
   const router = useRouter();
+  const { primaryColor, isDarkMode } = useThemeColor();
+  const tintedPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.1),
+    [primaryColor]
+  );
+  const subtleBorder = useMemo(
+    () => hexToRgba(primaryColor, 0.15),
+    [primaryColor]
+  );
+  const secondaryTextColor = isDarkMode ? "#d0d0d0" : "#666666";
 
-  // Updated params: Include paymentCode
-  const { appointmentId, orderId, paymentCode } = useLocalSearchParams<{
+  // Updated params: Include paymentCode and subscription metadata
+  const {
+    appointmentId,
+    orderId,
+    paymentCode,
+    paymentType: paymentTypeParam,
+    planId: planIdParam,
+    planName: planNameParam,
+    amount: amountParam,
+    durationInDays: durationInDaysParam,
+    totalSessions: totalSessionsParam,
+  } = useLocalSearchParams<{
     appointmentId?: string;
     orderId?: string;
     paymentCode?: string;
+    paymentType?: string;
+    planId?: string;
+    planName?: string;
+    amount?: string;
+    durationInDays?: string;
+    totalSessions?: string;
   }>();
 
-  const [appointment, setAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [appointment, setAppointment] =
+    useState<AppointmentWithRelations | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentStatusResponse | null>(null); // Added
+  const [paymentData, setPaymentData] = useState<PaymentStatusResponse | null>(
+    null
+  ); // Added
   const [isLoading, setIsLoading] = useState(true);
-  const [paymentType, setPaymentType] = useState<"booking" | "purchase" | "other">("booking"); // Updated to include 'other'
+  const inferredPaymentType = useMemo<DisplayPaymentType>(() => {
+    if (
+      paymentTypeParam &&
+      Object.values(PaymentType).includes(paymentTypeParam as PaymentType)
+    ) {
+      return paymentTypeParam as PaymentType;
+    }
+    if (appointmentId) return PaymentType.BOOKING;
+    if (orderId) return PaymentType.ORDER;
+    return "other";
+  }, [paymentTypeParam, appointmentId, orderId]);
+  const [paymentType, setPaymentType] =
+    useState<DisplayPaymentType>(inferredPaymentType);
+  const [subscriptionInfo, setSubscriptionInfo] = useState({
+    planId: planIdParam ?? null,
+    planName: planNameParam ?? "",
+    amount: normalizeNumberParam(amountParam),
+    durationInDays: normalizeNumberParam(durationInDaysParam),
+    totalSessions: normalizeNumberParam(totalSessionsParam),
+  });
+
+  useEffect(() => {
+    setPaymentType(inferredPaymentType);
+  }, [inferredPaymentType]);
+
+  useEffect(() => {
+    setSubscriptionInfo({
+      planId: planIdParam ?? null,
+      planName: planNameParam ?? "",
+      amount: normalizeNumberParam(amountParam),
+      durationInDays: normalizeNumberParam(durationInDaysParam),
+      totalSessions: normalizeNumberParam(totalSessionsParam),
+    });
+  }, [
+    planIdParam,
+    planNameParam,
+    amountParam,
+    durationInDaysParam,
+    totalSessionsParam,
+  ]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,27 +158,39 @@ export default function PaymentSuccessScreen() {
         }
 
         // Fetch payment status to get paymentType and other details
-        const paymentStatus = await paymentService.checkPaymentStatus(paymentCode);
+        const paymentStatus = await paymentService.checkPaymentStatus(
+          paymentCode
+        );
         setPaymentData(paymentStatus);
 
         // Determine payment type and fetch relevant data
-        if (paymentStatus.paymentType === 'booking') {
-          setPaymentType("booking");
+        if (paymentStatus.paymentType === "booking") {
+          setPaymentType(PaymentType.BOOKING);
           if (appointmentId) {
-            const data = await appointmentService.getAppointmentById(appointmentId);
+            const data = await appointmentService.getAppointmentById(
+              appointmentId
+            );
             setAppointment(data);
           }
-        } else if (paymentStatus.paymentType === 'order') {
-          setPaymentType("purchase");
+        } else if (paymentStatus.paymentType === "order") {
+          setPaymentType(PaymentType.ORDER);
           const orderIdToUse = paymentStatus.order?.orderId || orderId;
           if (orderIdToUse) {
             const token = await tokenService.getToken();
             if (!token) {
-              throw new Error("Authentication token not found. Please log in again.");
+              throw new Error(
+                "Authentication token not found. Please log in again."
+              );
             }
             const data = await orderService.getOrderById(orderIdToUse, token);
             setOrder(data);
           }
+        } else if (paymentStatus.paymentType === "subscription") {
+          setPaymentType(PaymentType.SUBSCRIPTION);
+          setSubscriptionInfo((prev) => ({
+            ...prev,
+            amount: prev.amount ?? paymentStatus.amount,
+          }));
         } else {
           setPaymentType("other"); // For 'topup', 'subscription', etc.
         }
@@ -113,71 +208,182 @@ export default function PaymentSuccessScreen() {
     }
   }, [appointmentId, orderId, paymentCode]);
 
-  // Navigation handler (kept similar, but could customize per type if needed)
+  // Navigation handler (customized per payment type)
   const goToNext = () => {
-    if (paymentType === "booking") {
+    if (paymentType === PaymentType.BOOKING) {
       router.replace({ pathname: "/(tabs)/ScheduleScreen" });
-    } else {
-      router.replace({ pathname: "/(tabs)/HomeScreen" }); // Or a purchase history screen
+      return;
     }
+
+    if (paymentType === PaymentType.ORDER) {
+      router.replace({ pathname: "/(tabs)/HomeScreen" });
+      return;
+    }
+
+    router.replace({ pathname: "/(tabs)/HomeScreen" });
   };
 
-  // Updated renderContent to handle 'other' type
+  // Updated renderContent with themed styling and subscription support
   const renderContent = () => {
     if (isLoading) {
-      return <ActivityIndicator size="large" style={{ marginTop: 20 }} />;
+      return (
+        <ActivityIndicator
+          size="large"
+          color={primaryColor}
+          style={{ marginTop: 20 }}
+        />
+      );
     }
 
-    if (paymentType === "booking" && !appointment) {
+    const labelStyle = [styles.label, { color: secondaryTextColor }];
+    const sectionTitleStyle = [
+      styles.sectionTitle,
+      { color: secondaryTextColor },
+    ];
+    const infoCardBaseStyle = [
+      styles.infoCard,
+      {
+        backgroundColor: isDarkMode ? "#1b1b24" : "#ffffff",
+        borderColor: subtleBorder,
+      },
+    ];
+    const infoCardAccentStyle = [
+      styles.infoCard,
+      {
+        backgroundColor: tintedPrimary,
+        borderColor: subtleBorder,
+      },
+    ];
+    const dividerStyle = [styles.divider, { backgroundColor: subtleBorder }];
+    const valueStyle = [
+      styles.value,
+      { color: isDarkMode ? "#f5f5f5" : "#1a1a1a" },
+    ];
+    const emailValueStyle = [
+      styles.emailValue,
+      { color: isDarkMode ? "#f5f5f5" : "#1a1a1a" },
+    ];
+    const valueAmountStyle = [styles.valueAmount, { color: primaryColor }];
+    const cardTitleStyle = [styles.cardTitle, { color: primaryColor }];
+    const errorTextStyle = [
+      styles.errorText,
+      { color: isDarkMode ? "#ff8080" : "#d9534f" },
+    ];
+
+    if (paymentType === PaymentType.BOOKING && !appointment) {
       return (
-        <Text style={styles.errorText}>
-          Your booking payment was successful, but we couldn't load the details. Please check "My Schedule".
+        <Text style={errorTextStyle}>
+          Your booking payment was successful, but we couldn't load the details.
+          Please check "My Schedule".
         </Text>
       );
     }
 
-    if (paymentType === "purchase" && !order) {
+    if (paymentType === PaymentType.ORDER && !order) {
       return (
-        <Text style={styles.errorText}>
-          Your purchase payment was successful, but we couldn't load the details. Please check your orders.
+        <Text style={errorTextStyle}>
+          Your purchase payment was successful, but we couldn't load the
+          details. Please check your orders.
         </Text>
       );
     }
 
-    if (paymentType === "other") {
-      // Generic success for topup/subscription
+    if (paymentType === PaymentType.SUBSCRIPTION) {
+      const amountDisplay = formatCurrency(
+        subscriptionInfo.amount ?? paymentData?.amount
+      );
+      const methodLabel = paymentCode
+        ? paymentData?.paymentMethod?.toUpperCase() || "N/A"
+        : "Wallet Balance";
+
       return (
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Payment Successful</Text>
-          <Text style={styles.sectionTitle}>Details</Text>
+        <View style={infoCardAccentStyle}>
+          <Text style={cardTitleStyle}>Subscription Details</Text>
+
+          <Text style={sectionTitleStyle}>Summary</Text>
+
           <View style={styles.row}>
-            <Text style={styles.label}>Amount Paid:</Text>
-            <Text style={styles.valueAmount}>
-              {paymentData?.amount.toLocaleString("vi-VN")} VND
+            <Text style={labelStyle}>Plan Name:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {subscriptionInfo.planName || "Subscription Plan"}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Method:</Text>
-            <Text style={styles.value}>
-              {paymentData?.paymentMethod?.toUpperCase() || "N/A"}
+            <Text style={labelStyle}>Duration:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {subscriptionInfo.durationInDays !== undefined
+                ? `${subscriptionInfo.durationInDays} days`
+                : "--"}
             </Text>
           </View>
+          <View style={styles.row}>
+            <Text style={labelStyle}>Total Sessions:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {subscriptionInfo.totalSessions !== undefined
+                ? subscriptionInfo.totalSessions
+                : "--"}
+            </Text>
+          </View>
+
+          <View style={dividerStyle} />
+
+          <Text style={sectionTitleStyle}>Payment</Text>
+          <View style={styles.row}>
+            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={valueAmountStyle}>{amountDisplay}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={labelStyle}>Method:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>{methodLabel}</Text>
+          </View>
+          {paymentCode ? (
+            <View style={styles.row}>
+              <Text style={labelStyle}>Reference:</Text>
+              <Text style={[valueStyle, styles.valuePlain]}>{paymentCode}</Text>
+            </View>
+          ) : null}
         </View>
       );
     }
 
-    if (paymentType === "booking" && appointment) {
-      // Existing booking content
-      const doctorPhotoUri = appointment.dermatologist?.user?.photoUrl?.startsWith("data:")
-        ? appointment.dermatologist.user.photoUrl
-        : null;
+    if (paymentType === "other") {
+      return (
+        <View style={infoCardAccentStyle}>
+          <Text style={cardTitleStyle}>Payment Successful</Text>
+          <Text style={sectionTitleStyle}>Details</Text>
+          <View style={styles.row}>
+            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={valueAmountStyle}>
+              {formatCurrency(paymentData?.amount)}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={labelStyle}>Method:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {paymentData?.paymentMethod?.toUpperCase() || "N/A"}
+            </Text>
+          </View>
+          {paymentCode ? (
+            <View style={styles.row}>
+              <Text style={labelStyle}>Reference:</Text>
+              <Text style={[valueStyle, styles.valuePlain]}>{paymentCode}</Text>
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+
+    if (paymentType === PaymentType.BOOKING && appointment) {
+      const doctorPhotoUri =
+        appointment.dermatologist?.user?.photoUrl?.startsWith("data:")
+          ? appointment.dermatologist.user.photoUrl
+          : null;
 
       return (
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Appointment Details</Text>
+        <View style={infoCardBaseStyle}>
+          <Text style={cardTitleStyle}>Appointment Details</Text>
 
-          {/* Doctor Section */}
-          <Text style={styles.sectionTitle}>Consultant</Text>
+          <Text style={sectionTitleStyle}>Consultant</Text>
           <View style={styles.doctorHeader}>
             <Image
               style={styles.doctorAvatar}
@@ -188,113 +394,120 @@ export default function PaymentSuccessScreen() {
               }
             />
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorName}>
+              <Text
+                style={[
+                  styles.doctorName,
+                  { color: isDarkMode ? "#f5f5f5" : "#1a1a1a" },
+                ]}
+              >
                 {appointment.dermatologist?.user?.fullName || "Dermatologist"}
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={dividerStyle} />
 
-          {/* Patient Section */}
-          <Text style={styles.sectionTitle}>Patient</Text>
+          <Text style={sectionTitleStyle}>Patient</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Name:</Text>
-            <Text style={styles.value}>
+            <Text style={labelStyle}>Name:</Text>
+            <Text style={valueStyle}>
               {appointment.customer?.user?.fullName || "Patient"}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Email:</Text>
-            <Text style={styles.emailValue}>
+            <Text style={labelStyle}>Email:</Text>
+            <Text style={emailValueStyle}>
               {appointment.customer?.user?.email}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={dividerStyle} />
 
-          {/* Appointment Details */}
-          <Text style={styles.sectionTitle}>When</Text>
+          <Text style={sectionTitleStyle}>When</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Date:</Text>
-            <Text style={styles.value}>{formatDate(appointment.startTime)}</Text>
+            <Text style={labelStyle}>Date:</Text>
+            <Text style={valueStyle}>{formatDate(appointment.startTime)}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Time:</Text>
-            <Text style={styles.value}>
-              {`${formatTime(appointment.startTime)} - ${formatTime(appointment.endTime)}`}
+            <Text style={labelStyle}>Time:</Text>
+            <Text style={valueStyle}>
+              {`${formatTime(appointment.startTime)} - ${formatTime(
+                appointment.endTime
+              )}`}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Type:</Text>
-            <Text style={styles.value}>
+            <Text style={labelStyle}>Type:</Text>
+            <Text style={valueStyle}>
               {formatAppointmentType(appointment.appointmentType)}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={dividerStyle} />
 
-          {/* Payment Details */}
-          <Text style={styles.sectionTitle}>Payment</Text>
+          <Text style={sectionTitleStyle}>Payment</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Amount Paid:</Text>
-            <Text style={styles.valueAmount}>
-              {Number(appointment.payment?.amount || appointment.price).toLocaleString("vi-VN")} VND
+            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={valueAmountStyle}>
+              {formatCurrency(
+                Number(appointment.payment?.amount || appointment.price)
+              )}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Method:</Text>
-            <Text style={styles.value}>
-              {appointment.payment?.paymentMethod?.toUpperCase() || "Subscription"}
+            <Text style={labelStyle}>Method:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {appointment.payment?.paymentMethod?.toUpperCase() ||
+                "Subscription"}
             </Text>
           </View>
         </View>
       );
     }
 
-    if (paymentType === "purchase" && order) {
-      // New purchase content
+    if (paymentType === PaymentType.ORDER && order) {
       return (
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Purchase Details</Text>
+        <View style={infoCardBaseStyle}>
+          <Text style={cardTitleStyle}>Purchase Details</Text>
 
-          {/* Order ID */}
-          <Text style={styles.sectionTitle}>Order Information</Text>
+          <Text style={sectionTitleStyle}>Order Information</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Order ID:</Text>
-            <Text style={styles.value}>{order.orderId}</Text>
+            <Text style={labelStyle}>Order ID:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>{order.orderId}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Status:</Text>
-            <Text style={styles.value}>{order.status}</Text>
+            <Text style={labelStyle}>Status:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>{order.status}</Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={dividerStyle} />
 
-          {/* Items Summary */}
-          <Text style={styles.sectionTitle}>Items Purchased</Text>
+          <Text style={sectionTitleStyle}>Items Purchased</Text>
           {order.orderItems?.map((item, index) => (
             <View key={index} style={styles.row}>
-              <Text style={styles.label}>{item.product.productName} (x{item.quantity}):</Text>  {/* Updated to use item.product.productName */}
-              <Text style={styles.value}>
-                {(parseFloat(item.priceAtTime) * item.quantity).toLocaleString("vi-VN")} VND
+              <Text style={labelStyle}>
+                {item.product.productName} (x{item.quantity}):
+              </Text>
+              <Text style={[valueStyle, styles.valuePlain]}>
+                {formatCurrency(parseFloat(item.priceAtTime) * item.quantity)}
               </Text>
             </View>
           ))}
 
-          <View style={styles.divider} />
+          <View style={dividerStyle} />
 
-          {/* Payment Details */}
-          <Text style={styles.sectionTitle}>Payment</Text>
+          <Text style={sectionTitleStyle}>Payment</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Total Paid:</Text>
-            <Text style={styles.valueAmount}>
-              {orderService.calculateOrderTotal(order.orderItems).toLocaleString("vi-VN")} VND  {/* Use service method for total */}
+            <Text style={labelStyle}>Total Paid:</Text>
+            <Text style={valueAmountStyle}>
+              {formatCurrency(
+                orderService.calculateOrderTotal(order.orderItems)
+              )}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Method:</Text>
-            <Text style={styles.value}>
+            <Text style={labelStyle}>Method:</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
               {order.payment?.paymentMethod?.toUpperCase() || "Bank Transfer"}
             </Text>
           </View>
@@ -306,7 +519,12 @@ export default function PaymentSuccessScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDarkMode ? "#0b0d14" : "#f6f7ff" },
+      ]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Success Icon */}
         <View style={styles.iconContainer}>
@@ -318,14 +536,22 @@ export default function PaymentSuccessScreen() {
         </View>
 
         {/* Dynamic Title and Instructions */}
-        <Text style={styles.title}>
-          {paymentType === "booking" ? "Booking Confirmed!" : paymentType === "purchase" ? "Purchase Successful!" : "Payment Successful!"}
+        <Text style={[styles.title, { color: "#28a745" }]}>
+          {paymentType === PaymentType.BOOKING
+            ? "Booking Confirmed!"
+            : paymentType === PaymentType.ORDER
+            ? "Purchase Successful!"
+            : paymentType === PaymentType.SUBSCRIPTION
+            ? "Subscription Activated!"
+            : "Payment Successful!"}
         </Text>
-        <Text style={styles.instructions}>
-          {paymentType === "booking"
+        <Text style={[styles.instructions, { color: secondaryTextColor }]}>
+          {paymentType === PaymentType.BOOKING
             ? "Your appointment has been successfully booked."
-            : paymentType === "purchase"
+            : paymentType === PaymentType.ORDER
             ? "Your purchase has been completed successfully."
+            : paymentType === PaymentType.SUBSCRIPTION
+            ? "Your subscription plan is active. Enjoy your benefits!"
             : "Your payment has been processed successfully."}
         </Text>
 
@@ -334,10 +560,25 @@ export default function PaymentSuccessScreen() {
       </ScrollView>
 
       {/* Footer Button */}
-      <View style={styles.footer}>
-        <Pressable style={styles.scheduleButton} onPress={goToNext}>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: isDarkMode ? "#0f1019" : "#ffffff",
+            borderColor: subtleBorder,
+          },
+        ]}
+      >
+        <Pressable
+          style={[styles.scheduleButton, { backgroundColor: primaryColor }]}
+          onPress={goToNext}
+        >
           <Text style={styles.scheduleButtonText}>
-            {paymentType === "booking" ? "Go to My Schedule" : "Continue Shopping"}
+            {paymentType === PaymentType.BOOKING
+              ? "Go to My Schedule"
+              : paymentType === PaymentType.ORDER
+              ? "Continue Shopping"
+              : "Back to Home"}
           </Text>
         </Pressable>
       </View>
@@ -356,7 +597,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 100,
+    paddingBottom: 140,
   },
   iconContainer: {
     marginBottom: 20,
@@ -372,6 +613,7 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     marginBottom: 30,
+    paddingHorizontal: 24,
   },
   infoCard: {
     backgroundColor: "#f5f5ff",
@@ -379,12 +621,20 @@ const styles = StyleSheet.create({
     padding: 16,
     width: "100%",
     marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
     textAlign: "center",
+  },
+  subscriptionPlanName: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
@@ -420,6 +670,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginVertical: 6,
     paddingHorizontal: 8,
+    alignItems: "flex-start",
   },
   label: {
     fontSize: 15,
@@ -431,6 +682,9 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
     flex: 1,
     textAlign: "right",
+  },
+  valuePlain: {
+    textTransform: "none",
   },
   emailValue: {
     fontSize: 15,

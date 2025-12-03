@@ -5,23 +5,41 @@ import {
   ActivityIndicator,
   ScrollView,
   Pressable,
-  Alert,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import subscriptionPlanService from "@/services/subscriptionPlanService";
 import SubscriptionPaymentModal from "@/components/SubscriptionPaymentModal";
+import CustomAlert from "@/components/CustomAlert";
 
 import { SubscriptionPlan } from "@/types/subscription-plan.type";
 import customerSubscriptionService, {
   SubscriptionPaymentResponse,
 } from "@/services/customerSubscriptionService";
+import userService from "@/services/userService";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
+import { useCustomAlert } from "@/hooks/useCustomAlert";
+import { PaymentType } from "@/types/payment.type";
 
 export default function SubscriptionPlanDetailScreen() {
   const router = useRouter();
   const { planId } = useLocalSearchParams<{ planId: string }>();
+
+  const { primaryColor, isDarkMode } = useThemeColor();
+  const {
+    alertState,
+    showAlert,
+    handleConfirm: handleAlertConfirm,
+    handleCancel: handleAlertCancel,
+  } = useCustomAlert();
 
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +48,70 @@ export default function SubscriptionPlanDetailScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [paymentData, setPaymentData] =
     useState<SubscriptionPaymentResponse | null>(null);
-  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isCreatingBankPayment, setIsCreatingBankPayment] = useState(false);
+  const [isProcessingWallet, setIsProcessingWallet] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletCurrency, setWalletCurrency] = useState<string>("VND");
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  const isMountedRef = useRef(true);
+
+  const tintedPrimary = useMemo(
+    () => hexToRgba(primaryColor, isDarkMode ? 0.24 : 0.12),
+    [primaryColor, isDarkMode]
+  );
+  const borderPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.35),
+    [primaryColor]
+  );
+  const disabledPrimary = useMemo(
+    () => hexToRgba(primaryColor, 0.4),
+    [primaryColor]
+  );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const refreshWalletBalance = useCallback(async () => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    setIsLoadingWallet(true);
+    try {
+      const data = await userService.getBalance();
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setWalletBalance(data.balance);
+      setWalletCurrency(data.currency);
+      setWalletError(null);
+    } catch (err) {
+      console.error("Error fetching wallet balance:", err);
+      if (isMountedRef.current) {
+        setWalletError("Failed to fetch wallet balance.");
+        setWalletBalance(null);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingWallet(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!planId) {
+      return;
+    }
+
+    refreshWalletBalance();
+  }, [planId, refreshWalletBalance]);
 
   useEffect(() => {
     if (!planId) {
@@ -38,44 +119,132 @@ export default function SubscriptionPlanDetailScreen() {
       setIsLoading(false);
       return;
     }
+
     const fetchPlan = async () => {
       try {
         setIsLoading(true);
 
         const data = await subscriptionPlanService.getPlanById(planId);
-        setPlan(data);
+        if (isMountedRef.current) {
+          setPlan(data);
+          setError(null);
+        }
       } catch (err) {
-        setError("Failed to load plan details.");
+        if (isMountedRef.current) {
+          setError("Failed to load plan details.");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
+
     fetchPlan();
   }, [planId]);
 
-  const handleBuyPlan = async () => {
+  const handleBankTransferPayment = async () => {
     if (!planId) return;
 
-    setIsCreatingPayment(true);
+    setIsCreatingBankPayment(true);
     try {
       const response =
         await customerSubscriptionService.createSubscriptionPayment(planId);
 
       setPaymentData(response);
       setIsModalVisible(true);
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Could not start payment.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not start payment.";
+      showAlert({
+        title: "Payment Error",
+        message,
+        type: "error",
+      });
     } finally {
-      setIsCreatingPayment(false);
+      setIsCreatingBankPayment(false);
+    }
+  };
+
+  const handleBuyWithWallet = async () => {
+    if (!planId || !plan) {
+      return;
+    }
+
+    const planPrice = Number(plan.basePrice);
+    if (walletBalance !== null && walletBalance < planPrice) {
+      showAlert({
+        title: "Insufficient Balance",
+        message: "Your wallet balance is not enough for this plan.",
+        type: "warning",
+        confirmText: "Top Up Wallet",
+        cancelText: "Cancel",
+        onConfirm: () => router.push("/(stacks)/TopUpScreen"),
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    setIsProcessingWallet(true);
+    try {
+      await customerSubscriptionService.createSubscriptionWithWallet(planId);
+      const amountParam = planPrice.toString();
+      router.replace({
+        pathname: "/(stacks)/PaymentSuccessScreen",
+        params: {
+          paymentType: PaymentType.SUBSCRIPTION,
+          planId: plan.planId,
+          planName: plan.planName,
+          amount: amountParam,
+          durationInDays: plan.durationInDays.toString(),
+          totalSessions: plan.totalSessions.toString(),
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not complete purchase with wallet.";
+      showAlert({
+        title: "Payment Error",
+        message,
+        type: "error",
+      });
+    } finally {
+      setIsProcessingWallet(false);
     }
   };
 
   const handleModalClose = (didPay: boolean) => {
     setIsModalVisible(false);
-    setPaymentData(null);
     if (didPay) {
-      router.back();
+      const paymentCode = paymentData?.paymentInfo.paymentCode;
+      const fallbackParams = ((planData) => {
+        const fallback: Record<string, string> = {
+          paymentType: PaymentType.SUBSCRIPTION,
+        };
+        if (planData?.planId) fallback.planId = planData.planId;
+        if (planData?.planName) fallback.planName = planData.planName;
+        if (planData) fallback.amount = Number(planData.basePrice).toString();
+        if (planData?.durationInDays)
+          fallback.durationInDays = planData.durationInDays.toString();
+        if (planData?.totalSessions)
+          fallback.totalSessions = planData.totalSessions.toString();
+        return fallback;
+      })(plan);
+
+      const navigationParams = paymentCode
+        ? { paymentCode, ...fallbackParams }
+        : fallbackParams;
+
+      setPaymentData(null);
+      router.replace({
+        pathname: "/(stacks)/PaymentSuccessScreen",
+        params: navigationParams,
+      });
+      return;
     }
+    setPaymentData(null);
   };
 
   if (isLoading) {
@@ -89,14 +258,29 @@ export default function SubscriptionPlanDetailScreen() {
     );
   }
 
+  const planPrice = Number(plan.basePrice);
+  const formattedPlanPrice = planPrice.toLocaleString("vi-VN");
+  const walletInsufficient =
+    walletBalance !== null && walletBalance < planPrice;
+  const walletActionDisabled =
+    isProcessingWallet ||
+    isLoadingWallet ||
+    walletBalance === null ||
+    walletInsufficient ||
+    !!walletError;
+
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Ionicons name="shield-checkmark-outline" size={50} color="#007bff" />
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={50}
+            color={primaryColor}
+          />
           <Text style={styles.planName}>{plan.planName}</Text>
-          <Text style={styles.planPrice}>
-            {Number(plan.basePrice).toLocaleString("vi-VN")} VND
+          <Text style={[styles.planPrice, { color: primaryColor }]}>
+            {formattedPlanPrice} VND
           </Text>
         </View>
 
@@ -117,18 +301,108 @@ export default function SubscriptionPlanDetailScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        <View
+          style={[
+            styles.walletSection,
+            {
+              backgroundColor: tintedPrimary,
+              borderColor: borderPrimary,
+            },
+          ]}
+        >
+          <View style={styles.walletSummaryRow}>
+            <View
+              style={[
+                styles.walletIconContainer,
+                { backgroundColor: hexToRgba(primaryColor, 0.16) },
+              ]}
+            >
+              <Ionicons name="wallet-outline" size={24} color={primaryColor} />
+            </View>
+            <View style={styles.walletTextContainer}>
+              <Text style={styles.walletLabel}>Wallet Balance</Text>
+              {isLoadingWallet ? (
+                <ActivityIndicator size="small" color={primaryColor} />
+              ) : walletError ? (
+                <Text style={styles.walletErrorText}>{walletError}</Text>
+              ) : (
+                <Text style={[styles.walletAmount, { color: primaryColor }]}>
+                  {walletBalance !== null
+                    ? `${walletBalance.toLocaleString(
+                        "vi-VN"
+                      )} ${walletCurrency}`
+                    : "--"}
+                </Text>
+              )}
+            </View>
+            <Pressable
+              style={styles.refreshButton}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh wallet balance"
+              onPress={refreshWalletBalance}
+            >
+              <Ionicons name="refresh" size={18} color={primaryColor} />
+            </Pressable>
+          </View>
+
+          {!isLoadingWallet && !walletError && walletInsufficient && (
+            <Text style={styles.walletHint}>
+              Not enough balance for this plan.
+            </Text>
+          )}
+
+          {walletError && (
+            <Pressable
+              onPress={refreshWalletBalance}
+              style={styles.retryButton}
+            >
+              <Text style={[styles.retryText, { color: primaryColor }]}>
+                Try again
+              </Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            style={[
+              styles.walletButton,
+              { backgroundColor: primaryColor },
+              walletActionDisabled && [
+                styles.walletButtonDisabled,
+                { backgroundColor: disabledPrimary },
+              ],
+            ]}
+            onPress={handleBuyWithWallet}
+            disabled={walletActionDisabled}
+          >
+            {isProcessingWallet ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.walletButtonText}>Use Wallet Balance</Text>
+            )}
+          </Pressable>
+        </View>
+
         <Pressable
           style={[
-            styles.buyButton,
-            isCreatingPayment && styles.buyButtonDisabled,
+            styles.bankButton,
+            {
+              backgroundColor: hexToRgba(
+                primaryColor,
+                isDarkMode ? 0.35 : 0.18
+              ),
+              borderColor: primaryColor,
+            },
+            isCreatingBankPayment && styles.bankButtonDisabled,
           ]}
-          onPress={handleBuyPlan}
-          disabled={isCreatingPayment}
+          onPress={handleBankTransferPayment}
+          disabled={isCreatingBankPayment}
         >
-          {isCreatingPayment ? (
-            <ActivityIndicator color="#fff" />
+          {isCreatingBankPayment ? (
+            <ActivityIndicator color={primaryColor} />
           ) : (
-            <Text style={styles.buyButtonText}>Buy This Plan</Text>
+            <Text style={[styles.bankButtonText, { color: primaryColor }]}>
+              Pay Via Bank Transfer
+            </Text>
           )}
         </Pressable>
       </View>
@@ -138,6 +412,16 @@ export default function SubscriptionPlanDetailScreen() {
         onClose={handleModalClose}
         paymentData={paymentData}
       />
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        confirmText={alertState.confirmText}
+        cancelText={alertState.cancelText}
+        onConfirm={handleAlertConfirm}
+        onCancel={alertState.cancelText ? handleAlertCancel : undefined}
+        type={alertState.type}
+      />
     </View>
   );
 }
@@ -145,7 +429,8 @@ export default function SubscriptionPlanDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5ff" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { color: "red", fontSize: 16 },
+  errorText: { color: "#d9534f", fontSize: 16 },
+  scrollContent: { paddingBottom: 24 },
   header: {
     backgroundColor: "#fff",
     padding: 24,
@@ -153,18 +438,25 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  planName: { fontSize: 24, fontWeight: "bold", marginTop: 10 },
+  planName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginTop: 10,
+    color: "#1A1A1A",
+  },
   planPrice: {
     fontSize: 22,
     fontWeight: "600",
-    color: "#007bff",
+    color: "#1A1A1A",
     marginTop: 8,
   },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
   },
   cardTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
   row: {
@@ -173,7 +465,7 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
   label: { fontSize: 16, color: "#666" },
-  value: { fontSize: 16, fontWeight: "bold" },
+  value: { fontSize: 16, fontWeight: "bold", color: "#222" },
   divider: { height: 1, backgroundColor: "#eee", marginVertical: 8 },
   description: { fontSize: 15, color: "#333", lineHeight: 22, marginTop: 4 },
   footer: {
@@ -181,19 +473,56 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderColor: "#e0e0e0",
+    gap: 16,
   },
-  buyButton: {
-    backgroundColor: "#28a745",
-    padding: 14,
-    borderRadius: 8,
+  walletSection: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+  },
+  walletSummaryRow: {
+    flexDirection: "row",
     alignItems: "center",
+    marginBottom: 12,
   },
-  buyButtonDisabled: {
-    backgroundColor: "#aaa",
+  walletIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  buyButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  walletTextContainer: { flex: 1 },
+  walletLabel: { fontSize: 15, fontWeight: "600", color: "#333" },
+  walletAmount: {
+    fontSize: 18,
     fontWeight: "bold",
+    marginTop: 4,
+    color: "#1A1A1A",
   },
+  walletErrorText: { fontSize: 14, color: "#d9534f", marginTop: 4 },
+  walletHint: { fontSize: 13, color: "#d17a00", marginBottom: 12 },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 10,
+  },
+  retryButton: { alignSelf: "flex-start", marginBottom: 12 },
+  retryText: { fontSize: 13, fontWeight: "600" },
+  walletButton: {
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  walletButtonDisabled: { opacity: 0.6 },
+  walletButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  bankButton: {
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  bankButtonDisabled: { opacity: 0.6 },
+  bankButtonText: { fontSize: 16, fontWeight: "bold" },
 });

@@ -2,9 +2,10 @@
 import { ApiResponse } from "@/types/api";
 import apiService from "./apiService";
 import { CustomerSubscription } from "@/types/customerSubscription.type";
+import { PaymentMethod } from "@/types/payment.type";
 interface CreateCustomerSubscriptionDto {
   planId: string;
-  paymentMethod?: "banking" | "wallet";
+  paymentMethod?: PaymentMethod;
 }
 
 interface BankingInfo {
@@ -48,8 +49,8 @@ class CustomerSubscriptionService {
   ): Promise<SubscriptionPaymentResponse> {
     try {
       const dto: CreateCustomerSubscriptionDto = {
-        planId: planId,
-        paymentMethod: "banking",
+        planId,
+        paymentMethod: PaymentMethod.BANKING,
       };
 
       const response = await apiService.post<
@@ -59,6 +60,27 @@ class CustomerSubscriptionService {
       return response.data;
     } catch (error) {
       console.error("Error creating subscription payment:", error);
+      throw error;
+    }
+  }
+
+  async createSubscriptionWithWallet(
+    planId: string
+  ): Promise<CustomerSubscription> {
+    try {
+      const dto: CreateCustomerSubscriptionDto = {
+        planId,
+        paymentMethod: PaymentMethod.WALLET,
+      };
+
+      const response = await apiService.post<ApiResponse<CustomerSubscription>>(
+        "/customer-subscriptions/use-wallet",
+        dto
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error purchasing subscription with wallet:", error);
       throw error;
     }
   }
