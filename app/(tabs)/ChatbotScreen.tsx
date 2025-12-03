@@ -12,14 +12,18 @@ import {
   Keyboard,
   Image,
   SafeAreaView,
-} from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
-import chatbotService, { ChatMessage, ChatSession } from '@/services/chatbotService';
-import { useThemeColor } from '@/contexts/ThemeColorContext';
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
+import { useAuth } from "@/hooks/useAuth";
+import chatbotService, {
+  ChatMessage,
+  ChatSession,
+} from "@/services/chatbotService";
+import { useThemeColor } from "@/contexts/ThemeColorContext";
+import Markdown from "react-native-markdown-display";
 
 export default function ChatbotScreen() {
   const { user } = useAuth();
@@ -30,16 +34,16 @@ export default function ChatbotScreen() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  
+
   // Input State
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
-  
+
   // Refs
   const flatListRef = useRef<FlatList>(null);
   const hasLoadedRef = useRef(false);
@@ -67,17 +71,17 @@ export default function ChatbotScreen() {
         const prefillText = params.prefillText;
         const prefillImage = params.prefillImage;
         const hasData = prefillText || prefillImage;
-        
+
         if (hasData) {
           await createNewChatForAnalysis();
           hasPrefillAppliedRef.current = true;
-          
-          if (prefillText && typeof prefillText === 'string') {
+
+          if (prefillText && typeof prefillText === "string") {
             setInputMessage(prefillText);
           }
-          
-          if (prefillImage && typeof prefillImage === 'string') {
-            setSelectedImage(prefillImage); 
+
+          if (prefillImage && typeof prefillImage === "string") {
+            setSelectedImage(prefillImage);
           }
         }
       }
@@ -89,7 +93,7 @@ export default function ChatbotScreen() {
   // Auto-scroll when keyboard opens
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
+      "keyboardDidShow",
       () => {
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -105,19 +109,26 @@ export default function ChatbotScreen() {
     if (!user?.userId) return;
     try {
       setIsLoading(true);
-      const sessions = await chatbotService.getChatSessionsByUserId(user.userId);
+      const sessions = await chatbotService.getChatSessionsByUserId(
+        user.userId
+      );
       setChatSessions(sessions);
 
       if (sessions.length > 0 && !params.prefillText && !params.prefillImage) {
         const mostRecent = sessions.sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         )[0];
         setCurrentChatId(mostRecent.chatId);
-      } else if (sessions.length === 0 && !params.prefillText && !params.prefillImage) {
+      } else if (
+        sessions.length === 0 &&
+        !params.prefillText &&
+        !params.prefillImage
+      ) {
         await createNewChat();
       }
     } catch (error) {
-      console.error('Error loading chats:', error);
+      console.error("Error loading chats:", error);
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +138,12 @@ export default function ChatbotScreen() {
     try {
       const chatMessages = await chatbotService.getMessagesByChatId(chatId);
       setMessages(chatMessages);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
+      setTimeout(
+        () => flatListRef.current?.scrollToEnd({ animated: false }),
+        100
+      );
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error("Error loading messages:", error);
     }
   };
 
@@ -144,9 +158,9 @@ export default function ChatbotScreen() {
       setCurrentChatId(newChat.chatId);
       setMessages(newChat.messages || []);
       setShowChatList(false);
-      hasPrefillAppliedRef.current = false; 
+      hasPrefillAppliedRef.current = false;
     } catch (error) {
-      Alert.alert('Error', 'Failed to start new chat');
+      Alert.alert("Error", "Failed to start new chat");
     } finally {
       setIsLoading(false);
     }
@@ -157,34 +171,38 @@ export default function ChatbotScreen() {
     try {
       setIsLoading(true);
       const newChat = await chatbotService.createChatSession(user.userId);
-      setChatSessions(prev => [newChat, ...prev]);
+      setChatSessions((prev) => [newChat, ...prev]);
       setCurrentChatId(newChat.chatId);
       setMessages(newChat.messages || []);
       setShowChatList(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to start new chat for analysis');
+      Alert.alert("Error", "Failed to start new chat for analysis");
     } finally {
       setIsLoading(false);
     }
   };
 
   const deleteChat = async (chatId: string) => {
-    Alert.alert('Delete Chat', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert("Delete Chat", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: 'Delete',
-        style: 'destructive',
+        text: "Delete",
+        style: "destructive",
         onPress: async () => {
           try {
             await chatbotService.deleteChatSession(chatId);
-            const updated = chatSessions.filter(c => c.chatId !== chatId);
+            const updated = chatSessions.filter((c) => c.chatId !== chatId);
             setChatSessions(updated);
             if (currentChatId === chatId) {
-              updated.length > 0 ? setCurrentChatId(updated[0].chatId) : createNewChat();
+              updated.length > 0
+                ? setCurrentChatId(updated[0].chatId)
+                : createNewChat();
             }
-          } catch (e) { console.error(e); }
-        }
-      }
+          } catch (e) {
+            console.error(e);
+          }
+        },
+      },
     ]);
   };
 
@@ -204,25 +222,26 @@ export default function ChatbotScreen() {
       });
       if (!result.canceled) setSelectedImage(result.assets[0].uri);
     } catch (error) {
-      Alert.alert('Error', 'Could not select image');
+      Alert.alert("Error", "Could not select image");
     }
   };
 
   const clearInput = () => {
-    setInputMessage('');
+    setInputMessage("");
     setSelectedImage(null);
   };
 
   // --- Sending Message ---
 
   const sendMessage = async () => {
-    if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending) return;
+    if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending)
+      return;
 
     const textToSend = inputMessage.trim();
     const imageToSend = selectedImage;
     const tempId = `temp-${Date.now()}`;
 
-    setInputMessage('');
+    setInputMessage("");
     setSelectedImage(null);
     setIsSending(true);
     Keyboard.dismiss();
@@ -230,14 +249,14 @@ export default function ChatbotScreen() {
     const optimisticMessage: ChatMessage = {
       messageId: tempId,
       chatId: currentChatId,
-      sender: 'user',
+      sender: "user",
       messageContent: textToSend,
-      imageUrl: imageToSend, 
+      imageUrl: imageToSend,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
@@ -247,18 +266,20 @@ export default function ChatbotScreen() {
         imageToSend
       );
 
-      setMessages(prev => {
-        const filtered = prev.filter(msg => msg.messageId !== tempId);
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.messageId !== tempId);
         return [...filtered, userMessage, aiMessage];
       });
-      
-      const session = chatSessions.find(s => s.chatId === currentChatId);
-      if (session?.title === 'New chat') {
-        chatbotService.getChatSessionsByUserId(user!.userId).then(setChatSessions);
+
+      const session = chatSessions.find((s) => s.chatId === currentChatId);
+      if (session?.title === "New chat") {
+        chatbotService
+          .getChatSessionsByUserId(user!.userId)
+          .then(setChatSessions);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to send message');
-      setMessages(prev => prev.filter(msg => msg.messageId !== tempId));
+      Alert.alert("Error", "Failed to send message");
+      setMessages((prev) => prev.filter((msg) => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
     } finally {
@@ -269,38 +290,161 @@ export default function ChatbotScreen() {
   // --- Render Helpers ---
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
-    const isUser = item.sender === 'user';
+    const isUser = item.sender === "user";
+
+    // Markdown styles for AI messages
+    const markdownStyles = {
+      body: {
+        color: "#333",
+        fontSize: 15,
+        lineHeight: 22,
+      },
+      paragraph: {
+        marginTop: 0,
+        marginBottom: 8,
+      },
+      strong: {
+        fontWeight: "700",
+        color: "#1A1A1A",
+      },
+      em: {
+        fontStyle: "italic",
+      },
+      code_inline: {
+        backgroundColor: "#F0F0F0",
+        color: "#E74C3C",
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 4,
+        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+        fontSize: 14,
+      },
+      code_block: {
+        backgroundColor: "#2D2D2D",
+        color: "#F8F8F2",
+        padding: 12,
+        borderRadius: 8,
+        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+        fontSize: 13,
+        marginVertical: 8,
+      },
+      fence: {
+        backgroundColor: "#2D2D2D",
+        color: "#F8F8F2",
+        padding: 12,
+        borderRadius: 8,
+        fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+        fontSize: 13,
+        marginVertical: 8,
+      },
+      heading1: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#1A1A1A",
+        marginTop: 8,
+        marginBottom: 8,
+      },
+      heading2: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#1A1A1A",
+        marginTop: 6,
+        marginBottom: 6,
+      },
+      heading3: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#1A1A1A",
+        marginTop: 4,
+        marginBottom: 4,
+      },
+      bullet_list: {
+        marginVertical: 4,
+      },
+      ordered_list: {
+        marginVertical: 4,
+      },
+      list_item: {
+        marginVertical: 2,
+      },
+      blockquote: {
+        backgroundColor: "#F5F5F5",
+        borderLeftWidth: 4,
+        borderLeftColor: primaryColor,
+        paddingLeft: 12,
+        paddingVertical: 8,
+        marginVertical: 8,
+        fontStyle: "italic",
+      },
+      link: {
+        color: primaryColor,
+        textDecorationLine: "underline",
+      },
+      hr: {
+        backgroundColor: "#E0E0E0",
+        height: 1,
+        marginVertical: 12,
+      },
+    };
+
     return (
-      <View style={[
-        styles.messageRow, 
-        isUser ? styles.messageRowUser : styles.messageRowAi
-      ]}>
+      <View
+        style={[
+          styles.messageRow,
+          isUser ? styles.messageRowUser : styles.messageRowAi,
+        ]}
+      >
         {!isUser && (
-          <View style={[styles.avatar, { backgroundColor: '#fff', borderColor: primaryColor, borderWidth: 1 }]}>
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: "#fff",
+                borderColor: primaryColor,
+                borderWidth: 1,
+              },
+            ]}
+          >
             <Ionicons name="sparkles" size={14} color={primaryColor} />
           </View>
         )}
-        
-        <View style={[
-          styles.bubble,
-          isUser ? [styles.bubbleUser, { backgroundColor: primaryColor }] : styles.bubbleAi
-        ]}>
+
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? [styles.bubbleUser, { backgroundColor: primaryColor }]
+              : styles.bubbleAi,
+          ]}
+        >
           {item.imageUrl && (
-             <Image 
-               source={{ uri: item.imageUrl }} 
-               style={styles.messageImage} 
-               resizeMode="cover"
-             />
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.messageImage}
+              resizeMode="cover"
+            />
           )}
 
           {item.messageContent ? (
-            <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
-              {item.messageContent}
-            </Text>
+            isUser ? (
+              <Text style={[styles.messageText, styles.messageTextUser]}>
+                {item.messageContent}
+              </Text>
+            ) : (
+              <Markdown style={markdownStyles}>{item.messageContent}</Markdown>
+            )
           ) : null}
 
-          <Text style={[styles.timestamp, isUser ? { color: 'rgba(255,255,255,0.7)' } : { color: '#999' }]}>
-            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <Text
+            style={[
+              styles.timestamp,
+              isUser ? { color: "rgba(255,255,255,0.7)" } : { color: "#999" },
+            ]}
+          >
+            {new Date(item.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </Text>
         </View>
       </View>
@@ -310,13 +454,32 @@ export default function ChatbotScreen() {
   const renderFooter = () => {
     if (!isSending) return <View style={{ height: 20 }} />;
     return (
-      <View style={[styles.messageRow, styles.messageRowAi, { marginBottom: 20 }]}>
-        <View style={[styles.avatar, { backgroundColor: '#fff', borderColor: primaryColor, borderWidth: 1 }]}>
+      <View
+        style={[styles.messageRow, styles.messageRowAi, { marginBottom: 20 }]}
+      >
+        <View
+          style={[
+            styles.avatar,
+            {
+              backgroundColor: "#fff",
+              borderColor: primaryColor,
+              borderWidth: 1,
+            },
+          ]}
+        >
           <Ionicons name="sparkles" size={14} color={primaryColor} />
         </View>
-        <View style={[styles.bubble, styles.bubbleAi, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+        <View
+          style={[
+            styles.bubble,
+            styles.bubbleAi,
+            { flexDirection: "row", alignItems: "center", gap: 8 },
+          ]}
+        >
           <ActivityIndicator size="small" color={primaryColor} />
-          <Text style={{ color: '#999', fontSize: 13, fontStyle: 'italic' }}>Thinking...</Text>
+          <Text style={{ color: "#999", fontSize: 13, fontStyle: "italic" }}>
+            Thinking...
+          </Text>
         </View>
       </View>
     );
@@ -325,24 +488,42 @@ export default function ChatbotScreen() {
   const renderChatItem = ({ item }: { item: ChatSession }) => {
     const isActive = item.chatId === currentChatId;
     return (
-      <TouchableOpacity 
-        style={[styles.chatItem, isActive && { backgroundColor: `${primaryColor}15`, borderColor: primaryColor }]}
-        onPress={() => { 
-          setCurrentChatId(item.chatId); 
-          setShowChatList(false); 
+      <TouchableOpacity
+        style={[
+          styles.chatItem,
+          isActive && {
+            backgroundColor: `${primaryColor}15`,
+            borderColor: primaryColor,
+          },
+        ]}
+        onPress={() => {
+          setCurrentChatId(item.chatId);
+          setShowChatList(false);
           hasPrefillAppliedRef.current = false;
         }}
       >
         <View style={styles.chatItemIcon}>
-          <Ionicons name="chatbubble-ellipses" size={24} color={isActive ? primaryColor : '#666'} />
+          <Ionicons
+            name="chatbubble-ellipses"
+            size={24}
+            color={isActive ? primaryColor : "#666"}
+          />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.chatItemTitle, isActive && { color: primaryColor }]} numberOfLines={1}>{item.title}</Text>
+          <Text
+            style={[styles.chatItemTitle, isActive && { color: primaryColor }]}
+            numberOfLines={1}
+          >
+            {item.title}
+          </Text>
           <Text style={styles.chatItemDate}>
             {new Date(item.updatedAt).toLocaleDateString()}
           </Text>
         </View>
-        <TouchableOpacity onPress={() => deleteChat(item.chatId)} style={{ padding: 8 }}>
+        <TouchableOpacity
+          onPress={() => deleteChat(item.chatId)}
+          style={{ padding: 8 }}
+        >
           <Ionicons name="trash-outline" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -351,17 +532,21 @@ export default function ChatbotScreen() {
 
   // --- Views ---
 
-  if (!user) return (
-    <View style={[styles.container, styles.center]}>
-      <Text style={{ color: '#666' }}>Please log in to use the chatbot.</Text>
-    </View>
-  );
+  if (!user)
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={{ color: "#666" }}>Please log in to use the chatbot.</Text>
+      </View>
+    );
 
   if (showChatList) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowChatList(false)} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => setShowChatList(false)}
+            style={styles.iconButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>History</Text>
@@ -369,14 +554,16 @@ export default function ChatbotScreen() {
             <Ionicons name="add" size={24} color={primaryColor} />
           </TouchableOpacity>
         </View>
-        <FlatList 
-          data={chatSessions} 
-          renderItem={renderChatItem} 
-          keyExtractor={item => item.chatId}
+        <FlatList
+          data={chatSessions}
+          renderItem={renderChatItem}
+          keyExtractor={(item) => item.chatId}
           contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={{ color: '#999', marginTop: 40 }}>No chat history</Text>
+              <Text style={{ color: "#999", marginTop: 40 }}>
+                No chat history
+              </Text>
             </View>
           }
         />
@@ -385,23 +572,30 @@ export default function ChatbotScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={0}
     >
       <SafeAreaView style={styles.flex1}>
         {/* Header - Fixed at top */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowChatList(true)} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => setShowChatList(true)}
+            style={styles.iconButton}
+          >
             <Ionicons name="menu" size={24} color="#333" />
           </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Ionicons name="sparkles" size={18} color={primaryColor} />
             <Text style={styles.headerTitle}>Assistant</Text>
           </View>
           <TouchableOpacity onPress={createNewChat} style={styles.iconButton}>
-            <Ionicons name="add-circle-outline" size={24} color={primaryColor} />
+            <Ionicons
+              name="add-circle-outline"
+              size={24}
+              color={primaryColor}
+            />
           </TouchableOpacity>
         </View>
 
@@ -410,15 +604,17 @@ export default function ChatbotScreen() {
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
-          keyExtractor={item => item.messageId}
+          keyExtractor={(item) => item.messageId}
           contentContainerStyle={styles.chatContent}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={[styles.center, { marginTop: 100 }]}>
               <Ionicons name="chatbubbles-outline" size={64} color="#ddd" />
-              <Text style={{ color: '#999', marginTop: 16 }}>
-                {params.prefillText ? 'Ready to ask about your analysis...' : 'Start a new conversation'}
+              <Text style={{ color: "#999", marginTop: 16 }}>
+                {params.prefillText
+                  ? "Ready to ask about your analysis..."
+                  : "Start a new conversation"}
               </Text>
             </View>
           }
@@ -429,12 +625,18 @@ export default function ChatbotScreen() {
           {/* Image Preview Card */}
           {selectedImage && (
             <View style={styles.imagePreviewCard}>
-              <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.previewThumb}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.previewLabel}>Image Attached</Text>
                 <Text style={styles.previewSub}>Ready to send</Text>
               </View>
-              <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.closePreview}>
+              <TouchableOpacity
+                onPress={() => setSelectedImage(null)}
+                style={styles.closePreview}
+              >
                 <Ionicons name="close" size={16} color="#666" />
               </TouchableOpacity>
             </View>
@@ -449,7 +651,9 @@ export default function ChatbotScreen() {
             <View style={styles.textInputWrapper}>
               <TextInput
                 style={styles.textInput}
-                placeholder={selectedImage ? "Hỏi về ảnh này..." : "Nhập tin nhắn..."}
+                placeholder={
+                  selectedImage ? "Hỏi về ảnh này..." : "Nhập tin nhắn..."
+                }
                 placeholderTextColor="#999"
                 multiline
                 value={inputMessage}
@@ -464,18 +668,23 @@ export default function ChatbotScreen() {
                 textContentType="none"
               />
               {(inputMessage.length > 0 || selectedImage) && (
-                 <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
-                   <Ionicons name="close-circle" size={20} color="#ccc" />
-                 </TouchableOpacity>
+                <TouchableOpacity onPress={clearInput} style={styles.clearBtn}>
+                  <Ionicons name="close-circle" size={20} color="#ccc" />
+                </TouchableOpacity>
               )}
             </View>
 
-            <TouchableOpacity 
-              onPress={sendMessage} 
+            <TouchableOpacity
+              onPress={sendMessage}
               disabled={(!inputMessage.trim() && !selectedImage) || isSending}
               style={[
-                styles.sendBtn, 
-                { backgroundColor: (!inputMessage.trim() && !selectedImage) || isSending ? '#E0E0E0' : primaryColor }
+                styles.sendBtn,
+                {
+                  backgroundColor:
+                    (!inputMessage.trim() && !selectedImage) || isSending
+                      ? "#E0E0E0"
+                      : primaryColor,
+                },
               ]}
             >
               {isSending ? (
@@ -494,32 +703,32 @@ export default function ChatbotScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   flex1: {
     flex: 1,
   },
   center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
-  
+
   // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
     zIndex: 10,
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   iconButton: {
     padding: 8,
@@ -527,33 +736,33 @@ const styles = StyleSheet.create({
 
   // Chat List
   chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: "#eee",
   },
   chatItemIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   chatItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 2,
   },
   chatItemDate: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
   },
 
   // Messages
@@ -562,26 +771,26 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   messageRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   messageRowUser: {
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   messageRowAi: {
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
   avatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
   },
   bubble: {
-    maxWidth: '80%',
+    maxWidth: "80%",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
@@ -590,9 +799,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   bubbleAi: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomLeftRadius: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
@@ -603,34 +812,34 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
   },
   messageText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#333',
+    color: "#333",
   },
   messageTextUser: {
-    color: '#fff',
+    color: "#fff",
   },
   timestamp: {
     fontSize: 10,
     marginTop: 4,
-    textAlign: 'right',
+    textAlign: "right",
   },
 
   // Input Area
   inputContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: "#f0f0f0",
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   imagePreviewCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
     borderRadius: 12,
     padding: 8,
     marginBottom: 10,
@@ -640,47 +849,47 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     marginRight: 10,
-    backgroundColor: '#ddd',
+    backgroundColor: "#ddd",
   },
   previewLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   previewSub: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   closePreview: {
     padding: 8,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 8,
   },
   attachBtn: {
     padding: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   textInputWrapper: {
     flex: 1,
-    backgroundColor: '#F2F2F2',
+    backgroundColor: "#F2F2F2",
     borderRadius: 20,
     minHeight: 40,
     maxHeight: 100,
     paddingHorizontal: 12,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     paddingVertical: 8,
   },
   clearBtn: {
@@ -690,7 +899,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
