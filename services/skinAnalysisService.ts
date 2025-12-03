@@ -193,11 +193,6 @@ class SkinAnalysisService {
    */
   async getUserAnalyses(customerId: string): Promise<SkinAnalysisResult[]> {
     try {
-      const token = await tokenService.getToken();
-      if (!token) {
-        throw new Error("Authentication required");
-      }
-
       const response = await apiService.get<SkinAnalysisResult[]>(
         `/skin-analysis/customer/${customerId}`
       );

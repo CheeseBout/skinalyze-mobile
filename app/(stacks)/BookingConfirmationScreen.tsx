@@ -230,7 +230,7 @@ export default function BookingConfirmationScreen() {
         return priceNumber > 0 ? prev : null;
       });
     } catch (error: any) {
-      Alert.alert("Error", "Failed to load booking details.");
+      console.log("Failed to load booking details.");
     } finally {
       setIsLoadingData(false);
     }

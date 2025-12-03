@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +13,37 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
 import { Notification } from "@/services/notificationWebSocketService";
+
+const ACTION_URL_PLACEHOLDER = "https://placeholder";
+
+const formatTypeLabel = (type: string) => type.replace(/_/g, " ").toUpperCase();
+
+const parseActionRoute = (
+  actionUrl: string
+): { pathname: string; params: Record<string, string> } => {
+  const buildUrl = () => {
+    if (actionUrl.startsWith("app://")) {
+      return new URL(actionUrl.replace("app://", `${ACTION_URL_PLACEHOLDER}/`));
+    }
+
+    if (actionUrl.includes("://")) {
+      return new URL(actionUrl);
+    }
+
+    const normalized = actionUrl.startsWith("/") ? actionUrl : `/${actionUrl}`;
+    return new URL(`${ACTION_URL_PLACEHOLDER}${normalized}`);
+  };
+
+  const url = buildUrl();
+
+  return {
+    pathname: url.pathname || "/",
+    params: Object.fromEntries(url.searchParams.entries()) as Record<
+      string,
+      string
+    >,
+  };
+};
 
 export default function NotificationScreen() {
   const {
@@ -47,6 +77,19 @@ export default function NotificationScreen() {
       Alert.alert("Success", "All notifications marked as read");
     } catch (error) {
       Alert.alert("Error", "Failed to mark all as read");
+    }
+  };
+
+  const handleNotificationAction = (actionUrl?: string) => {
+    if (!actionUrl) {
+      return;
+    }
+
+    try {
+      const { pathname, params } = parseActionRoute(actionUrl);
+      router.push({ pathname: pathname as any, params: params as any });
+    } catch (error) {
+      Alert.alert("Error", "Unable to open notification action");
     }
   };
 
@@ -147,24 +190,36 @@ export default function NotificationScreen() {
       </Text>
 
       <View style={styles.footer}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{item.type}</Text>
-        </View>
-        <View
-          style={[
-            styles.priorityBadge,
-            { backgroundColor: getPriorityColor(item.priority) + "20" },
-          ]}
-        >
-          <Text
+        <View style={styles.footerLeft}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{formatTypeLabel(item.type)}</Text>
+          </View>
+          <View
             style={[
-              styles.priorityText,
-              { color: getPriorityColor(item.priority) },
+              styles.priorityBadge,
+              { backgroundColor: getPriorityColor(item.priority) + "20" },
             ]}
           >
-            {item.priority}
-          </Text>
+            <Text
+              style={[
+                styles.priorityText,
+                { color: getPriorityColor(item.priority) },
+              ]}
+            >
+              {item.priority}
+            </Text>
+          </View>
         </View>
+        {item.actionUrl && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleNotificationAction(item.actionUrl)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionButtonText}>View Details</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -181,7 +236,6 @@ export default function NotificationScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Connection Status */}
       <View style={styles.statusBar}>
         <View style={styles.statusIndicator}>
           <View
@@ -196,9 +250,7 @@ export default function NotificationScreen() {
         </View>
         <View style={styles.statusRight}>
           {unreadCount > 0 && (
-            <Text style={styles.unreadCount}>
-              {unreadCount} unread
-            </Text>
+            <Text style={styles.unreadCount}>{unreadCount} unread</Text>
           )}
           {notifications.length > 0 && (
             <TouchableOpacity
@@ -211,7 +263,6 @@ export default function NotificationScreen() {
         </View>
       </View>
 
-      {/* Notifications List */}
       <FlatList
         data={notifications}
         renderItem={renderNotificationItem}
@@ -346,7 +397,12 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  footerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   badge: {
     backgroundColor: "#F0F0F0",
@@ -359,7 +415,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666666",
     fontWeight: "500",
-    textTransform: "capitalize",
   },
   priorityBadge: {
     borderRadius: 12,
@@ -370,6 +425,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 6,
   },
   emptyContainer: {
     flex: 1,

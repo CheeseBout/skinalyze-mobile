@@ -22,6 +22,7 @@ import React, {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
+import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
 
 import appointmentService from "@/services/appointmentService";
@@ -275,7 +276,6 @@ export default function AppointmentDetailScreen() {
       setIsReportingInterrupt(false);
     }
   };
-  // ==========================
 
   const handleJoinMeeting = async () => {
     if (!appointment || !appointment.meetingUrl || !appointmentId) return;
@@ -404,6 +404,8 @@ export default function AppointmentDetailScreen() {
       appointment.createdRoutine?.routineId ||
       appointment.trackingRoutine?.routineId;
     const hasCheckedIn = Boolean(appointment.customerJoinedAt);
+    const canJoinNow =
+      isJoinableStatus && hasMeetingUrl && (isJoinableTime || hasCheckedIn);
 
     return (
       <>
@@ -571,44 +573,60 @@ export default function AppointmentDetailScreen() {
         </ScrollView>
         {/* Footer */}
         <View style={styles.footer}>
-          {/* {isJoinableStatus && hasMeetingUrl && ( */}
-          <Pressable
-            style={[
-              styles.joinButton,
-              (!isJoinableTime ||
-                isJoining ||
-                !isJoinableStatus ||
-                !hasMeetingUrl) &&
-                styles.buttonDisabled,
-            ]}
-            onPress={handleJoinMeeting}
-            // Disable button if not joinable
-            disabled={
-              !isJoinableTime ||
-              isJoining ||
-              !isJoinableStatus ||
-              !hasMeetingUrl
-            }
-          >
-            {isJoining ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
+          <View style={styles.joinRow}>
+            <Pressable
+              style={[
+                styles.joinButton,
+                (!canJoinNow || isJoining) && styles.buttonDisabled,
+              ]}
+              onPress={handleJoinMeeting}
+              disabled={!canJoinNow || isJoining}
+            >
+              {isJoining ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons
+                    name="video-plus"
+                    size={24}
+                    color="#fff"
+                  />
+                  <Text style={styles.joinButtonText}>
+                    {!canJoinNow
+                      ? !isJoinableStatus || !hasMeetingUrl
+                        ? "Join Unavailable"
+                        : `Joinable ${CHECK_IN_WINDOW_MINUTES} mins before`
+                      : hasCheckedIn
+                      ? "Re-Join Meeting"
+                      : "Check-in & Join"}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            {hasCheckedIn && hasMeetingUrl && (
+              <Pressable
+                style={styles.copyButton}
+                onPress={async () => {
+                  if (!appointment.meetingUrl) return;
+                  await Clipboard.setStringAsync(appointment.meetingUrl);
+                  setFeedbackAlert({
+                    visible: true,
+                    title: "Link Copied",
+                    message: "Meeting link copied to clipboard.",
+                    type: "success",
+                    confirmText: "Close",
+                  });
+                }}
+              >
                 <MaterialCommunityIcons
-                  name="video-plus"
-                  size={24}
-                  color="#fff"
+                  name="content-copy"
+                  size={22}
+                  color={primaryColor}
                 />
-                <Text style={styles.joinButtonText}>
-                  {!isJoinableTime
-                    ? `Joinable ${CHECK_IN_WINDOW_MINUTES} mins before`
-                    : hasCheckedIn
-                    ? "Re-Join Meeting"
-                    : "Check-in & Join"}
-                </Text>
-              </>
+              </Pressable>
             )}
-          </Pressable>
+          </View>
 
           {routineId && (
             <Pressable
@@ -994,6 +1012,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    flex: 1,
   },
   joinButtonText: {
     color: "#fff",
@@ -1019,6 +1038,21 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: "#9E9E9E",
+  },
+  joinRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  copyButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    marginLeft: 12,
   },
   cancelButton: {
     flexDirection: "row",

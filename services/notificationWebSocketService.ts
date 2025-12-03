@@ -11,6 +11,7 @@ export interface Notification {
   priority: "low" | "medium" | "high" | "urgent";
   isRead: boolean;
   createdAt: string;
+  actionUrl?: string;
   metadata?: any;
 }
 
@@ -44,7 +45,8 @@ class NotificationWebSocketService {
   };
 
   // Thay đổi URL này theo backend của bạn
-  private readonly SOCKET_URL = "https://api.nhatlonh.id.vn";
+  private readonly SOCKET_URL = "http://192.168.1.18:3000";
+  // private readonly SOCKET_URL = "https://api.nhatlonh.id.vn";
   // private readonly SOCKET_URL =
   //   process.env.EXPO_BASE_URL || "http://192.168.1.35:3000/api/v1";
   // private readonly SOCKET_URL = 'http://localhost:3000'; // iOS simulator
