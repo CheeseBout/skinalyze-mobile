@@ -477,6 +477,10 @@ export default function AppointmentDetailScreen() {
     const hasCheckedIn = Boolean(appointment.customerJoinedAt);
     const canJoinNow =
       isJoinableStatus && hasMeetingUrl && (isJoinableTime || hasCheckedIn);
+    const canCopyLink =
+      appointment.appointmentStatus === AppointmentStatus.IN_PROGRESS &&
+      hasCheckedIn &&
+      hasMeetingUrl;
 
     const joinButtonLabel = !canJoinNow
       ? !isJoinableStatus || !hasMeetingUrl
@@ -703,7 +707,7 @@ export default function AppointmentDetailScreen() {
               )}
             </Pressable>
 
-            {hasCheckedIn && hasMeetingUrl && (
+            {canCopyLink && (
               <Pressable
                 style={styles.copyButton}
                 onPress={async () => {
