@@ -1,9 +1,14 @@
 {
+  "common": {
+    "notAvailable": "Không khả dụng"
+  },
   "profile": {
     "title": "Hồ Sơ Của Tôi",
     "loading": "Đang tải hồ sơ...",
     "analysis": "Phân Tích",
     "orders": "Đơn Hàng",
+    "appointments": "Lịch Hẹn",
+    "routines": "Phác Đồ",
     "security": "Bảo Mật",
     "settings": "Cài Đặt",
     "personalInfo": "Thông Tin Cá Nhân",
@@ -165,6 +170,142 @@
     "symptoms": "Triệu Chứng",
     "notes": "Ghi Chú"
   },
+  "appointments": {
+    "title": "Lịch Hẹn Của Tôi",
+    "loading": "Đang tải lịch hẹn...",
+    "error": "Không thể tải lịch hẹn.",
+    "loginRequired": "Vui lòng đăng nhập để xem lịch hẹn.",
+    "customerNotFound": "Không tìm thấy hồ sơ khách hàng.",
+    "emptyAll": "Bạn chưa có lịch hẹn nào.",
+    "emptyStatus": "Không có lịch hẹn trạng thái {{status}}.",
+    "status": {
+      "all": "Tất cả",
+      "pendingPayment": "Chờ thanh toán",
+      "scheduled": "Đã lên lịch",
+      "inProgress": "Đang diễn ra",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy",
+      "noShow": "Vắng mặt",
+      "interrupted": "Gián đoạn",
+      "disputed": "Tranh chấp",
+      "settled": "Đã quyết toán"
+    },
+    "cards": {
+      "dermatologist": "Bác sĩ da liễu",
+      "type": "Loại",
+      "time": "Thời gian",
+      "notes": "Ghi chú",
+      "unknown": "Không xác định"
+    },
+    "types": {
+      "newProblem": "Vấn đề mới",
+      "followUp": "Tái khám"
+    },
+    "viewDetails": "Xem chi tiết"
+  },
+  "appointmentDetail": {
+    "back": "Quay Lại",
+    "actions": {
+      "close": "Đóng"
+    },
+    "errors": {
+      "noId": "Không có mã lịch hẹn.",
+      "load": "Không thể tải chi tiết lịch hẹn.",
+      "notFound": "Không tìm thấy lịch hẹn.",
+      "checkInTitle": "Check-in thất bại",
+      "checkInMessage": "Không thể ghi nhận check-in.",
+      "meetingTitle": "Lỗi",
+      "meetingMessage": "Không thể mở liên kết cuộc hẹn."
+    },
+    "sections": {
+      "dermatologist": {
+        "title": "Bác sĩ da liễu",
+        "fallback": "Bác sĩ da liễu"
+      },
+      "patient": {
+        "title": "Bệnh nhân",
+        "name": "Tên:",
+        "email": "Email:",
+        "fallback": "Bệnh nhân"
+      },
+      "details": {
+        "title": "Chi Tiết Lịch Hẹn",
+        "date": "Ngày:",
+        "time": "Thời gian:",
+        "type": "Loại:",
+        "note": "Ghi chú của bạn:",
+        "medicalNote": "Ghi chú y khoa của bác sĩ:",
+        "adminNote": "Cập nhật từ quản trị:"
+      }
+    },
+    "join": {
+      "unavailable": "Không thể tham gia",
+      "joinable": "Có thể tham gia trước {{minutes}} phút",
+      "rejoin": "Tham gia lại cuộc hẹn",
+      "checkIn": "Check-in & Tham gia",
+      "copiedTitle": "Đã sao chép liên kết",
+      "copiedMessage": "Liên kết cuộc hẹn đã được sao chép."
+    },
+    "routineButton": "Xem phác đồ điều trị",
+    "cancel": {
+      "button": "Hủy lịch hẹn",
+      "title": "Xác nhận hủy?",
+      "refund": "Bạn hủy trước hơn 24 giờ. Lịch hẹn sẽ được hoàn tiền.",
+      "noRefund": "Bạn hủy trong vòng 24 giờ. Lịch hẹn sẽ không được hoàn tiền.",
+      "processing": "Đang hủy...",
+      "confirm": "Xác nhận hủy",
+      "stay": "Ở lại",
+      "successTitle": "Thành công",
+      "successMessage": "Lịch hẹn của bạn đã được hủy.",
+      "failureTitle": "Hủy thất bại",
+      "failureMessage": "Đã xảy ra lỗi."
+    },
+    "report": {
+      "menuTitle": "Báo cáo sự cố",
+      "noShow": "Bác sĩ không tham gia",
+      "interrupt": "Báo cáo gián đoạn",
+      "noShowTitle": "Báo cáo bác sĩ không tham gia",
+      "noShowSubtitle": "Bác sĩ có không tham gia cuộc hẹn?",
+      "noShowPlaceholder": "Thêm chi tiết (ví dụ: Bác sĩ không bật camera...)",
+      "cancel": "Hủy",
+      "submit": "Gửi báo cáo",
+      "interruptTitle": "Báo cáo gián đoạn",
+      "interruptSubtitle": "Vì sao lịch hẹn bị gián đoạn?",
+      "reason": "Lý do:",
+      "details": "Chi tiết:",
+      "detailsPlaceholder": "Mô tả điều đã xảy ra...",
+      "doctorIssue": "Lỗi từ bác sĩ",
+      "platformIssue": "Lỗi nền tảng (cuộc họp/kỹ thuật/kết nối)",
+      "customerIssue": "Vấn đề của tôi",
+      "noShowSuccessTitle": "Đã gửi báo cáo",
+      "noShowSuccessMessage": "Chúng tôi đã nhận được báo cáo về việc bác sĩ không tham gia.",
+      "noShowErrorMessage": "Không thể gửi báo cáo.",
+      "interruptSuccessTitle": "Đã gửi báo cáo",
+      "interruptSuccessMessage": "Chúng tôi đã nhận được báo cáo về sự gián đoạn.",
+      "interruptErrorMessage": "Không thể gửi báo cáo.",
+      "errorTitle": "Lỗi"
+    }
+  },
+  "routines": {
+    "title": "Phác Đồ Của Tôi",
+    "loading": "Đang tải phác đồ...",
+    "error": "Không thể tải phác đồ điều trị.",
+    "loginRequired": "Vui lòng đăng nhập để xem phác đồ.",
+    "customerNotFound": "Không tìm thấy hồ sơ khách hàng.",
+    "emptyAll": "Bạn chưa có phác đồ điều trị nào.",
+    "emptyStatus": "Không có phác đồ trạng thái {{status}}.",
+    "status": {
+      "all": "Tất cả",
+      "active": "Đang hoạt động",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy"
+    },
+    "cards": {
+      "created": "Ngày tạo",
+      "status": "Trạng thái"
+    },
+    "viewDetails": "Xem chi tiết"
+  },
   "cart": {
     "loading": "Đang tải giỏ hàng...",
     "loginRequired": "Vui lòng đăng nhập để xem giỏ hàng",
@@ -205,6 +346,59 @@
     "emptyCartDesc": "Giỏ hàng của bạn trống",
     "ok": "OK",
     "noItemsSelected": "Không Có Sản Phẩm Được Chọn",
+    "appointments": {
+      "title": "Lịch Hẹn Của Tôi",
+      "loading": "Đang tải lịch hẹn...",
+      "error": "Không thể tải lịch hẹn.",
+      "loginRequired": "Vui lòng đăng nhập để xem lịch hẹn.",
+      "customerNotFound": "Không tìm thấy hồ sơ khách hàng.",
+      "emptyAll": "Bạn chưa có lịch hẹn nào.",
+      "emptyStatus": "Không có lịch hẹn trạng thái {{status}}.",
+      "status": {
+        "all": "Tất cả",
+        "pendingPayment": "Chờ thanh toán",
+        "scheduled": "Đã lên lịch",
+        "inProgress": "Đang diễn ra",
+        "completed": "Hoàn thành",
+        "cancelled": "Đã hủy",
+        "noShow": "Vắng mặt",
+        "interrupted": "Gián đoạn",
+        "disputed": "Tranh chấp",
+        "settled": "Đã quyết toán"
+      },
+      "cards": {
+        "dermatologist": "Bác sĩ da liễu",
+        "type": "Loại",
+        "time": "Thời gian",
+        "notes": "Ghi chú",
+        "unknown": "Không xác định"
+      },
+      "types": {
+        "newProblem": "Vấn đề mới",
+        "followUp": "Tái khám"
+      },
+      "viewDetails": "Xem chi tiết"
+    },
+    "routines": {
+      "title": "Phác Đồ Của Tôi",
+      "loading": "Đang tải phác đồ...",
+      "error": "Không thể tải phác đồ điều trị.",
+      "loginRequired": "Vui lòng đăng nhập để xem phác đồ.",
+      "customerNotFound": "Không tìm thấy hồ sơ khách hàng.",
+      "emptyAll": "Bạn chưa có phác đồ điều trị nào.",
+      "emptyStatus": "Không có phác đồ trạng thái {{status}}.",
+      "status": {
+        "all": "Tất cả",
+        "active": "Đang hoạt động",
+        "completed": "Hoàn thành",
+        "cancelled": "Đã hủy"
+      },
+      "cards": {
+        "created": "Ngày tạo",
+        "status": "Trạng thái"
+      },
+      "viewDetails": "Xem chi tiết"
+    },
     "selectItemsToCheckout": "Vui lòng chọn ít nhất một sản phẩm để thanh toán",
     "error": "Lỗi",
     "loadError": "Không thể tải dữ liệu giỏ hàng",

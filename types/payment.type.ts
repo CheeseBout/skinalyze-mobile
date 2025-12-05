@@ -10,7 +10,7 @@ export interface Payment {
   paymentCode: string;
   status: PaymentStatus;
   amount: number;
-  paymentMethod: string | null;
+  paymentMethod: PaymentMethod | null;
   paidAt: string | null;
   expiredAt: string;
 }
@@ -22,8 +22,8 @@ export enum PaymentMethod {
 }
 
 export enum PaymentType {
-  ORDER = 'order',
-  TOPUP = 'topup', // Nạp tiền vào ví
-  BOOKING = 'booking',
-  SUBSCRIPTION = 'subscription',
+  ORDER = "order",
+  TOPUP = "topup", // Nạp tiền vào ví
+  BOOKING = "booking",
+  SUBSCRIPTION = "subscription",
 }

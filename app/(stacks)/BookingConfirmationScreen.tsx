@@ -192,7 +192,10 @@ export default function BookingConfirmationScreen() {
       if (customerData?.customerId) {
         const [analysesData, routinesData] = await Promise.all([
           skinAnalysisService.getUserAnalyses(customerData.customerId),
-          treatmentRoutineService.getCustomerRoutines(customerData.customerId),
+          treatmentRoutineService.getCustomerRoutines(
+            customerData.customerId,
+            params.dermatologistId
+          ),
         ]);
 
         setAnalyses(analysesData);
@@ -368,6 +371,7 @@ export default function BookingConfirmationScreen() {
 
     return (
       <Pressable
+        key={id}
         style={[
           styles.option,
           { backgroundColor, borderColor },

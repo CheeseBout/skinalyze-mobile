@@ -1,7 +1,7 @@
 export enum RoutineStatus {
-  ACTIVE = "active",
-  COMPLETED = "completed",
-  CANCELLED = "cancelled",
+  ACTIVE = "ACTIVE",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
 }
 
 export interface TreatmentRoutine {

@@ -76,6 +76,18 @@ export default function StackLayout() {
         }}
       />
       <Stack.Screen
+        name="MyAppointmentsScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="AppointmentDetailScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="OrderListScreen"
         options={{
           headerShown: false,
@@ -113,6 +125,12 @@ export default function StackLayout() {
       />
       <Stack.Screen
         name="MyReviewsScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="MyRoutinesScreen"
         options={{
           headerShown: false,
         }}

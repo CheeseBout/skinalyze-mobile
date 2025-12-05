@@ -24,6 +24,7 @@ import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 
 import appointmentService from "@/services/appointmentService";
 import {
@@ -32,51 +33,95 @@ import {
   ReportNoShowDto,
   TerminationReason,
 } from "@/types/appointment.type";
-import { AppointmentStatus } from "@/types/appointment.type";
+import { AppointmentStatus, AppointmentType } from "@/types/appointment.type";
 import CustomAlert from "@/components/CustomAlert";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 
 const CHECK_IN_WINDOW_MINUTES = 10;
-const formatTime = (isoDate: string) => {
-  if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleTimeString("en-US", {
+const statusTranslationKeys: Record<AppointmentStatus, string> = {
+  [AppointmentStatus.PENDING_PAYMENT]: "pendingPayment",
+  [AppointmentStatus.SCHEDULED]: "scheduled",
+  [AppointmentStatus.IN_PROGRESS]: "inProgress",
+  [AppointmentStatus.COMPLETED]: "completed",
+  [AppointmentStatus.CANCELLED]: "cancelled",
+  [AppointmentStatus.NO_SHOW]: "noShow",
+  [AppointmentStatus.INTERRUPTED]: "interrupted",
+  [AppointmentStatus.DISPUTED]: "disputed",
+  [AppointmentStatus.SETTLED]: "completed",
+};
+
+const statusStyleMeta: Record<
+  AppointmentStatus,
+  { color: string; icon: string }
+> = {
+  [AppointmentStatus.PENDING_PAYMENT]: {
+    color: "#FB8C00",
+    icon: "clock-outline",
+  },
+  [AppointmentStatus.SCHEDULED]: {
+    color: "#007bff",
+    icon: "calendar-check",
+  },
+  [AppointmentStatus.IN_PROGRESS]: {
+    color: "#E91E63",
+    icon: "video",
+  },
+  [AppointmentStatus.INTERRUPTED]: {
+    color: "#ff9800",
+    icon: "alert-octagon",
+  },
+  [AppointmentStatus.COMPLETED]: {
+    color: "#4CAF50",
+    icon: "check-decagram",
+  },
+  [AppointmentStatus.CANCELLED]: {
+    color: "#9E9E9E",
+    icon: "close-circle",
+  },
+  [AppointmentStatus.NO_SHOW]: {
+    color: "#f44336",
+    icon: "account-off",
+  },
+  [AppointmentStatus.DISPUTED]: {
+    color: "#ff7043",
+    icon: "gavel",
+  },
+  [AppointmentStatus.SETTLED]: {
+    color: "#4CAF50",
+    icon: "check-decagram",
+  },
+};
+
+const defaultStatusStyle = { color: "#FF9800", icon: "alert-circle" };
+
+const appointmentTypeTranslationKeys: Record<AppointmentType, string> = {
+  [AppointmentType.NEW_PROBLEM]: "newProblem",
+  [AppointmentType.FOLLOW_UP]: "followUp",
+};
+const formatTime = (isoDate: string, fallback = "N/A") => {
+  if (!isoDate) return fallback;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+  return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
 };
-const formatDate = (isoDate: string) => {
-  if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleDateString("en-GB", {
+const formatDate = (isoDate: string, fallback = "N/A") => {
+  if (!isoDate) return fallback;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+  return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-};
-
-const getStatusInfo = (
-  status: AppointmentStatus | string
-): { text: string; color: string; icon: any } => {
-  switch (status) {
-    case AppointmentStatus.SCHEDULED:
-      return { text: "Scheduled", color: "#007bff", icon: "calendar-check" };
-    case AppointmentStatus.IN_PROGRESS:
-      return { text: "In Progress", color: "#E91E63", icon: "video" };
-    case AppointmentStatus.INTERRUPTED:
-      return { text: "Interrupted", color: "#ff9800", icon: "alert-octagon" };
-    case AppointmentStatus.COMPLETED:
-    case AppointmentStatus.SETTLED:
-      return { text: "Completed", color: "#4CAF50", icon: "check-decagram" };
-    case AppointmentStatus.CANCELLED:
-      return { text: "Cancelled", color: "#9E9E9E", icon: "close-circle" };
-    case AppointmentStatus.NO_SHOW:
-      return { text: "No Show", color: "#f44336", icon: "account-off" };
-    case AppointmentStatus.DISPUTED:
-      return { text: "Disputed", color: "#ff7043", icon: "gavel" };
-    default:
-      return { text: status, color: "#FF9800", icon: "alert-circle" };
-  }
 };
 
 type FeedbackAlertState = {
@@ -90,6 +135,7 @@ type FeedbackAlertState = {
 export default function AppointmentDetailScreen() {
   const router = useRouter();
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
 
   const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -97,11 +143,13 @@ export default function AppointmentDetailScreen() {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelWarning, setCancelWarning] = useState("");
+  const [cancelWarningKey, setCancelWarningKey] = useState<
+    "refund" | "noRefund" | null
+  >(null);
 
   // Modal No-Show
   const [isNoShowModalVisible, setIsNoShowModalVisible] = useState(false);
@@ -121,13 +169,12 @@ export default function AppointmentDetailScreen() {
     title: "",
     message: "",
     type: "info",
-    confirmText: "Close",
   });
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   const fetchAppointment = useCallback(async () => {
     if (!appointmentId) {
-      setError("No appointment ID provided.");
+      setErrorKey("appointmentDetail.errors.noId");
       setIsLoading(false);
       return;
     }
@@ -135,9 +182,10 @@ export default function AppointmentDetailScreen() {
       setIsLoading(true);
       const data = await appointmentService.getAppointmentById(appointmentId);
       setAppointment(data);
+      setErrorKey(null);
     } catch (err) {
       console.error("Failed to load appointment details:", err);
-      setError("Failed to load appointment details.");
+      setErrorKey("appointmentDetail.errors.load");
     } finally {
       setIsLoading(false);
     }
@@ -201,6 +249,36 @@ export default function AppointmentDetailScreen() {
     return canReport;
   }, [appointment, canReport]);
 
+  const getStatusInfo = useCallback(
+    (status: AppointmentStatus | string) => {
+      const meta =
+        statusStyleMeta[status as AppointmentStatus] || defaultStatusStyle;
+      const translationKey = statusTranslationKeys[status as AppointmentStatus];
+      const translatedText = translationKey
+        ? t(`appointments.status.${translationKey}`)
+        : undefined;
+      return {
+        text: translatedText || String(status),
+        color: meta.color,
+        icon: meta.icon,
+      };
+    },
+    [t]
+  );
+
+  const getTypeLabel = useCallback(
+    (type: AppointmentType | null | undefined) => {
+      if (!type) {
+        return t("appointments.cards.unknown");
+      }
+      const translationKey = appointmentTypeTranslationKeys[type];
+      return translationKey
+        ? t(`appointments.types.${translationKey}`)
+        : type.replace(/_/g, " ");
+    },
+    [t]
+  );
+
   useEffect(() => {
     if (!canReportNoShow && isNoShowModalVisible) {
       setIsNoShowModalVisible(false);
@@ -219,12 +297,11 @@ export default function AppointmentDetailScreen() {
       );
       setFeedbackAlert({
         visible: true,
-        title: "Report Sent",
+        title: t("appointmentDetail.report.noShowSuccessTitle"),
         message:
-          result.message ||
-          "We have received your report regarding doctor no-show.",
+          result?.message || t("appointmentDetail.report.noShowSuccessMessage"),
         type: "success",
-        confirmText: "Close",
+        confirmText: t("appointmentDetail.actions.close"),
       });
 
       setIsNoShowModalVisible(false);
@@ -233,10 +310,11 @@ export default function AppointmentDetailScreen() {
     } catch (error: any) {
       setFeedbackAlert({
         visible: true,
-        title: "Error",
-        message: error.message || "Failed to send report.",
+        title: t("appointmentDetail.report.errorTitle"),
+        message:
+          error?.message || t("appointmentDetail.report.noShowErrorMessage"),
         type: "error",
-        confirmText: "OK",
+        confirmText: t("appointmentDetail.actions.close"),
       });
     } finally {
       setIsReportingNoShow(false);
@@ -255,10 +333,10 @@ export default function AppointmentDetailScreen() {
       await appointmentService.reportInterrupt(appointmentId, dto);
       setFeedbackAlert({
         visible: true,
-        title: "Report Sent",
-        message: "We have received your report regarding the interruption.",
+        title: t("appointmentDetail.report.interruptSuccessTitle"),
+        message: t("appointmentDetail.report.interruptSuccessMessage"),
         type: "success",
-        confirmText: "Close",
+        confirmText: t("appointmentDetail.actions.close"),
       });
 
       setIsInterruptModalVisible(false);
@@ -267,10 +345,11 @@ export default function AppointmentDetailScreen() {
     } catch (error: any) {
       setFeedbackAlert({
         visible: true,
-        title: "Error",
-        message: error.message || "Failed to send report.",
+        title: t("appointmentDetail.report.errorTitle"),
+        message:
+          error?.message || t("appointmentDetail.report.interruptErrorMessage"),
         type: "error",
-        confirmText: "OK",
+        confirmText: t("appointmentDetail.actions.close"),
       });
     } finally {
       setIsReportingInterrupt(false);
@@ -292,18 +371,18 @@ export default function AppointmentDetailScreen() {
       if (err.message?.includes("check-in")) {
         setFeedbackAlert({
           visible: true,
-          title: "Check-in Failed",
-          message: err.message || "Could not record check-in.",
+          title: t("appointmentDetail.errors.checkInTitle"),
+          message: err?.message || t("appointmentDetail.errors.checkInMessage"),
           type: "error",
-          confirmText: "Close",
+          confirmText: t("appointmentDetail.actions.close"),
         });
       } else {
         setFeedbackAlert({
           visible: true,
-          title: "Error",
-          message: "Could not open the meeting link.",
+          title: t("appointmentDetail.errors.meetingTitle"),
+          message: t("appointmentDetail.errors.meetingMessage"),
           type: "error",
-          confirmText: "Close",
+          confirmText: t("appointmentDetail.actions.close"),
         });
       }
     } finally {
@@ -325,15 +404,7 @@ export default function AppointmentDetailScreen() {
     const now = new Date();
     const hoursDiff = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    if (hoursDiff > 24) {
-      setCancelWarning(
-        "You are cancelling more than 24 hours in advance. You will be refunded."
-      );
-    } else {
-      setCancelWarning(
-        "You are cancelling less than 24 hours before. This booking is non-refundable."
-      );
-    }
+    setCancelWarningKey(hoursDiff > 24 ? "refund" : "noRefund");
 
     setIsCancelModalVisible(true);
   };
@@ -348,18 +419,18 @@ export default function AppointmentDetailScreen() {
 
       setFeedbackAlert({
         visible: true,
-        title: "Success",
-        message: "Your appointment has been cancelled.",
+        title: t("appointmentDetail.cancel.successTitle"),
+        message: t("appointmentDetail.cancel.successMessage"),
         type: "success",
-        confirmText: "Close",
+        confirmText: t("appointmentDetail.actions.close"),
       });
     } catch (error: any) {
       setFeedbackAlert({
         visible: true,
-        title: "Cancellation Failed",
-        message: error.message || "An error occurred.",
+        title: t("appointmentDetail.cancel.failureTitle"),
+        message: error?.message || t("appointmentDetail.cancel.failureMessage"),
         type: "error",
-        confirmText: "Close",
+        confirmText: t("appointmentDetail.actions.close"),
       });
     } finally {
       setIsCancelling(false);
@@ -372,11 +443,11 @@ export default function AppointmentDetailScreen() {
       return <ActivityIndicator size="large" style={styles.center} />;
     }
 
-    if (error || !appointment) {
+    if (errorKey || !appointment) {
       return (
         <View style={styles.center}>
           <Text style={styles.errorText}>
-            {error || "Appointment not found."}
+            {errorKey ? t(errorKey) : t("appointmentDetail.errors.notFound")}
           </Text>
         </View>
       );
@@ -407,13 +478,25 @@ export default function AppointmentDetailScreen() {
     const canJoinNow =
       isJoinableStatus && hasMeetingUrl && (isJoinableTime || hasCheckedIn);
 
+    const joinButtonLabel = !canJoinNow
+      ? !isJoinableStatus || !hasMeetingUrl
+        ? t("appointmentDetail.join.unavailable")
+        : t("appointmentDetail.join.joinable", {
+            minutes: CHECK_IN_WINDOW_MINUTES,
+          })
+      : hasCheckedIn
+      ? t("appointmentDetail.join.rejoin")
+      : t("appointmentDetail.join.checkIn");
+
     return (
       <>
         {/* === TOP BAR  === */}
         <View style={styles.topBar}>
           <Pressable style={styles.topBarButton} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="#007bff" />
-            <Text style={styles.backButtonText}>Back</Text>
+            <Text style={styles.backButtonText}>
+              {t("appointmentDetail.back")}
+            </Text>
           </Pressable>
 
           {/* Validate show report menu */}
@@ -435,7 +518,7 @@ export default function AppointmentDetailScreen() {
             style={[styles.statusCard, { backgroundColor: statusInfo.color }]}
           >
             <MaterialCommunityIcons
-              name={statusInfo.icon}
+              name={statusInfo.icon as any}
               size={24}
               color="#fff"
             />
@@ -457,7 +540,9 @@ export default function AppointmentDetailScreen() {
 
           {/* Dermatologist */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Dermatologist</Text>
+            <Text style={styles.cardTitle}>
+              {t("appointmentDetail.sections.dermatologist.title")}
+            </Text>
             <View style={styles.doctorHeader}>
               <Image
                 style={styles.doctorAvatar}
@@ -469,7 +554,8 @@ export default function AppointmentDetailScreen() {
               />
               <View style={styles.doctorInfo}>
                 <Text style={styles.doctorName}>
-                  {appointment.dermatologist?.user?.fullName || "Dermatologist"}
+                  {appointment.dermatologist?.user?.fullName ||
+                    t("appointmentDetail.sections.dermatologist.fallback")}
                 </Text>
                 {/* (Assuming API does NOT have 'specialization',
                 {/* <Text style={styles.doctorSpec}>
@@ -481,15 +567,22 @@ export default function AppointmentDetailScreen() {
 
           {/* Customer Information */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Patient</Text>
+            <Text style={styles.cardTitle}>
+              {t("appointmentDetail.sections.patient.title")}
+            </Text>
             <View style={styles.row}>
-              <Text style={styles.label}>Name:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.sections.patient.name")}
+              </Text>
               <Text style={styles.value}>
-                {appointment.customer?.user?.fullName || "Patient"}
+                {appointment.customer?.user?.fullName ||
+                  t("appointmentDetail.sections.patient.fallback")}
               </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Email:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.sections.patient.email")}
+              </Text>
               <Text style={styles.emailValue}>
                 {appointment.customer?.user?.email}
               </Text>
@@ -498,30 +591,44 @@ export default function AppointmentDetailScreen() {
 
           {/* Appointment Details */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Appointment Details</Text>
+            <Text style={styles.cardTitle}>
+              {t("appointmentDetail.sections.details.title")}
+            </Text>
             <View style={styles.row}>
-              <Text style={styles.label}>Date:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.sections.details.date")}
+              </Text>
               <Text style={styles.value}>
-                {formatDate(appointment.startTime)}
+                {formatDate(appointment.startTime, t("common.notAvailable"))}
               </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Time:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.sections.details.time")}
+              </Text>
               <Text style={styles.value}>
-                {`${formatTime(appointment.startTime)} - ${formatTime(
-                  appointment.endTime
+                {`${formatTime(
+                  appointment.startTime,
+                  t("common.notAvailable")
+                )} - ${formatTime(
+                  appointment.endTime,
+                  t("common.notAvailable")
                 )}`}
               </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Type:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.sections.details.type")}
+              </Text>
               <Text style={styles.value}>
-                {appointment.appointmentType.replace("_", " ")}
+                {getTypeLabel(appointment.appointmentType as AppointmentType)}
               </Text>
             </View>
             {appointment.note && (
               <View style={styles.noteContainer}>
-                <Text style={styles.label}>Your Note:</Text>
+                <Text style={styles.label}>
+                  {t("appointmentDetail.sections.details.note")}
+                </Text>
                 <Text style={styles.noteText}>{appointment.note}</Text>
               </View>
             )}
@@ -534,7 +641,7 @@ export default function AppointmentDetailScreen() {
                     { color: "#28a745", fontWeight: "bold" },
                   ]}
                 >
-                  Doctor's Medical Note:
+                  {t("appointmentDetail.sections.details.medicalNote")}
                 </Text>
                 <Text
                   style={[
@@ -561,7 +668,7 @@ export default function AppointmentDetailScreen() {
                     style={styles.adminNoteIcon}
                   />
                   <Text style={[styles.label, styles.adminNoteLabel]}>
-                    Admin Update:
+                    {t("appointmentDetail.sections.details.adminNote")}
                   </Text>
                 </View>
                 <Text style={[styles.noteText, styles.adminNoteText]}>
@@ -591,15 +698,7 @@ export default function AppointmentDetailScreen() {
                     size={24}
                     color="#fff"
                   />
-                  <Text style={styles.joinButtonText}>
-                    {!canJoinNow
-                      ? !isJoinableStatus || !hasMeetingUrl
-                        ? "Join Unavailable"
-                        : `Joinable ${CHECK_IN_WINDOW_MINUTES} mins before`
-                      : hasCheckedIn
-                      ? "Re-Join Meeting"
-                      : "Check-in & Join"}
-                  </Text>
+                  <Text style={styles.joinButtonText}>{joinButtonLabel}</Text>
                 </>
               )}
             </Pressable>
@@ -612,10 +711,10 @@ export default function AppointmentDetailScreen() {
                   await Clipboard.setStringAsync(appointment.meetingUrl);
                   setFeedbackAlert({
                     visible: true,
-                    title: "Link Copied",
-                    message: "Meeting link copied to clipboard.",
+                    title: t("appointmentDetail.join.copiedTitle"),
+                    message: t("appointmentDetail.join.copiedMessage"),
                     type: "success",
-                    confirmText: "Close",
+                    confirmText: t("appointmentDetail.actions.close"),
                   });
                 }}
               >
@@ -639,7 +738,7 @@ export default function AppointmentDetailScreen() {
                 color="#fff"
               />
               <Text style={styles.routineButtonText}>
-                View Treatment Routine
+                {t("appointmentDetail.routineButton")}
               </Text>
             </Pressable>
           )}
@@ -650,18 +749,28 @@ export default function AppointmentDetailScreen() {
               onPress={handleOpenCancelModal}
             >
               <MaterialCommunityIcons name="cancel" size={24} color="#fff" />
-              <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
+              <Text style={styles.cancelButtonText}>
+                {t("appointmentDetail.cancel.button")}
+              </Text>
             </Pressable>
           )}
         </View>
 
         <CustomAlert
           visible={isCancelModalVisible}
-          title="Confirm Cancellation?"
-          message={cancelWarning}
+          title={t("appointmentDetail.cancel.title")}
+          message={
+            cancelWarningKey
+              ? t(`appointmentDetail.cancel.${cancelWarningKey}`)
+              : ""
+          }
           type="warning"
-          confirmText={isCancelling ? "Cancelling..." : "Confirm Cancel"}
-          cancelText="Stay"
+          confirmText={
+            isCancelling
+              ? t("appointmentDetail.cancel.processing")
+              : t("appointmentDetail.cancel.confirm")
+          }
+          cancelText={t("appointmentDetail.cancel.stay")}
           onConfirm={handleConfirmCancel}
           onCancel={() => setIsCancelModalVisible(false)}
         />
@@ -671,7 +780,9 @@ export default function AppointmentDetailScreen() {
           title={feedbackAlert.title}
           message={feedbackAlert.message}
           type={feedbackAlert.type}
-          confirmText={feedbackAlert.confirmText}
+          confirmText={
+            feedbackAlert.confirmText || t("appointmentDetail.actions.close")
+          }
           onConfirm={() =>
             setFeedbackAlert((prev) => ({ ...prev, visible: false }))
           }
@@ -688,7 +799,9 @@ export default function AppointmentDetailScreen() {
             onPress={() => setIsMenuVisible(false)}
           >
             <View style={styles.menuContainer}>
-              <Text style={styles.menuTitle}>Report Issue</Text>
+              <Text style={styles.menuTitle}>
+                {t("appointmentDetail.report.menuTitle")}
+              </Text>
 
               {canReportNoShow && (
                 <>
@@ -704,7 +817,9 @@ export default function AppointmentDetailScreen() {
                       size={24}
                       color="#f44336"
                     />
-                    <Text style={styles.menuText}>Doctor No-Show</Text>
+                    <Text style={styles.menuText}>
+                      {t("appointmentDetail.report.noShow")}
+                    </Text>
                   </TouchableOpacity>
 
                   <View style={styles.divider} />
@@ -723,7 +838,9 @@ export default function AppointmentDetailScreen() {
                   size={24}
                   color="#FF9800"
                 />
-                <Text style={styles.menuText}>Report Interruption</Text>
+                <Text style={styles.menuText}>
+                  {t("appointmentDetail.report.interrupt")}
+                </Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -738,14 +855,16 @@ export default function AppointmentDetailScreen() {
         >
           <View style={styles.formModalOverlay}>
             <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Report Doctor No-Show</Text>
+              <Text style={styles.formTitle}>
+                {t("appointmentDetail.report.noShowTitle")}
+              </Text>
               <Text style={styles.formSubtitle}>
-                Did the doctor fail to join the meeting?
+                {t("appointmentDetail.report.noShowSubtitle")}
               </Text>
 
               <TextInput
                 style={styles.textArea}
-                placeholder="Add details (e.g. Doctor didn't turn on camera...)"
+                placeholder={t("appointmentDetail.report.noShowPlaceholder")}
                 multiline
                 numberOfLines={4}
                 value={noShowNote}
@@ -757,7 +876,9 @@ export default function AppointmentDetailScreen() {
                   style={styles.formButtonCancel}
                   onPress={() => setIsNoShowModalVisible(false)}
                 >
-                  <Text style={styles.formButtonTextCancel}>Cancel</Text>
+                  <Text style={styles.formButtonTextCancel}>
+                    {t("appointmentDetail.report.cancel")}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.formButtonSubmit}
@@ -768,7 +889,7 @@ export default function AppointmentDetailScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={styles.formButtonTextSubmit}>
-                      Submit Report
+                      {t("appointmentDetail.report.submit")}
                     </Text>
                   )}
                 </Pressable>
@@ -786,36 +907,42 @@ export default function AppointmentDetailScreen() {
         >
           <View style={styles.formModalOverlay}>
             <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Report Interruption</Text>
+              <Text style={styles.formTitle}>
+                {t("appointmentDetail.report.interruptTitle")}
+              </Text>
               <Text style={styles.formSubtitle}>
-                Why was the appointment interrupted?
+                {t("appointmentDetail.report.interruptSubtitle")}
               </Text>
 
-              <Text style={styles.label}>Reason:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.report.reason")}
+              </Text>
               <View style={styles.pickerWrapper}>
                 <Picker
                   selectedValue={interruptReason}
                   onValueChange={(itemValue) => setInterruptReason(itemValue)}
                 >
                   <Picker.Item
-                    label="Doctor Issue "
+                    label={t("appointmentDetail.report.doctorIssue")}
                     value={TerminationReason.DOCTOR_ISSUE}
                   />
                   <Picker.Item
-                    label="Platform Issue (Meeting/Technical Issue/Internet)"
+                    label={t("appointmentDetail.report.platformIssue")}
                     value={TerminationReason.PLATFORM_ISSUE}
                   />
                   <Picker.Item
-                    label="My Issue "
+                    label={t("appointmentDetail.report.customerIssue")}
                     value={TerminationReason.CUSTOMER_ISSUE}
                   />
                 </Picker>
               </View>
 
-              <Text style={styles.label}>Details:</Text>
+              <Text style={styles.label}>
+                {t("appointmentDetail.report.details")}
+              </Text>
               <TextInput
                 style={styles.textArea}
-                placeholder="Describe what happened..."
+                placeholder={t("appointmentDetail.report.detailsPlaceholder")}
                 multiline
                 numberOfLines={4}
                 value={interruptNote}
@@ -827,7 +954,9 @@ export default function AppointmentDetailScreen() {
                   style={styles.formButtonCancel}
                   onPress={() => setIsInterruptModalVisible(false)}
                 >
-                  <Text style={styles.formButtonTextCancel}>Cancel</Text>
+                  <Text style={styles.formButtonTextCancel}>
+                    {t("appointmentDetail.report.cancel")}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.formButtonSubmit}
@@ -838,7 +967,7 @@ export default function AppointmentDetailScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={styles.formButtonTextSubmit}>
-                      Submit Report
+                      {t("appointmentDetail.report.submit")}
                     </Text>
                   )}
                 </Pressable>

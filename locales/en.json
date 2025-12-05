@@ -1,9 +1,14 @@
 {
+  "common": {
+    "notAvailable": "N/A"
+  },
   "profile": {
     "title": "My Profile",
     "loading": "Loading profile...",
     "analysis": "Analysis",
     "orders": "Orders",
+    "appointments": "Appointments",
+    "routines": "Routines",
     "security": "Security",
     "settings": "Settings",
     "personalInfo": "Personal Information",
@@ -164,6 +169,142 @@
     "manualRecord": "Manual Record",
     "symptoms": "Symptoms",
     "notes": "Notes"
+  },
+  "appointments": {
+    "title": "My Appointments",
+    "loading": "Loading appointments...",
+    "error": "Failed to load appointments.",
+    "loginRequired": "Please sign in to view your appointments.",
+    "customerNotFound": "We couldn't find your customer profile.",
+    "emptyAll": "You don't have any appointments yet.",
+    "emptyStatus": "No appointments with status {{status}}.",
+    "status": {
+      "all": "All",
+      "pendingPayment": "Pending Payment",
+      "scheduled": "Scheduled",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "noShow": "No Show",
+      "interrupted": "Interrupted",
+      "disputed": "Disputed",
+      "settled": "Settled"
+    },
+    "cards": {
+      "dermatologist": "Dermatologist",
+      "type": "Type",
+      "time": "Time",
+      "notes": "Notes",
+      "unknown": "Unknown"
+    },
+    "types": {
+      "newProblem": "New Problem",
+      "followUp": "Follow-up"
+    },
+    "viewDetails": "View Details"
+  },
+  "appointmentDetail": {
+    "back": "Back",
+    "actions": {
+      "close": "Close"
+    },
+    "errors": {
+      "noId": "No appointment ID provided.",
+      "load": "Failed to load appointment details.",
+      "notFound": "Appointment not found.",
+      "checkInTitle": "Check-in Failed",
+      "checkInMessage": "Could not record check-in.",
+      "meetingTitle": "Error",
+      "meetingMessage": "Could not open the meeting link."
+    },
+    "sections": {
+      "dermatologist": {
+        "title": "Dermatologist",
+        "fallback": "Dermatologist"
+      },
+      "patient": {
+        "title": "Patient",
+        "name": "Name:",
+        "email": "Email:",
+        "fallback": "Patient"
+      },
+      "details": {
+        "title": "Appointment Details",
+        "date": "Date:",
+        "time": "Time:",
+        "type": "Type:",
+        "note": "Your Note:",
+        "medicalNote": "Doctor's Medical Note:",
+        "adminNote": "Admin Update:"
+      }
+    },
+    "join": {
+      "unavailable": "Join Unavailable",
+      "joinable": "Joinable {{minutes}} mins before",
+      "rejoin": "Re-Join Meeting",
+      "checkIn": "Check-in & Join",
+      "copiedTitle": "Link Copied",
+      "copiedMessage": "Meeting link copied to clipboard."
+    },
+    "routineButton": "View Treatment Routine",
+    "cancel": {
+      "button": "Cancel Appointment",
+      "title": "Confirm Cancellation?",
+      "refund": "You are cancelling more than 24 hours in advance. You will be refunded.",
+      "noRefund": "You are cancelling less than 24 hours before. This booking is non-refundable.",
+      "processing": "Cancelling...",
+      "confirm": "Confirm Cancel",
+      "stay": "Stay",
+      "successTitle": "Success",
+      "successMessage": "Your appointment has been cancelled.",
+      "failureTitle": "Cancellation Failed",
+      "failureMessage": "An error occurred."
+    },
+    "report": {
+      "menuTitle": "Report Issue",
+      "noShow": "Doctor No-Show",
+      "interrupt": "Report Interruption",
+      "noShowTitle": "Report Doctor No-Show",
+      "noShowSubtitle": "Did the doctor fail to join the meeting?",
+      "noShowPlaceholder": "Add details (e.g. Doctor didn't turn on camera...)",
+      "cancel": "Cancel",
+      "submit": "Submit Report",
+      "interruptTitle": "Report Interruption",
+      "interruptSubtitle": "Why was the appointment interrupted?",
+      "reason": "Reason:",
+      "details": "Details:",
+      "detailsPlaceholder": "Describe what happened...",
+      "doctorIssue": "Doctor Issue",
+      "platformIssue": "Platform Issue (Meeting/Technical Issue/Internet)",
+      "customerIssue": "My Issue",
+      "noShowSuccessTitle": "Report Sent",
+      "noShowSuccessMessage": "We have received your report regarding doctor no-show.",
+      "noShowErrorMessage": "Failed to send report.",
+      "interruptSuccessTitle": "Report Sent",
+      "interruptSuccessMessage": "We have received your report regarding the interruption.",
+      "interruptErrorMessage": "Failed to send report.",
+      "errorTitle": "Error"
+    }
+  },
+  "routines": {
+    "title": "My Routines",
+    "loading": "Loading routines...",
+    "error": "Failed to load treatment routines.",
+    "loginRequired": "Please sign in to view your routines.",
+    "customerNotFound": "We couldn't find your customer profile.",
+    "emptyAll": "You don't have any treatment routines yet.",
+    "emptyStatus": "No routines with status {{status}}.",
+    "status": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "cards": {
+      "created": "Created",
+      "status": "Status"
+    },
+    "viewDetails": "View Details"
   },
   "cart": {
     "loading": "Loading cart...",

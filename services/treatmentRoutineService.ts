@@ -4,10 +4,22 @@ import { TreatmentRoutine } from "@/types/treatment-routine.type";
 import { RoutineDetail } from "@/types/routine-detail.type";
 
 class TreatmentRoutineService {
-  async getCustomerRoutines(customerId: string): Promise<TreatmentRoutine[]> {
+  async getCustomerRoutines(
+    customerId: string,
+    dermatologistId?: string,
+    status?: string
+  ): Promise<TreatmentRoutine[]> {
     try {
       const response = await apiService.get<ApiResponse<TreatmentRoutine[]>>(
-        `/treatment-routines/customer/${customerId}`
+        `/treatment-routines/customer/${customerId}`,
+        dermatologistId || status
+          ? {
+              params: {
+                ...(dermatologistId ? { dermatologistId } : {}),
+                ...(status ? { status } : {}),
+              },
+            }
+          : undefined
       );
       return response.data;
     } catch (error) {

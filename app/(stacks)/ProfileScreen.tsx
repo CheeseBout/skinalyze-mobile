@@ -23,6 +23,11 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/hooks/useLanguage";
 
 const { width } = Dimensions.get("window");
+const QUICK_ACTION_COLUMNS = 3;
+const QUICK_ACTION_SPACING = 12;
+const quickActionItemWidth =
+  (width - 48 - (QUICK_ACTION_COLUMNS - 1) * QUICK_ACTION_SPACING) /
+  QUICK_ACTION_COLUMNS;
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -406,6 +411,20 @@ export default function ProfileScreen() {
             color="#007AFF"
             bgColor="#F0F9FF"
             onPress={() => router.push("/(stacks)/OrderListScreen")}
+          />
+          <QuickActionButton
+            icon="calendar"
+            label={t("profile.appointments")}
+            color="#FF6F00"
+            bgColor="#FFF3E0"
+            onPress={() => router.push("/(stacks)/MyAppointmentsScreen")}
+          />
+          <QuickActionButton
+            icon="clipboard"
+            label={t("profile.routines")}
+            color="#10B981"
+            bgColor="#ECFDF5"
+            onPress={() => router.push("/(stacks)/MyRoutinesScreen")}
           />
           <QuickActionButton
             icon="chatbubbles"
@@ -1010,16 +1029,18 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     paddingHorizontal: 24,
-    gap: 8,
     marginBottom: 20,
   },
   quickActionButton: {
-    flex: 1,
+    width: quickActionItemWidth,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     alignItems: "center",
+    marginBottom: QUICK_ACTION_SPACING,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
