@@ -63,6 +63,15 @@ const normalizeNumberParam = (value?: string) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+const formatPaymentMethodLabel = (method?: string | null) => {
+  if (!method) return "Subscription";
+  const normalized = method.toLowerCase();
+  if (normalized === "wallet") return "Wallet";
+  if (normalized === "banking") return "Bank Transfer";
+  if (normalized === "cash") return "Cash";
+  return method.toUpperCase();
+};
 // --- End Helpers ---
 
 export default function PaymentSuccessScreen() {
@@ -150,40 +159,68 @@ export default function PaymentSuccessScreen() {
   ]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    let isActive = true;
+
+    const fetchAppointmentDetails = async () => {
       try {
         setIsLoading(true);
-        if (!paymentCode) {
-          throw new Error("Payment code is missing.");
+        setAppointment(null);
+        setPaymentData(null);
+        setOrder(null);
+        if (!appointmentId) {
+          return;
         }
+        const data = await appointmentService.getAppointmentById(appointmentId);
+        if (!isActive) return;
+        setAppointment(data);
+        setPaymentType(PaymentType.BOOKING);
+      } catch (error) {
+        if (isActive) {
+          console.error("Failed to load appointment:", error);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-        // Fetch payment status to get paymentType and other details
+    const fetchPaymentDetails = async () => {
+      if (!paymentCode) {
+        if (isActive) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setAppointment(null);
         const paymentStatus = await paymentService.checkPaymentStatus(
           paymentCode
         );
+        if (!isActive) return;
         setPaymentData(paymentStatus);
 
-        // Determine payment type and fetch relevant data
-        if (paymentStatus.paymentType === "booking") {
-          setPaymentType(PaymentType.BOOKING);
-          if (appointmentId) {
-            const data = await appointmentService.getAppointmentById(
-              appointmentId
-            );
-            setAppointment(data);
-          }
-        } else if (paymentStatus.paymentType === "order") {
+        if (paymentStatus.paymentType === "order") {
           setPaymentType(PaymentType.ORDER);
           const orderIdToUse = paymentStatus.order?.orderId || orderId;
           if (orderIdToUse) {
-            const token = await tokenService.getToken();
-            if (!token) {
-              throw new Error(
-                "Authentication token not found. Please log in again."
-              );
+            try {
+              const token = await tokenService.getToken();
+              if (!token) {
+                throw new Error(
+                  "Authentication token not found. Please log in again."
+                );
+              }
+              const data = await orderService.getOrderById(orderIdToUse, token);
+              if (!isActive) return;
+              setOrder(data);
+            } catch (error) {
+              if (isActive) {
+                console.error("Failed to load order:", error);
+              }
             }
-            const data = await orderService.getOrderById(orderIdToUse, token);
-            setOrder(data);
           }
         } else if (paymentStatus.paymentType === "subscription") {
           setPaymentType(PaymentType.SUBSCRIPTION);
@@ -191,21 +228,31 @@ export default function PaymentSuccessScreen() {
             ...prev,
             amount: prev.amount ?? paymentStatus.amount,
           }));
+        } else if (paymentStatus.paymentType === "booking") {
+          setPaymentType(PaymentType.BOOKING);
         } else {
-          setPaymentType("other"); // For 'topup', 'subscription', etc.
+          setPaymentType("other");
         }
       } catch (error) {
-        console.error("Failed to load details:", error);
+        if (isActive) {
+          console.error("Failed to load payment details:", error);
+        }
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       }
     };
 
-    if (paymentCode) {
-      fetchData();
+    if (appointmentId) {
+      fetchAppointmentDetails();
     } else {
-      setIsLoading(false);
+      fetchPaymentDetails();
     }
+
+    return () => {
+      isActive = false;
+    };
   }, [appointmentId, orderId, paymentCode]);
 
   // Navigation handler (customized per payment type)
@@ -293,7 +340,9 @@ export default function PaymentSuccessScreen() {
         subscriptionInfo.amount ?? paymentData?.amount
       );
       const methodLabel = paymentCode
-        ? paymentData?.paymentMethod?.toUpperCase() || "N/A"
+        ? paymentData?.paymentMethod
+          ? formatPaymentMethodLabel(paymentData.paymentMethod)
+          : "N/A"
         : "Wallet Balance";
 
       return (
@@ -360,7 +409,9 @@ export default function PaymentSuccessScreen() {
           <View style={styles.row}>
             <Text style={labelStyle}>Method:</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
-              {paymentData?.paymentMethod?.toUpperCase() || "N/A"}
+              {paymentData?.paymentMethod
+                ? formatPaymentMethodLabel(paymentData.paymentMethod)
+                : "N/A"}
             </Text>
           </View>
           {paymentCode ? (
@@ -457,8 +508,9 @@ export default function PaymentSuccessScreen() {
           <View style={styles.row}>
             <Text style={labelStyle}>Method:</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
-              {appointment.payment?.paymentMethod?.toUpperCase() ||
-                "Subscription"}
+              {formatPaymentMethodLabel(
+                appointment.payment?.paymentMethod ?? undefined
+              )}
             </Text>
           </View>
         </View>
@@ -508,7 +560,11 @@ export default function PaymentSuccessScreen() {
           <View style={styles.row}>
             <Text style={labelStyle}>Method:</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
-              {order.payment?.paymentMethod?.toUpperCase() || "Bank Transfer"}
+              {order.payment?.paymentMethod
+                ? formatPaymentMethodLabel(order.payment.paymentMethod)
+                : paymentData?.paymentMethod
+                ? formatPaymentMethodLabel(paymentData.paymentMethod)
+                : "Bank Transfer"}
             </Text>
           </View>
         </View>
