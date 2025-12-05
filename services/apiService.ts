@@ -1,6 +1,5 @@
 import tokenService from "./tokenService";
 
-// const API_URL = process.env.EXPO_PUBLIC_BASE_API_URL || 'http://192.168.1.249:3000/api/v1'
 const API_URL =
   process.env.EXPO_PUBLIC_BASE_API_URL || "https://api.nhatlonh.id.vn/api/v1";
 
@@ -49,7 +48,8 @@ class ApiService {
           url += `?${query}`;
         }
       }
-      `📡 ${method} ${url}`;
+      
+
       // Get auth token and set Authorization header
       const headers = this.getHeaders(options) as Record<string, string>;
       const token = await tokenService.getToken();
@@ -64,11 +64,17 @@ class ApiService {
 
       if (body) {
         config.body = JSON.stringify(body);
-        console.log("Request body:", body);
+        // console.log("Request body:", body);
       }
 
       const response = await fetch(url, config);
-      `Response status: ${response.status}`;
+      
+      if (response.status === 401) {
+        console.warn("⚠️ Token expired or invalid (401). Clearing storage.");
+        await tokenService.clearAll();
+        // Sau khi clear, AuthContext (nếu đang lắng nghe) hoặc lần reload sau sẽ tự đẩy user ra màn hình Login
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("API Error:", errorData);
@@ -78,7 +84,7 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log("Response data at apiService:", data);
+      // console.log("Response data at apiService:", data);
 
       return data;
     } catch (error) {
@@ -116,7 +122,11 @@ class ApiService {
       };
 
       const response = await fetch(url, config);
-      console.log(`Response status: ${response.status}`);
+
+      if (response.status === 401) {
+        console.warn("⚠️ Token expired during upload (401). Clearing storage.");
+        await tokenService.clearAll();
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

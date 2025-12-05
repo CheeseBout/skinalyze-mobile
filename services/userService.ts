@@ -1,6 +1,7 @@
 import apiService from "./apiService";
 import { User, Address } from "./authService";
 
+// --- Interfaces giữ nguyên ---
 interface UserProfileResponse {
   statusCode: number;
   message: string;
@@ -81,15 +82,27 @@ interface UpdateAddressPayload {
 }
 
 class UserService {
+  // --- SỬA HÀM NÀY ---
   async getProfile(token: string): Promise<User> {
     try {
-      const response = await apiService.get<UserProfileResponse>(
-        "/users/profile"
-      );
-      return response.data;
+      // Dùng any để linh hoạt kiểm tra cấu trúc trả về
+      const response = await apiService.get<any>("/users/profile");
+      
+      console.log("🔍 UserService Raw Response:", JSON.stringify(response, null, 2));
+
+      if (response && response.data) {
+        return response.data;
+      }
+      
+      if (response && (response.userId || response.email)) {
+        return response;
+      }
+
+      console.warn("⚠️ UserService: Unknown profile structure, returning raw response");
+      return response;
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      throw new Error("Failed to fetch user profile");
+      throw error; 
     }
   }
 
@@ -101,7 +114,7 @@ class UserService {
       const response = await apiService.get<CustomerResponse>(
         `/customers/user/${userId}`
       );
-      return response.data;
+      return response.data || (response as any);
     } catch (error) {
       console.error("Error fetching customer data:", error);
       throw new Error("Failed to fetch customer data");
@@ -113,11 +126,12 @@ class UserService {
     data: UpdateProfilePayload
   ): Promise<User> {
     try {
-      const response = await apiService.patch<UserProfileResponse>(
+      const response = await apiService.patch<any>(
         "/users/profile",
         data
       );
-      return response.data;
+      // Kiểm tra linh hoạt
+      return response.data || response;
     } catch (error) {
       console.error("Error updating user profile:", error);
       throw new Error("Failed to update user profile");
@@ -145,7 +159,7 @@ class UserService {
       const response = await apiService.get<AddressResponse>(
         `/address/${addressId}`
       );
-      return response.data;
+      return response.data || (response as any);
     } catch (error) {
       console.error("Error getting address:", error);
       throw new Error("Failed to get address");
@@ -158,7 +172,7 @@ class UserService {
   ): Promise<Address> {
     try {
       const response = await apiService.post<AddressResponse>("/address", data);
-      return response.data;
+      return response.data || (response as any);
     } catch (error) {
       console.error("Error creating address:", error);
       throw new Error("Failed to create address");
@@ -175,7 +189,7 @@ class UserService {
         `/address/${addressId}`,
         data
       );
-      return response.data;
+      return response.data || (response as any);
     } catch (error) {
       console.error("Error updating address:", error);
       throw new Error("Failed to update address");
@@ -195,8 +209,7 @@ class UserService {
     try {
       const response = await apiService.get<BalanceResponse>("/users/balance");
       console.log("❤️ BALANCEEEE", response);
-
-      return response.data;
+      return response.data || (response as any);
     } catch (error) {
       console.error("Error fetching user balance:", error);
       throw new Error("Failed to fetch user balance");

@@ -5,25 +5,26 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments, Href } from "expo-router"; 
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/components/useColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from '@/contexts/AuthContext'
 import { ProductProvider } from "@/contexts/ProductContext";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
 import { CartCountProvider } from '@/contexts/CartCountContext';
 import { ThemeColorProvider } from '@/contexts/ThemeColorContext';
-import { LanguageProvider } from '@/contexts/LanguageContext';  // Add this import
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 import '@/config/i18n';
 
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "WelcomeScreen",
+  initialRouteName: "index",
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -38,12 +39,6 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   if (!loaded) {
     return null;
   }
@@ -54,7 +49,7 @@ export default function RootLayout() {
         <ProductProvider>
           <CartCountProvider>
             <LanguageProvider>
-              <RootLayoutNav />
+              <RootLayoutNav isFontLoaded={loaded} />
             </LanguageProvider>
           </CartCountProvider>
         </ProductProvider>
@@ -63,16 +58,59 @@ export default function RootLayout() {
   );
 }
 
-function RootLayoutNav() {
+function RootLayoutNav({ isFontLoaded }: { isFontLoaded: boolean }) {
   const colorScheme = useColorScheme();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
-  // Initialize WebSocket connection for notifications
   useNotificationWebSocket();
+
+  useEffect(() => {
+    if (!isFontLoaded || isAuthLoading) return;
+
+    const inTabsGroup = segments[0] === '(tabs)';
+    const routeName = segments[1]; 
+    
+    const isAtRoot = (segments as string[]).length === 0;
+
+    const publicStackScreens = [
+      'login', 
+      'register', 
+      'signup', 
+      'signin', 
+      'SignIn',      
+      'SignUp', 
+      'forgot-password',
+      'otp',
+      'SignInScreen',      
+      'CreateAccountScreen' 
+    ];
+
+    const isAtPublicScreen = 
+      isAtRoot || 
+      (segments[0] === '(stacks)' && publicStackScreens.includes(routeName as string));
+
+    if (isAuthenticated) {
+      if (isAtPublicScreen) {
+        router.replace('/(tabs)/HomeScreen' as Href);
+      }
+    } else {
+      if (!isAtPublicScreen) {
+         if (inTabsGroup) {
+            router.replace('/' as Href);
+         }
+      }
+    }
+
+    SplashScreen.hideAsync();
+
+  }, [isAuthenticated, isAuthLoading, segments, isFontLoaded]);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="WelcomeScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(stacks)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />

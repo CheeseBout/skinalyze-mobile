@@ -60,7 +60,7 @@ export default function WelcomeScreen() {
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={[styles.loginButton, { backgroundColor: primaryColor }]}
-          onPress={() => handleNavigate('/SignInScreen')}
+          onPress={() => handleNavigate('/(stacks)/SignInScreen')}
           activeOpacity={0.8}
         >
           <Text style={styles.loginButtonText}>Sign In</Text>
@@ -68,7 +68,7 @@ export default function WelcomeScreen() {
 
         <TouchableOpacity 
           style={[styles.registerButton, { borderColor: primaryColor + '40' }]}
-          onPress={() => handleNavigate('/SignUpScreen')}
+          onPress={() => handleNavigate('/(stacks)/SignUpScreen')}
           activeOpacity={0.8}
         >
           <Text style={[styles.registerButtonText, { color: primaryColor }]}>Create Account</Text>
@@ -76,7 +76,7 @@ export default function WelcomeScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>New to Skinalyze? </Text>
-          <TouchableOpacity onPress={() => handleNavigate('/SignUpScreen')}>
+          <TouchableOpacity onPress={() => handleNavigate('/(stacks)/SignUpScreen')}>
             <Text style={[styles.footerLink, { color: primaryColor }]}>Start free</Text>
           </TouchableOpacity>
         </View>
@@ -202,7 +202,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     gap: 6,
-    borderWidth: 1,
   },
   pillText: {
     fontSize: 13,
