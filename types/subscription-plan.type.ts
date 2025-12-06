@@ -1,3 +1,5 @@
+import { Dermatologist } from "./dermatologist.type";
+
 export enum SubscriptionPlanSortBy {
   CREATED_AT = "createdAt",
   BASE_PRICE = "basePrice",
@@ -30,4 +32,5 @@ export interface SubscriptionPlan {
   isActive: boolean;
   dermatologistId: string;
   createdAt: string;
+  dermatologist: Dermatologist;
 }

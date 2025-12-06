@@ -1,13 +1,14 @@
+import { Dermatologist } from "@/types/dermatologist.type";
+import { SubscriptionPlan } from "./subscription-plan.type";
+
 export interface CustomerSubscription {
   id: string;
   customerId: string;
-  planId: string;
   paymentId: string;
   sessionsRemaining: number;
   startDate: string;
   endDate: string;
   isActive: boolean;
-  subscriptionPlan?: {
-    planName: string;
-  };
+  dermatologist?: Dermatologist;
+  subscriptionPlan?: SubscriptionPlan;
 }

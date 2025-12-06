@@ -427,6 +427,13 @@ export default function ProfileScreen() {
             onPress={() => router.push("/(stacks)/MyRoutinesScreen")}
           />
           <QuickActionButton
+            icon="medkit"
+            label={t("profile.subscriptions")}
+            color="#2563EB"
+            bgColor="#E0ECFF"
+            onPress={() => router.push("/(stacks)/MySubscriptionsScreen")}
+          />
+          <QuickActionButton
             icon="chatbubbles"
             label="Reviews"
             color="#34C759"

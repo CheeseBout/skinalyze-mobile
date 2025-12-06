@@ -1,6 +1,7 @@
 {
   "common": {
-    "notAvailable": "N/A"
+    "notAvailable": "N/A",
+    "cancel": "Cancel"
   },
   "profile": {
     "title": "My Profile",
@@ -9,6 +10,7 @@
     "orders": "Orders",
     "appointments": "Appointments",
     "routines": "Routines",
+    "subscriptions": "Subscriptions",
     "security": "Security",
     "settings": "Settings",
     "personalInfo": "Personal Information",
@@ -42,6 +44,69 @@
     "failedUpdate": "Failed to update profile",
     "failedDelete": "Failed to delete address",
     "delete": "Delete"
+  },
+  "mySubscriptions": {
+    "title": "My Subscriptions",
+    "loading": "Loading subscriptions...",
+    "error": "Failed to load subscriptions.",
+    "loginRequired": "Please sign in to view your subscriptions.",
+    "empty": "You don't have any active subscriptions yet.",
+    "emptyInactive": "You don't have any inactive subscriptions.",
+    "unknownPlan": "Subscription Plan",
+    "dermatologist": "Dermatologist",
+    "fallbackDermatologist": "Dermatologist",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "viewPlan": "View Plan",
+    "sessionsRemaining": "{{count}} session remaining",
+    "sessionsRemaining_plural": "{{count}} sessions remaining",
+    "sessionsRemainingLabel": "Sessions",
+    "inactiveTag": "Inactive",
+    "expiredOn": "Expired on {{date}}",
+    "planUnavailableTitle": "Plan Unavailable",
+    "planUnavailableMessage": "This subscription no longer has a linked plan. Please contact support for assistance.",
+    "filters": {
+      "active": "Active",
+      "inactive": "Inactive"
+    }
+  },
+  "subscriptionPlanDetail": {
+    "errors": {
+      "walletBalance": "Failed to fetch wallet balance.",
+      "noPlanId": "No plan selected.",
+      "load": "Failed to load plan details.",
+      "notFound": "Plan not found.",
+      "paymentStart": "Could not start payment.",
+      "walletPurchase": "Could not complete purchase with wallet."
+    },
+    "alerts": {
+      "paymentErrorTitle": "Payment Error",
+      "insufficientTitle": "Insufficient Balance",
+      "insufficientMessage": "Your wallet balance is not enough for this plan.",
+      "topUp": "Top Up Wallet"
+    },
+    "badge": {
+      "inactive": "Inactive Plan"
+    },
+    "inactiveMessage": "This plan is inactive and cannot be purchased.",
+    "card": {
+      "title": "Plan Details",
+      "sessions": "Total Sessions:",
+      "duration": "Duration:",
+      "days": "{{count}} days",
+      "description": "Description:",
+      "noDescription": "No description provided."
+    },
+    "wallet": {
+      "label": "Wallet Balance",
+      "notEnough": "Not enough balance for this plan.",
+      "retry": "Try again",
+      "refreshAccessibility": "Refresh wallet balance"
+    },
+    "actions": {
+      "useWallet": "Use Wallet Balance",
+      "payBank": "Pay Via Bank Transfer"
+    }
   },
   "settings": {
     "title": "Settings",

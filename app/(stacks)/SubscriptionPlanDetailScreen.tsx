@@ -15,6 +15,7 @@ import React, {
 } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 import subscriptionPlanService from "@/services/subscriptionPlanService";
 import SubscriptionPaymentModal from "@/components/SubscriptionPaymentModal";
@@ -32,6 +33,7 @@ import { PaymentType } from "@/types/payment.type";
 export default function SubscriptionPlanDetailScreen() {
   const router = useRouter();
   const { planId } = useLocalSearchParams<{ planId: string }>();
+  const { t } = useTranslation();
 
   const { primaryColor, isDarkMode } = useThemeColor();
   const {
@@ -95,7 +97,7 @@ export default function SubscriptionPlanDetailScreen() {
     } catch (err) {
       console.error("Error fetching wallet balance:", err);
       if (isMountedRef.current) {
-        setWalletError("Failed to fetch wallet balance.");
+        setWalletError(t("subscriptionPlanDetail.errors.walletBalance"));
         setWalletBalance(null);
       }
     } finally {
@@ -103,7 +105,7 @@ export default function SubscriptionPlanDetailScreen() {
         setIsLoadingWallet(false);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!planId) {
@@ -115,7 +117,7 @@ export default function SubscriptionPlanDetailScreen() {
 
   useEffect(() => {
     if (!planId) {
-      setError("No Plan ID provided.");
+      setError(t("subscriptionPlanDetail.errors.noPlanId"));
       setIsLoading(false);
       return;
     }
@@ -131,7 +133,7 @@ export default function SubscriptionPlanDetailScreen() {
         }
       } catch (err) {
         if (isMountedRef.current) {
-          setError("Failed to load plan details.");
+          setError(t("subscriptionPlanDetail.errors.load"));
         }
       } finally {
         if (isMountedRef.current) {
@@ -141,10 +143,12 @@ export default function SubscriptionPlanDetailScreen() {
     };
 
     fetchPlan();
-  }, [planId]);
+  }, [planId, t]);
 
-  const handleBankTransferPayment = async () => {
-    if (!planId) return;
+  const handleBankTransferPayment = useCallback(async () => {
+    if (!planId) {
+      return;
+    }
 
     setIsCreatingBankPayment(true);
     try {
@@ -155,18 +159,20 @@ export default function SubscriptionPlanDetailScreen() {
       setIsModalVisible(true);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not start payment.";
+        error instanceof Error && error.message
+          ? error.message
+          : t("subscriptionPlanDetail.errors.paymentStart");
       showAlert({
-        title: "Payment Error",
+        title: t("subscriptionPlanDetail.alerts.paymentErrorTitle"),
         message,
         type: "error",
       });
     } finally {
       setIsCreatingBankPayment(false);
     }
-  };
+  }, [planId, showAlert, t]);
 
-  const handleBuyWithWallet = async () => {
+  const handleBuyWithWallet = useCallback(async () => {
     if (!planId || !plan) {
       return;
     }
@@ -174,11 +180,11 @@ export default function SubscriptionPlanDetailScreen() {
     const planPrice = Number(plan.basePrice);
     if (walletBalance !== null && walletBalance < planPrice) {
       showAlert({
-        title: "Insufficient Balance",
-        message: "Your wallet balance is not enough for this plan.",
+        title: t("subscriptionPlanDetail.alerts.insufficientTitle"),
+        message: t("subscriptionPlanDetail.alerts.insufficientMessage"),
         type: "warning",
-        confirmText: "Top Up Wallet",
-        cancelText: "Cancel",
+        confirmText: t("subscriptionPlanDetail.alerts.topUp"),
+        cancelText: t("common.cancel"),
         onConfirm: () => router.push("/(stacks)/TopUpScreen"),
         onCancel: () => {},
       });
@@ -202,18 +208,18 @@ export default function SubscriptionPlanDetailScreen() {
       });
     } catch (error) {
       const message =
-        error instanceof Error
+        error instanceof Error && error.message
           ? error.message
-          : "Could not complete purchase with wallet.";
+          : t("subscriptionPlanDetail.errors.walletPurchase");
       showAlert({
-        title: "Payment Error",
+        title: t("subscriptionPlanDetail.alerts.paymentErrorTitle"),
         message,
         type: "error",
       });
     } finally {
       setIsProcessingWallet(false);
     }
-  };
+  }, [plan, planId, router, showAlert, t, walletBalance]);
 
   const handleModalClose = (didPay: boolean) => {
     setIsModalVisible(false);
@@ -253,7 +259,9 @@ export default function SubscriptionPlanDetailScreen() {
   if (error || !plan) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>{error || "Plan not found."}</Text>
+        <Text style={styles.errorText}>
+          {error || t("subscriptionPlanDetail.errors.notFound")}
+        </Text>
       </View>
     );
   }
@@ -268,6 +276,12 @@ export default function SubscriptionPlanDetailScreen() {
     walletBalance === null ||
     walletInsufficient ||
     !!walletError;
+  const isPlanActive = plan.isActive;
+  const durationText = t("subscriptionPlanDetail.card.days", {
+    count: plan.durationInDays,
+  });
+  const descriptionText =
+    plan.planDescription || t("subscriptionPlanDetail.card.noDescription");
 
   return (
     <View style={styles.container}>
@@ -279,24 +293,40 @@ export default function SubscriptionPlanDetailScreen() {
             color={primaryColor}
           />
           <Text style={styles.planName}>{plan.planName}</Text>
+          {!isPlanActive && (
+            <View style={styles.inactiveBadge}>
+              <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+              <Text style={styles.inactiveBadgeText}>
+                {t("subscriptionPlanDetail.badge.inactive")}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.planPrice, { color: primaryColor }]}>
             {formattedPlanPrice} VND
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Plan Details</Text>
+          <Text style={styles.cardTitle}>
+            {t("subscriptionPlanDetail.card.title")}
+          </Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Total Sessions:</Text>
+            <Text style={styles.label}>
+              {t("subscriptionPlanDetail.card.sessions")}
+            </Text>
             <Text style={styles.value}>{plan.totalSessions}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Duration:</Text>
-            <Text style={styles.value}>{plan.durationInDays} days</Text>
+            <Text style={styles.label}>
+              {t("subscriptionPlanDetail.card.duration")}
+            </Text>
+            <Text style={styles.value}>{durationText}</Text>
           </View>
           <View style={styles.divider} />
-          <Text style={styles.label}>Description:</Text>
-          <Text style={styles.description}>{plan.planDescription}</Text>
+          <Text style={styles.label}>
+            {t("subscriptionPlanDetail.card.description")}
+          </Text>
+          <Text style={styles.description}>{descriptionText}</Text>
         </View>
       </ScrollView>
 
@@ -320,7 +350,9 @@ export default function SubscriptionPlanDetailScreen() {
               <Ionicons name="wallet-outline" size={24} color={primaryColor} />
             </View>
             <View style={styles.walletTextContainer}>
-              <Text style={styles.walletLabel}>Wallet Balance</Text>
+              <Text style={styles.walletLabel}>
+                {t("subscriptionPlanDetail.wallet.label")}
+              </Text>
               {isLoadingWallet ? (
                 <ActivityIndicator size="small" color={primaryColor} />
               ) : walletError ? (
@@ -338,18 +370,23 @@ export default function SubscriptionPlanDetailScreen() {
             <Pressable
               style={styles.refreshButton}
               accessibilityRole="button"
-              accessibilityLabel="Refresh wallet balance"
+              accessibilityLabel={t(
+                "subscriptionPlanDetail.wallet.refreshAccessibility"
+              )}
               onPress={refreshWalletBalance}
             >
               <Ionicons name="refresh" size={18} color={primaryColor} />
             </Pressable>
           </View>
 
-          {!isLoadingWallet && !walletError && walletInsufficient && (
-            <Text style={styles.walletHint}>
-              Not enough balance for this plan.
-            </Text>
-          )}
+          {!isLoadingWallet &&
+            !walletError &&
+            walletInsufficient &&
+            isPlanActive && (
+              <Text style={styles.walletHint}>
+                {t("subscriptionPlanDetail.wallet.notEnough")}
+              </Text>
+            )}
 
           {walletError && (
             <Pressable
@@ -357,54 +394,64 @@ export default function SubscriptionPlanDetailScreen() {
               style={styles.retryButton}
             >
               <Text style={[styles.retryText, { color: primaryColor }]}>
-                Try again
+                {t("subscriptionPlanDetail.wallet.retry")}
               </Text>
             </Pressable>
           )}
 
-          <Pressable
-            style={[
-              styles.walletButton,
-              { backgroundColor: primaryColor },
-              walletActionDisabled && [
-                styles.walletButtonDisabled,
-                { backgroundColor: disabledPrimary },
-              ],
-            ]}
-            onPress={handleBuyWithWallet}
-            disabled={walletActionDisabled}
-          >
-            {isProcessingWallet ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.walletButtonText}>Use Wallet Balance</Text>
-            )}
-          </Pressable>
-        </View>
-
-        <Pressable
-          style={[
-            styles.bankButton,
-            {
-              backgroundColor: hexToRgba(
-                primaryColor,
-                isDarkMode ? 0.35 : 0.18
-              ),
-              borderColor: primaryColor,
-            },
-            isCreatingBankPayment && styles.bankButtonDisabled,
-          ]}
-          onPress={handleBankTransferPayment}
-          disabled={isCreatingBankPayment}
-        >
-          {isCreatingBankPayment ? (
-            <ActivityIndicator color={primaryColor} />
+          {isPlanActive ? (
+            <Pressable
+              style={[
+                styles.walletButton,
+                { backgroundColor: primaryColor },
+                walletActionDisabled && [
+                  styles.walletButtonDisabled,
+                  { backgroundColor: disabledPrimary },
+                ],
+              ]}
+              onPress={handleBuyWithWallet}
+              disabled={walletActionDisabled}
+            >
+              {isProcessingWallet ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.walletButtonText}>
+                  {t("subscriptionPlanDetail.actions.useWallet")}
+                </Text>
+              )}
+            </Pressable>
           ) : (
-            <Text style={[styles.bankButtonText, { color: primaryColor }]}>
-              Pay Via Bank Transfer
+            <Text style={styles.inactiveMessage}>
+              {t("subscriptionPlanDetail.inactiveMessage")}
             </Text>
           )}
-        </Pressable>
+        </View>
+
+        {isPlanActive && (
+          <Pressable
+            style={[
+              styles.bankButton,
+              {
+                backgroundColor: hexToRgba(
+                  primaryColor,
+                  isDarkMode ? 0.35 : 0.18
+                ),
+                borderColor: primaryColor,
+              },
+              isCreatingBankPayment && styles.bankButtonDisabled,
+            ]}
+            onPress={handleBankTransferPayment}
+            disabled={isCreatingBankPayment}
+          >
+            {isCreatingBankPayment ? (
+              <ActivityIndicator color={primaryColor} />
+            ) : (
+              <Text style={[styles.bankButtonText, { color: primaryColor }]}>
+                {t("subscriptionPlanDetail.actions.payBank")}
+              </Text>
+            )}
+          </Pressable>
+        )}
       </View>
 
       <SubscriptionPaymentModal
@@ -443,6 +490,21 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 10,
     color: "#1A1A1A",
+  },
+  inactiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#FEE2E2",
+  },
+  inactiveBadgeText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#B91C1C",
   },
   planPrice: {
     fontSize: 22,
@@ -525,4 +587,11 @@ const styles = StyleSheet.create({
   },
   bankButtonDisabled: { opacity: 0.6 },
   bankButtonText: { fontSize: 16, fontWeight: "bold" },
+  inactiveMessage: {
+    marginTop: 16,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#475569",
+    textAlign: "center",
+  },
 });

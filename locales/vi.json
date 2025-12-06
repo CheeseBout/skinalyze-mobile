@@ -1,6 +1,7 @@
 {
   "common": {
-    "notAvailable": "Không khả dụng"
+    "notAvailable": "Không khả dụng",
+    "cancel": "Hủy"
   },
   "profile": {
     "title": "Hồ Sơ Của Tôi",
@@ -9,6 +10,7 @@
     "orders": "Đơn Hàng",
     "appointments": "Lịch Hẹn",
     "routines": "Phác Đồ",
+    "subscriptions": "Gói Đăng Ký",
     "security": "Bảo Mật",
     "settings": "Cài Đặt",
     "personalInfo": "Thông Tin Cá Nhân",
@@ -42,6 +44,69 @@
     "failedUpdate": "Không thể cập nhật hồ sơ",
     "failedDelete": "Không thể xóa địa chỉ",
     "delete": "Xóa"
+  },
+  "mySubscriptions": {
+    "title": "Gói Đăng Ký Của Tôi",
+    "loading": "Đang tải gói đăng ký...",
+    "error": "Không thể tải gói đăng ký.",
+    "loginRequired": "Vui lòng đăng nhập để xem gói đăng ký.",
+    "empty": "Bạn chưa có gói đăng ký nào đang hoạt động.",
+    "emptyInactive": "Bạn chưa có gói đăng ký nào đã hết hạn.",
+    "unknownPlan": "Gói đăng ký",
+    "dermatologist": "Bác sĩ da liễu",
+    "fallbackDermatologist": "Bác sĩ da liễu",
+    "startDate": "Ngày bắt đầu",
+    "endDate": "Ngày kết thúc",
+    "viewPlan": "Xem gói",
+    "sessionsRemaining": "{{count}} buổi còn lại",
+    "sessionsRemaining_plural": "{{count}} buổi còn lại",
+    "sessionsRemainingLabel": "Số buổi",
+    "inactiveTag": "Ngưng hoạt động",
+    "expiredOn": "Hết hạn vào {{date}}",
+    "planUnavailableTitle": "Không tìm thấy gói",
+    "planUnavailableMessage": "Gói đăng ký này không còn liên kết với kế hoạch. Vui lòng liên hệ hỗ trợ để được trợ giúp.",
+    "filters": {
+      "active": "Đang hoạt động",
+      "inactive": "Đã hết hạn"
+    }
+  },
+  "subscriptionPlanDetail": {
+    "errors": {
+      "walletBalance": "Không thể tải số dư ví.",
+      "noPlanId": "Không có mã gói.",
+      "load": "Không thể tải chi tiết gói.",
+      "notFound": "Không tìm thấy gói.",
+      "paymentStart": "Không thể khởi tạo thanh toán.",
+      "walletPurchase": "Không thể thanh toán bằng ví."
+    },
+    "alerts": {
+      "paymentErrorTitle": "Lỗi Thanh Toán",
+      "insufficientTitle": "Số Dư Không Đủ",
+      "insufficientMessage": "Số dư ví của bạn không đủ cho gói này.",
+      "topUp": "Nạp Ví"
+    },
+    "badge": {
+      "inactive": "Gói Đã Ngưng"
+    },
+    "inactiveMessage": "Gói này đã ngưng và không thể mua.",
+    "card": {
+      "title": "Chi Tiết Gói",
+      "sessions": "Tổng số buổi:",
+      "duration": "Thời lượng:",
+      "days": "{{count}} ngày",
+      "description": "Mô tả:",
+      "noDescription": "Không có mô tả."
+    },
+    "wallet": {
+      "label": "Số dư ví",
+      "notEnough": "Số dư ví không đủ cho gói này.",
+      "retry": "Thử lại",
+      "refreshAccessibility": "Làm mới số dư ví"
+    },
+    "actions": {
+      "useWallet": "Sử dụng số dư ví",
+      "payBank": "Thanh toán qua chuyển khoản"
+    }
   },
   "settings": {
     "title": "Cài Đặt",
