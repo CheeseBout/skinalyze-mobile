@@ -126,6 +126,12 @@ class ChatbotService {
   ): Promise<SendMessageResponse> {
     try {
       console.log("🤖 Sending message...");
+      console.log("📤 Request details:", {
+        chatId,
+        messageContent: messageContent ? `${messageContent.substring(0, 50)}...` : "No text",
+        hasImage: !!imageUri
+      });
+
       const token = await tokenService.getToken();
       if (!token) throw new Error("Authentication is required");
 
@@ -149,6 +155,7 @@ class ChatbotService {
           name: filename,
           type: type,
         });
+        console.log("🖼️ Image attached:", filename);
       }
 
       const response = await fetch(`${BASE_URL}/chat-messages`, {
@@ -160,15 +167,38 @@ class ChatbotService {
         body: formData,
       });
 
+      console.log("📡 Response status:", response.status, response.statusText);
+
       const responseData = await response.json();
 
       if (!response.ok) {
+        console.error("❌ API Error Response:", responseData);
         throw new Error(responseData.message || "Failed to send message");
       }
+
+      console.log("✅ AI Response received:");
+      console.log("📨 User Message:", {
+        messageId: responseData.userMessage?.messageId,
+        sender: responseData.userMessage?.sender,
+        content: responseData.userMessage?.messageContent?.substring(0, 100),
+        hasImage: !!responseData.userMessage?.imageUrl
+      });
+      console.log("🤖 AI Message:", {
+        messageId: responseData.aiMessage?.messageId,
+        sender: responseData.aiMessage?.sender,
+        contentLength: responseData.aiMessage?.messageContent?.length || 0,
+        contentPreview: responseData.aiMessage?.messageContent?.substring(0, 200) + "...",
+        hasImage: !!responseData.aiMessage?.imageUrl
+      });
+      console.log("📄 Full AI Response:", JSON.stringify(responseData, null, 2));
 
       return responseData as SendMessageResponse;
     } catch (error) {
       console.error("❌ Error sending message:", error);
+      if (error instanceof Error) {
+        console.error("❌ Error details:", error.message);
+        console.error("❌ Error stack:", error.stack);
+      }
       throw error instanceof Error
         ? error
         : new Error("Failed to send message");

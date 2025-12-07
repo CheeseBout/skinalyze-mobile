@@ -13,21 +13,24 @@ import {
   Image,
   SafeAreaView,
 } from "react-native";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import chatbotService, {
   ChatMessage,
   ChatSession,
 } from "@/services/chatbotService";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useProducts } from "@/hooks/useProducts";
 import Markdown from "react-native-markdown-display";
 
 export default function ChatbotScreen() {
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
+  const { products } = useProducts();
+  const router = useRouter();
   const params = useLocalSearchParams();
 
   // --- State Management ---
@@ -142,6 +145,7 @@ export default function ChatbotScreen() {
         () => flatListRef.current?.scrollToEnd({ animated: false }),
         100
       );
+      console.log("Message: ", chatMessages)
     } catch (error) {
       console.error("Error loading messages:", error);
     }
@@ -241,6 +245,14 @@ export default function ChatbotScreen() {
     const imageToSend = selectedImage;
     const tempId = `temp-${Date.now()}`;
 
+    console.log("🚀 [ChatbotScreen] Starting to send message:", {
+      chatId: currentChatId,
+      hasText: !!textToSend,
+      textLength: textToSend.length,
+      hasImage: !!imageToSend,
+      tempId,
+    });
+
     setInputMessage("");
     setSelectedImage(null);
     setIsSending(true);
@@ -260,40 +272,198 @@ export default function ChatbotScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
+      console.log("📞 [ChatbotScreen] Calling chatbotService.sendMessage...");
+
       const { userMessage, aiMessage } = await chatbotService.sendMessage(
         currentChatId,
         textToSend,
         imageToSend
       );
 
+      console.log("✅ [ChatbotScreen] Response received from chatbotService:");
+      console.log("👤 User Message:", {
+        id: userMessage.messageId,
+        content: userMessage.messageContent?.substring(0, 100),
+        createdAt: userMessage.createdAt,
+      });
+      console.log("🤖 AI Message:", {
+        id: aiMessage.messageId,
+        contentLength: aiMessage.messageContent?.length,
+        contentPreview: aiMessage.messageContent?.substring(0, 200),
+        createdAt: aiMessage.createdAt,
+      });
+      console.log("📝 Full AI Message Content:", aiMessage.messageContent);
+
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.messageId !== tempId);
-        return [...filtered, userMessage, aiMessage];
+        const updatedMessages = [...filtered, userMessage, aiMessage];
+        console.log(
+          "💬 [ChatbotScreen] Messages state updated. Total messages:",
+          updatedMessages.length
+        );
+        return updatedMessages;
       });
 
       const session = chatSessions.find((s) => s.chatId === currentChatId);
       if (session?.title === "New chat") {
+        console.log(
+          "🔄 [ChatbotScreen] Refreshing chat sessions (title was 'New chat')"
+        );
         chatbotService
           .getChatSessionsByUserId(user!.userId)
-          .then(setChatSessions);
+          .then((sessions) => {
+            console.log("📋 [ChatbotScreen] Chat sessions refreshed:", sessions.length);
+            setChatSessions(sessions);
+          });
       }
     } catch (error) {
+      console.error("❌ [ChatbotScreen] Error in sendMessage:");
+      console.error(error);
       Alert.alert("Error", "Failed to send message");
       setMessages((prev) => prev.filter((msg) => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
     } finally {
+      console.log("🏁 [ChatbotScreen] sendMessage completed");
       setIsSending(false);
     }
   };
+
+  // --- Product Matching Helper ---
+  const findProductByName = useCallback((productName: string) => {
+    if (!products || products.length === 0) {
+      console.log("⚠️ No products available for matching");
+      return null;
+    }
+    
+    // Clean up the product name for matching
+    const cleanName = productName.trim().toLowerCase();
+    console.log("🔍 Searching for product:", cleanName);
+    
+    // 1. Try exact match first
+    let found = products.find(
+      (p) => p.productName.toLowerCase() === cleanName
+    );
+    if (found) {
+      console.log("✅ Exact match found:", found.productName);
+      return found;
+    }
+    
+    // 2. Try if product name contains the search term
+    found = products.find(
+      (p) => p.productName.toLowerCase().includes(cleanName)
+    );
+    if (found) {
+      console.log("✅ Contains match found:", found.productName);
+      return found;
+    }
+    
+    // 3. Try if search term contains the product name
+    found = products.find(
+      (p) => cleanName.includes(p.productName.toLowerCase())
+    );
+    if (found) {
+      console.log("✅ Reverse contains match found:", found.productName);
+      return found;
+    }
+    
+    // 4. Try matching by significant keywords (words with 4+ chars)
+    const searchWords = cleanName
+      .split(/[\s\-_]+/)
+      .filter(w => w.length >= 4)
+      .map(w => w.toLowerCase());
+    
+    console.log("🔤 Search keywords:", searchWords);
+    
+    if (searchWords.length > 0) {
+      // Find product with most keyword matches
+      let bestMatch: { product: any; score: number } | null = null;
+      
+      for (const product of products) {
+        const productNameLower = product.productName.toLowerCase();
+        const productWords = productNameLower.split(/[\s\-_]+/);
+        
+        // Count matching keywords
+        let matchScore = 0;
+        for (const searchWord of searchWords) {
+          // Check if any product word contains the search word or vice versa
+          const hasMatch = productWords.some(
+            (pw: string) => pw.includes(searchWord) || searchWord.includes(pw)
+          );
+          if (hasMatch) matchScore++;
+          
+          // Also check if product name contains the search word directly
+          if (productNameLower.includes(searchWord)) matchScore += 0.5;
+        }
+        
+        // Also check brand match
+        if (product.brand && cleanName.includes(product.brand.toLowerCase())) {
+          matchScore += 1;
+        }
+        
+        if (matchScore > 0 && (!bestMatch || matchScore > bestMatch.score)) {
+          bestMatch = { product, score: matchScore };
+        }
+      }
+      
+      if (bestMatch && bestMatch.score >= 1) {
+        console.log("✅ Keyword match found:", bestMatch.product.productName, "Score:", bestMatch.score);
+        return bestMatch.product;
+      }
+    }
+    
+    // 5. Try fuzzy matching - check each word separately
+    for (const product of products) {
+      const productNameLower = product.productName.toLowerCase();
+      
+      // Check if at least 2 significant words from search match product name
+      const matchingWords = searchWords.filter(word => 
+        productNameLower.includes(word)
+      );
+      
+      if (matchingWords.length >= 2) {
+        console.log("✅ Multi-word match found:", product.productName);
+        return product;
+      }
+      
+      // Check first word match (usually product line name)
+      if (searchWords.length > 0 && productNameLower.startsWith(searchWords[0])) {
+        console.log("✅ First word match found:", product.productName);
+        return product;
+      }
+    }
+    
+    console.log("❌ No product found for:", productName);
+    return null;
+  }, [products]);
+
+  const navigateToProduct = useCallback((productName: string) => {
+    console.log("🛒 Attempting to navigate to product:", productName);
+    const product = findProductByName(productName);
+    
+    if (product) {
+      console.log("✅ Navigating to:", product.productId, product.productName);
+      router.push({
+        pathname: "/(stacks)/ProductDetailScreen",
+        params: { productId: product.productId },
+      });
+    } else {
+      console.log("❌ Product not found, searching instead:", productName);
+      // Navigate to search screen with the product name as query
+      router.push({
+        pathname: "/(stacks)/SearchScreen",
+        params: { query: productName },
+      });
+    }
+  }, [findProductByName, router]);
 
   // --- Render Helpers ---
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.sender === "user";
 
-    // Markdown styles for AI messages
-    const markdownStyles = {
+    // Markdown styles for AI messages - with proper TypeScript types
+    const markdownStyles: any = {
       body: {
         color: "#333",
         fontSize: 15,
@@ -304,11 +474,12 @@ export default function ChatbotScreen() {
         marginBottom: 8,
       },
       strong: {
-        fontWeight: "700",
-        color: "#1A1A1A",
+        fontWeight: "700" as const,
+        color: primaryColor,
+        textDecorationLine: "underline" as const,
       },
       em: {
-        fontStyle: "italic",
+        fontStyle: "italic" as const,
       },
       code_inline: {
         backgroundColor: "#F0F0F0",
@@ -339,21 +510,21 @@ export default function ChatbotScreen() {
       },
       heading1: {
         fontSize: 22,
-        fontWeight: "700",
+        fontWeight: "700" as const,
         color: "#1A1A1A",
         marginTop: 8,
         marginBottom: 8,
       },
       heading2: {
         fontSize: 20,
-        fontWeight: "700",
+        fontWeight: "700" as const,
         color: "#1A1A1A",
         marginTop: 6,
         marginBottom: 6,
       },
       heading3: {
         fontSize: 18,
-        fontWeight: "600",
+        fontWeight: "600" as const,
         color: "#1A1A1A",
         marginTop: 4,
         marginBottom: 4,
@@ -374,16 +545,61 @@ export default function ChatbotScreen() {
         paddingLeft: 12,
         paddingVertical: 8,
         marginVertical: 8,
-        fontStyle: "italic",
+        fontStyle: "italic" as const,
       },
       link: {
         color: primaryColor,
-        textDecorationLine: "underline",
+        textDecorationLine: "underline" as const,
       },
       hr: {
         backgroundColor: "#E0E0E0",
         height: 1,
         marginVertical: 12,
+      },
+    };
+
+    // Custom rules for handling product name clicks
+    const markdownRules = {
+      strong: (node: any, children: any, parent: any, styles: any) => {
+        const text = node.children?.[0]?.content || "";
+        
+        // Check if this looks like a product name (contains "của" or brand pattern)
+        const isProductName = text.includes(" của ") || 
+                             text.includes(" by ") ||
+                             /^[A-Z]/.test(text); // Starts with uppercase
+        
+        if (isProductName && !isUser) {
+          // Extract just the product name (before "của" or "by")
+          let productName = text;
+          if (text.includes(" của ")) {
+            productName = text.split(" của ")[0].trim();
+          } else if (text.includes(" by ")) {
+            productName = text.split(" by ")[0].trim();
+          }
+          
+          return (
+            <Text
+              key={node.key}
+              style={[
+                styles.strong,
+                {
+                  color: primaryColor,
+                  textDecorationLine: "underline",
+                },
+              ]}
+              onPress={() => navigateToProduct(productName)}
+            >
+              {children}
+              <Text style={{ fontSize: 12 }}> 🛒</Text>
+            </Text>
+          );
+        }
+        
+        return (
+          <Text key={node.key} style={styles.strong}>
+            {children}
+          </Text>
+        );
       },
     };
 
@@ -431,7 +647,12 @@ export default function ChatbotScreen() {
                 {item.messageContent}
               </Text>
             ) : (
-              <Markdown style={markdownStyles}>{item.messageContent}</Markdown>
+              <Markdown 
+                style={markdownStyles}
+                rules={markdownRules}
+              >
+                {item.messageContent}
+              </Markdown>
             )
           ) : null}
 

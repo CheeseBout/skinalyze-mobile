@@ -54,14 +54,14 @@ export default function OrderTrackingScreen() {
     orderId: orderId || "",
     enabled: !!orderId && isAuthenticated,
     onLocationUpdate: (location) => {
-      "📍 Shipper moved to:", location;
+      console.log("📍 Shipper moved to:", location);
     },
     onETAUpdate: (eta) => {
-      "⏱️ ETA updated:", eta.text;
+      console.log("⏱️ ETA updated:", eta.text);
 
       // Show notification if shipper is very close (< 5 minutes)
       if (eta.duration < 300 && eta.duration > 0) {
-        ("🔔 Shipper arriving soon!");
+        console.log("🔔 Shipper arriving soon!");
       }
     },
   });

@@ -183,7 +183,7 @@ export default function AnalysisDetailScreen() {
   const handleAskAI = () => {
     const analysisText = `Based on my skin analysis result: ${displayTitle}
 
-Please recommend specific skincare products with the following details:
+briefly explain and recommend specific skincare products with the following details:
 - Product name
 - Price range
 - Suitable skin type

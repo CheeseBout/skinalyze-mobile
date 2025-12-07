@@ -147,7 +147,7 @@ export default function ProductDetailScreen() {
           t('productDetail.loginToAddCart'),
           [
             { text: t('productDetail.cancel'), style: 'cancel' },
-            { text: t('productDetail.logIn'), onPress: () => router.push('/WelcomeScreen') }
+            { text: t('productDetail.logIn'), onPress: () => router.push('/WelcomeScreen' as any) }
           ]
         );
         return;
