@@ -3,6 +3,21 @@ import { ApiResponse } from "./../types/api";
 import apiService from "./apiService";
 import { AvailabilitySlot } from "@/types/availability-slot.type";
 
+export interface Specialization {
+  specializationId: string;
+  dermatologistId: string;
+  specializationName: string;
+  specialty: string;
+  certificateImageUrl: string;
+  description: string;
+  level: string;
+  issuingAuthority: string;
+  issueDate: string;
+  expiryDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class DermatologistService {
   async getDermatologistList(): Promise<Dermatologist[]> {
     try {
@@ -38,6 +53,21 @@ class DermatologistService {
     } catch (error) {
       console.error(
         `Error fetching dermatologist with user ID ${userId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  async getSpecializations(dermatologistId: string): Promise<Specialization[]> {
+    try {
+      const response = await apiService.get<ApiResponse<Specialization[]>>(
+        `/specializations/dermatologist/${dermatologistId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        `Error fetching specializations for dermatologist ${dermatologistId}:`,
         error
       );
       throw error;

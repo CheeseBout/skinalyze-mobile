@@ -129,7 +129,7 @@ export default function DermatologistListScreen() {
               <View style={styles.statItem}>
                 <Ionicons name="briefcase" size={14} color={primaryColor} />
                 <Text style={[styles.statText, { color: primaryColor }]}>
-                  {item.yearsOfExperience} years
+                  {item.yearsOfExperience || item.yearsOfExp || 0} years
                 </Text>
               </View>
               <View style={styles.statDivider} />

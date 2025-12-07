@@ -6,6 +6,7 @@ export interface Dermatologist {
   user: User;
   specialization: string[];
   yearsOfExperience: number;
+  yearsOfExp?: number; // Alternative field name from API
   bio: string;
   clinicAddress: string;
   defaultSlotPrice: number;

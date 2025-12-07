@@ -14,7 +14,7 @@ import {
 import React, { useState, useEffect, useRef } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import dermatologistService from "@/services/dermatologistService";
+import dermatologistService, { Specialization } from "@/services/dermatologistService";
 import { Dermatologist } from "@/types/dermatologist.type";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 
@@ -22,7 +22,9 @@ const { width } = Dimensions.get('window');
 
 export default function DermatologistDetailScreen() {
   const [dermatologist, setDermatologist] = useState<Dermatologist | null>(null);
+  const [specializations, setSpecializations] = useState<Specialization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [specializationsLoading, setSpecializationsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { primaryColor } = useThemeColor();
   const router = useRouter();
@@ -52,6 +54,9 @@ export default function DermatologistDetailScreen() {
           dermatologistId
         );
         setDermatologist(data);
+        
+        // Fetch specializations
+        fetchSpecializations();
       } catch (err: any) {
         const errorMessage =
           err.message || "Error fetching dermatologist details";
@@ -59,6 +64,19 @@ export default function DermatologistDetailScreen() {
         Alert.alert("Error", errorMessage);
       } finally {
         setIsLoading(false);
+      }
+    };
+
+    const fetchSpecializations = async () => {
+      try {
+        setSpecializationsLoading(true);
+        const data = await dermatologistService.getSpecializations(dermatologistId);
+        setSpecializations(data);
+      } catch (err: any) {
+        console.error("Error fetching specializations:", err);
+        // Don't show error alert, just log it
+      } finally {
+        setSpecializationsLoading(false);
       }
     };
 
@@ -154,6 +172,7 @@ export default function DermatologistDetailScreen() {
   const specialties = dermatologist.specialization?.join(", ") || "Dermatology Specialist";
   const avatarUrl = dermatologist.user?.photoUrl;
   const price = dermatologist.defaultSlotPrice;
+  const yearsExp = dermatologist.yearsOfExperience || dermatologist.yearsOfExp || 0;
 
   return (
     <View style={styles.container}>
@@ -220,7 +239,7 @@ export default function DermatologistDetailScreen() {
             <View style={styles.experienceChip}>
               <Ionicons name="briefcase" size={16} color={primaryColor} />
               <Text style={[styles.experienceText, { color: primaryColor }]}>
-                {dermatologist.yearsOfExperience} years of experience
+                {yearsExp} {yearsExp === 1 ? 'year' : 'years'} of experience
               </Text>
             </View>
           </View>
@@ -256,8 +275,8 @@ export default function DermatologistDetailScreen() {
             <View style={[styles.statIcon, { backgroundColor: `${primaryColor}10` }]}>
               <Ionicons name="calendar" size={24} color={primaryColor} />
             </View>
-            <Text style={styles.statValue}>{dermatologist.yearsOfExperience}</Text>
-            <Text style={styles.statLabel}>Years</Text>
+            <Text style={styles.statValue}>{yearsExp}</Text>
+            <Text style={styles.statLabel}>Years Exp</Text>
           </View>
         </Animated.View>
 
@@ -302,7 +321,7 @@ export default function DermatologistDetailScreen() {
           </View>
         </Animated.View>
 
-        {/* Specializations */}
+        {/* Specializations & Certifications */}
         <Animated.View
           style={[
             styles.infoCard,
@@ -314,18 +333,75 @@ export default function DermatologistDetailScreen() {
         >
           <View style={styles.cardHeader}>
             <View style={[styles.cardHeaderIcon, { backgroundColor: '#FCE4EC' }]}>
-              <Ionicons name="medical" size={20} color="#E91E63" />
+              <Ionicons name="medal" size={20} color="#E91E63" />
             </View>
-            <Text style={styles.cardTitle}>Specializations</Text>
+            <Text style={styles.cardTitle}>Specializations & Certifications</Text>
           </View>
-          <View style={styles.specializationsContainer}>
-            {dermatologist.specialization?.map((spec, index) => (
-              <View key={index} style={[styles.specializationChip, { borderColor: `${primaryColor}30` }]}>
-                <Ionicons name="checkmark-circle" size={16} color={primaryColor} />
-                <Text style={[styles.specializationText, { color: primaryColor }]}>{spec}</Text>
-              </View>
-            ))}
-          </View>
+          
+          {specializationsLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={primaryColor} />
+              <Text style={styles.loadingText}>Loading certifications...</Text>
+            </View>
+          ) : specializations.length > 0 ? (
+            <View style={styles.certificationsContainer}>
+              {specializations.map((spec) => (
+                <View key={spec.specializationId} style={[styles.certificateCard, { borderLeftColor: primaryColor }]}>
+                  {/* Certificate Image */}
+                  {spec.certificateImageUrl && (
+                    <Image
+                      source={{ uri: spec.certificateImageUrl }}
+                      style={styles.certificateImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  
+                  {/* Certificate Details */}
+                  <View style={styles.certificateDetails}>
+                    <View style={styles.certificateHeader}>
+                      <View style={[styles.levelBadge, { backgroundColor: `${primaryColor}15` }]}>
+                        <Ionicons name="ribbon" size={14} color={primaryColor} />
+                        <Text style={[styles.levelText, { color: primaryColor }]}>{spec.level}</Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.certificateName}>{spec.specializationName}</Text>
+                    <Text style={styles.certificateSpecialty}>{spec.specialty}</Text>
+                    
+                    {spec.description && (
+                      <Text style={styles.certificateDescription}>{spec.description}</Text>
+                    )}
+                    
+                    <View style={styles.certificateInfo}>
+                      <View style={styles.infoRow}>
+                        <Ionicons name="business" size={14} color="#666" />
+                        <Text style={styles.infoText}>{spec.issuingAuthority}</Text>
+                      </View>
+                      <View style={styles.infoRow}>
+                        <Ionicons name="calendar" size={14} color="#666" />
+                        <Text style={styles.infoText}>
+                          Issued: {new Date(spec.issueDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </Text>
+                      </View>
+                      {spec.expiryDate && (
+                        <View style={styles.infoRow}>
+                          <Ionicons name="time" size={14} color="#666" />
+                          <Text style={styles.infoText}>
+                            Expires: {new Date(spec.expiryDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptySpecializations}>
+              <Ionicons name="medal-outline" size={40} color="#CCC" />
+              <Text style={styles.emptyText}>No certifications added yet</Text>
+            </View>
+          )}
         </Animated.View>
 
         {/* Pricing */}
@@ -731,6 +807,103 @@ const styles = StyleSheet.create({
   specializationText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  certificationsContainer: {
+    gap: 16,
+  },
+  certificateCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  certificateImage: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#E0E0E0',
+  },
+  certificateDetails: {
+    padding: 16,
+  },
+  certificateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  levelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  certificateName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  certificateSpecialty: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  certificateDescription: {
+    fontSize: 13,
+    color: '#777',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  certificateInfo: {
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  emptySpecializations: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 12,
   },
   pricingCard: {
     backgroundColor: '#FFFFFF',
