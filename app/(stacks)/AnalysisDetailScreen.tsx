@@ -181,13 +181,15 @@ export default function AnalysisDetailScreen() {
   }
 
   const handleAskAI = () => {
-    const analysisText = `I need advice on this skin analysis:
-    Type: ${displayType}
-    Main Issue: ${displayTitle}
-    Details: ${displayDescription}
-    Source: ${result.source}
-    
-    Please analyze this and recommend a routine.`;
+    const analysisText = `Based on my skin analysis result: ${displayTitle}
+
+Please recommend specific skincare products with the following details:
+- Product name
+- Price range
+- Suitable skin type
+- Benefits and usage
+
+Focus on effective treatments for this detection.`
 
     const navParams: any = {
       prefillText: analysisText
