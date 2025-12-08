@@ -85,7 +85,16 @@ export default function FacialSkinCamera({
           <Text style={styles.title}>{title}</Text>
         </View>
 
-        <View style={styles.faceGuide} />
+        {/* Scan Frame Guide */}
+        <View style={styles.scanGuideContainer}>
+          <View style={styles.scanGuide}>
+            {/* Corner brackets */}
+            <View style={[styles.corner, styles.cornerTopLeft]} />
+            <View style={[styles.corner, styles.cornerTopRight]} />
+            <View style={[styles.corner, styles.cornerBottomLeft]} />
+            <View style={[styles.corner, styles.cornerBottomRight]} />
+          </View>
+        </View>
 
         <View style={styles.bottomBar}>
           <TouchableOpacity 
@@ -105,6 +114,9 @@ export default function FacialSkinCamera({
   );
 }
 
+const CORNER_SIZE = 40;
+const CORNER_THICKNESS = 4;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -121,7 +133,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
+    paddingTop: 20,
     paddingHorizontal: 20,
     pointerEvents: 'box-none',
   },
@@ -139,16 +151,68 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: -1, height: 1 },
     textShadowRadius: 10,
   },
-  faceGuide: {
+  scanGuideContainer: {
     position: 'absolute',
-    top: '20%',
-    left: '10%',
-    width: '80%',
-    height: '50%',
-    borderWidth: 3,
+    top: '18%',
+    left: '8%',
+    width: '84%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanGuide: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderTopLeftRadius: 24,
     borderColor: '#fff',
-    borderRadius: 200,
-    opacity: 0.5,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderTopRightRadius: 24,
+    borderColor: '#fff',
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderBottomLeftRadius: 24,
+    borderColor: '#fff',
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderBottomRightRadius: 24,
+    borderColor: '#fff',
+  },
+  scanHint: {
+    position: 'absolute',
+    bottom: -30,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
   },
   bottomBar: {
     position: 'absolute',

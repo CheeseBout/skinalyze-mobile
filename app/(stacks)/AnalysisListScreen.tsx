@@ -19,18 +19,18 @@ import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import ToTopButton from '@/components/ToTopButton';
-import { useTranslation } from 'react-i18next';  // Add this import
+import { useTranslation } from 'react-i18next';
 
 export function AnalysisListScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
-  const { t } = useTranslation();  // Add this hook
+  const { t } = useTranslation();
   const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showToTop, setShowToTop] = useState(false);  
-  const flatListRef = useRef<FlatList>(null);  // Add <FlatList> type
+  const flatListRef = useRef<FlatList>(null);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,10 +92,9 @@ export function AnalysisListScreen() {
     setRefreshing(false);
   };
 
-  // Add scroll handler to show/hide button
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    setShowToTop(offsetY > 200);  // Show button when scrolled more than 200px
+    setShowToTop(offsetY > 200);
   };
 
   const handleAnalysisPress = (analysis: SkinAnalysisResult) => {
@@ -107,19 +106,27 @@ export function AnalysisListScreen() {
     });
   };
 
+  const normalizeKey = (key: string | null) => {
+    if (!key) return '';
+    
+    // Split by underscore, capitalize first letter of each part, join back
+    return key
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('_');
+  };
+
   const renderAnalysisItem = ({ item, index }: { item: SkinAnalysisResult; index: number }) => {
-    const isConditionDetection = item.aiDetectedCondition !== null;
-    const isDiseaseDetection = item.aiDetectedDisease !== null;
     const isManual = item.source === 'MANUAL';
     
-    // For manual sources, display "Manual" as the result
+    // For manual sources, display "Manual" as the result; otherwise show disease detection
     const detectedValue = isManual 
       ? t('analysis.manual')
-      : (isConditionDetection ? t('analysis.' + item.aiDetectedCondition) : t('analysis.' + item.aiDetectedDisease));
+      : t('analysis.' + normalizeKey(item.aiDetectedDisease));
     
-    // Adjust icon and color based on type
-    const iconName = isManual ? 'create' : (isConditionDetection ? 'water' : 'medical');
-    const badgeColor = isManual ? '#666' : (isConditionDetection ? '#2196F3' : '#E91E63');
+    // Icon and color based on type (manual or disease)
+    const iconName = isManual ? 'create' : 'search';
+    const badgeColor = isManual ? '#666' : '#E91E63';
 
     return (
       <Animated.View
@@ -149,7 +156,7 @@ export function AnalysisListScreen() {
               <View style={[styles.typeChip, { backgroundColor: `${badgeColor}15` }]}>
                 <Ionicons name={iconName} size={14} color={badgeColor} />
                 <Text style={[styles.typeChipText, { color: badgeColor }]}>
-                  {isManual ? t('analysis.manual') : (isConditionDetection ? t('analysis.condition') : t('analysis.disease'))}
+                  {isManual ? t('analysis.manual') : t('analysis.disease')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward-circle" size={22} color="#E0E0E0" />
@@ -294,7 +301,7 @@ export function AnalysisListScreen() {
 
       {/* Analysis List */}
       <FlatList
-        ref={flatListRef}  // Add ref
+        ref={flatListRef}
         data={analyses}
         renderItem={renderAnalysisItem}
         keyExtractor={(item) => item.analysisId}
@@ -302,8 +309,8 @@ export function AnalysisListScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} />
         }
-        onScroll={handleScroll}  // Add scroll handler
-        scrollEventThrottle={16}  // Optimize scroll events
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           <Animated.View 
             style={[

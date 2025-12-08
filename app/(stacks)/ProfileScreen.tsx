@@ -21,6 +21,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/hooks/useLanguage";
+import * as ImagePicker from "expo-image-picker";
 
 const { width } = Dimensions.get("window");
 const QUICK_ACTION_COLUMNS = 3;
@@ -38,9 +39,11 @@ export default function ProfileScreen() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [currency, setCurrency] = useState<string>("VND");
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
@@ -76,12 +79,16 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
+  // Reset selected photo when exiting edit mode
+  useEffect(() => {
+    if (!isEditing) {
+      setSelectedPhotoUri(null);
+    }
+  }, [isEditing]);
+
   const fetchBalance = async () => {
     setBalanceLoading(true);
     try {
-      // const token = await tokenService.getToken()
-      // if (!token) return
-
       const balanceData = await userService.getBalance();
       setBalance(balanceData.balance);
       setCurrency(balanceData.currency);
@@ -90,6 +97,74 @@ export default function ProfileScreen() {
     } finally {
       setBalanceLoading(false);
     }
+  };
+
+  const pickImage = async () => {
+    // Request permissions
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        t("profile.permissionRequired"),
+        t("profile.galleryPermissionMessage")
+      );
+      return;
+    }
+
+    // Launch image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedPhotoUri(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    // Request camera permissions
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        t("profile.permissionRequired"),
+        t("profile.cameraPermissionMessage")
+      );
+      return;
+    }
+
+    // Launch camera
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedPhotoUri(result.assets[0].uri);
+    }
+  };
+
+  const handleSelectPhoto = () => {
+    Alert.alert(
+      t("profile.changePhoto"),
+      t("profile.selectPhotoSource"),
+      [
+        {
+          text: t("profile.takePhoto"),
+          onPress: takePhoto,
+        },
+        {
+          text: t("profile.chooseFromGallery"),
+          onPress: pickImage,
+        },
+        {
+          text: t("profile.cancel"),
+          style: "cancel",
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
@@ -101,10 +176,27 @@ export default function ProfileScreen() {
         return;
       }
 
+      // Upload photo if a new one was selected
+      if (selectedPhotoUri) {
+        setUploadingPhoto(true);
+        try {
+          await userService.uploadProfilePhoto(selectedPhotoUri);
+          console.log("✅ Photo uploaded successfully");
+        } catch (photoError: any) {
+          console.error("Error uploading photo:", photoError);
+          Alert.alert(t("profile.error"), t("profile.failedPhotoUpload"));
+          // Continue with profile update even if photo upload fails
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
+      // Update profile data
       await userService.updateProfile(token, formData);
       await refreshUser();
 
       setIsEditing(false);
+      setSelectedPhotoUri(null);
       Alert.alert(t("profile.success"), t("profile.profileUpdated"));
     } catch (error: any) {
       Alert.alert(
@@ -124,6 +216,7 @@ export default function ProfileScreen() {
         dob: user.dob,
       });
     }
+    setSelectedPhotoUri(null);
     setIsEditing(false);
   };
 
@@ -160,7 +253,7 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           await logout();
-          router.replace("/WelcomeScreen");
+          router.replace("/WelcomeScreen" as any);
         },
       },
     ]);
@@ -252,13 +345,27 @@ export default function ProfileScreen() {
         >
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
-            <View
+            <TouchableOpacity
               style={[
                 styles.avatarWrapper,
                 { borderColor: `${primaryColor}30` },
               ]}
+              onPress={isEditing ? handleSelectPhoto : undefined}
+              activeOpacity={isEditing ? 0.7 : 1}
+              disabled={!isEditing}
             >
-              {user.photoUrl ? (
+              {uploadingPhoto ? (
+                <View
+                  style={[
+                    styles.avatarPlaceholder,
+                    { backgroundColor: `${primaryColor}20` },
+                  ]}
+                >
+                  <ActivityIndicator size="small" color={primaryColor} />
+                </View>
+              ) : selectedPhotoUri ? (
+                <Image source={{ uri: selectedPhotoUri }} style={styles.avatar} />
+              ) : user.photoUrl ? (
                 <Image source={{ uri: user.photoUrl }} style={styles.avatar} />
               ) : (
                 <View
@@ -273,20 +380,34 @@ export default function ProfileScreen() {
                 </View>
               )}
 
-              {/* Status Badge */}
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: user.isVerified ? "#34C759" : "#FF9500" },
-                ]}
-              >
-                <Ionicons
-                  name={user.isVerified ? "checkmark-circle" : "time"}
-                  size={14}
-                  color="#FFFFFF"
-                />
-              </View>
-            </View>
+              {/* Edit Badge - Show when editing */}
+              {isEditing && !uploadingPhoto && (
+                <View
+                  style={[
+                    styles.editAvatarBadge,
+                    { backgroundColor: primaryColor },
+                  ]}
+                >
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              )}
+
+              {/* Status Badge - Show when not editing */}
+              {!isEditing && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: user.isVerified ? "#34C759" : "#FF9500" },
+                  ]}
+                >
+                  <Ionicons
+                    name={user.isVerified ? "checkmark-circle" : "time"}
+                    size={14}
+                    color="#FFFFFF"
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
 
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{user.fullName}</Text>
@@ -432,13 +553,6 @@ export default function ProfileScreen() {
             color="#2563EB"
             bgColor="#E0ECFF"
             onPress={() => router.push("/(stacks)/MySubscriptionsScreen")}
-          />
-          <QuickActionButton
-            icon="chatbubbles"
-            label="Reviews"
-            color="#34C759"
-            bgColor="#F0FDF4"
-            onPress={() => router.push("/(stacks)/MyReviewsScreen")}
           />
           <QuickActionButton
             icon="settings"
@@ -1318,5 +1432,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FF3B30",
+  },
+  editAvatarBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

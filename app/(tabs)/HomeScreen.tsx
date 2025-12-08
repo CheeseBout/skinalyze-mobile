@@ -9,7 +9,8 @@ import {
   StatusBar,
   Animated,
   Dimensions,
-  FlatList
+  FlatList,
+  Image  // Add this import
 } from 'react-native'
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'expo-router'
@@ -21,9 +22,10 @@ import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
 import { productService } from '@/services/productService'
 import { Product } from '@/services/productService'
-import { 
-  useTranslation  // Add this import (from 'react-i18next')
-} from 'react-i18next';
+import { useTranslation } from 'react-i18next';
+import skinAnalysisService from '@/services/skinAnalysisService';
+import tokenService from '@/services/tokenService';
+import userService from '@/services/userService';
 
 const { width } = Dimensions.get('window')
 
@@ -31,8 +33,16 @@ export default function HomeScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { primaryColor } = useThemeColor()
-  const { categories, saleProducts, isLoading: isLoadingCategories, error: categoriesError, refreshProducts: refreshCategories } = useProducts()
-  const { t } = useTranslation();  // Add this
+  const { 
+    categories, 
+    saleProducts, 
+    isLoading: isLoadingCategories, 
+    error: categoriesError, 
+    refreshProducts: refreshCategories,
+    setUserSkinConditions,
+    getProductsSortedBySkinConditions 
+  } = useProducts()
+  const { t } = useTranslation();
   
   // New state for paginated products
   const [products, setProducts] = useState<Product[]>([])
@@ -42,6 +52,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [showToTop, setShowToTop] = useState(false)
+  const [userSkinTypes, setUserSkinTypes] = useState<string[]>([])
   
   const PRODUCTS_PER_PAGE = 50
   const flatListRef = useRef<FlatList>(null)
@@ -66,6 +77,46 @@ export default function HomeScreen() {
     ]).start()
   }, [])
 
+  // Fetch latest skin analysis to get user's skin conditions
+  useEffect(() => {
+    fetchLatestSkinAnalysis();
+  }, [user?.userId]);
+
+  const fetchLatestSkinAnalysis = async () => {
+    if (!user?.userId) return;
+    
+    try {
+      const token = await tokenService.getToken();
+      if (!token) return;
+
+      const customerData = await userService.getCustomerByUserId(user.userId, token);
+      const analyses = await skinAnalysisService.getUserAnalyses(customerData.customerId);
+      
+      if (analyses.length > 0) {
+        // Sort by date to get the latest one
+        const sortedAnalyses = analyses.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        
+        const latestAnalysis = sortedAnalyses[0];
+        
+        if (latestAnalysis.aiDetectedCondition) {
+          // Parse the skin conditions (e.g., "oily, sensitive" -> ['oily', 'sensitive'])
+          const conditions = latestAnalysis.aiDetectedCondition
+            .split(',')
+            .map(c => c.trim().toLowerCase())
+            .filter(c => c.length > 0);
+          
+          setUserSkinTypes(conditions);
+          setUserSkinConditions(conditions);
+          console.log('🔍 User skin conditions loaded:', conditions);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching skin analysis:', error);
+    }
+  };
+
   // Load initial products
   useEffect(() => {
     loadProducts(1)
@@ -77,7 +128,14 @@ export default function HomeScreen() {
       else setLoadingMore(true)
       
       const result = await productService.getProductsPaginated(page, PRODUCTS_PER_PAGE)
-      setProducts(prev => page === 1 ? result.products : [...prev, ...result.products])
+      
+      // Sort products based on user's skin conditions
+      let sortedProducts = result.products;
+      if (userSkinTypes.length > 0) {
+        sortedProducts = sortProductsBySkinConditions(result.products, userSkinTypes);
+      }
+      
+      setProducts(prev => page === 1 ? sortedProducts : [...prev, ...sortedProducts])
       setPagination(result.pagination)
       setError(null)
     } catch (err) {
@@ -88,9 +146,72 @@ export default function HomeScreen() {
     }
   }
 
+  /**
+   * Sort products by relevance to user's skin conditions
+   */
+  const sortProductsBySkinConditions = (productList: Product[], conditions: string[]): Product[] => {
+    if (!conditions.length) return productList;
+
+    return [...productList].sort((a, b) => {
+      const scoreA = calculateSkinMatchScore(a, conditions);
+      const scoreB = calculateSkinMatchScore(b, conditions);
+      
+      // Sort by match score (descending)
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      
+      // Secondary sort by rating
+      const ratingA = productService.calculateAverageRating(a);
+      const ratingB = productService.calculateAverageRating(b);
+      return ratingB - ratingA;
+    });
+  };
+
+  /**
+   * Calculate match score between product and skin conditions
+   */
+  const calculateSkinMatchScore = (product: Product, conditions: string[]): number => {
+    if (!product.suitableFor || !conditions.length) return 0;
+
+    const normalizedConditions = conditions.map(c => c.toLowerCase().trim());
+    
+    // Handle suitableFor as array or string
+    let suitableForArray: string[] = [];
+    if (Array.isArray(product.suitableFor)) {
+      suitableForArray = product.suitableFor;
+    } else if (typeof product.suitableFor === 'string') {
+      try {
+        suitableForArray = JSON.parse(product.suitableFor as any);
+      } catch {
+        suitableForArray = (product.suitableFor as any).split(',');
+      }
+    }
+
+    const normalizedSuitableFor = suitableForArray.map(s => 
+      s.toLowerCase().trim().replace(/[\[\]"]/g, '')
+    );
+
+    return normalizedConditions.reduce((score, condition) => {
+      if (normalizedSuitableFor.some(suitable => 
+        suitable.includes(condition) || condition.includes(suitable)
+      )) {
+        return score + 1;
+      }
+      return score;
+    }, 0);
+  };
+
+  // Re-sort products when skin types are loaded
+  useEffect(() => {
+    if (userSkinTypes.length > 0 && products.length > 0) {
+      const sortedProducts = sortProductsBySkinConditions(products, userSkinTypes);
+      setProducts(sortedProducts);
+    }
+  }, [userSkinTypes]);
+
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadProducts(1)  // Reset to page 1
+    await fetchLatestSkinAnalysis()
+    await loadProducts(1)
     await refreshCategories()
     setRefreshing(false)
   }
@@ -137,11 +258,18 @@ export default function HomeScreen() {
           onPress={() => router.push('/(stacks)/ProfileScreen')}
           activeOpacity={0.7}
         >
-          <View style={[styles.profileAvatar, { backgroundColor: primaryColor }]}>
-            <Text style={styles.profileInitial}>
-              {user?.fullName?.charAt(0).toUpperCase() || 'G'}
-            </Text>
-          </View>
+          {user?.photoUrl ? (
+            <Image 
+              source={{ uri: user.photoUrl }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={[styles.profileAvatar, { backgroundColor: primaryColor }]}>
+              <Text style={styles.profileInitial}>
+                {user?.fullName?.charAt(0).toUpperCase() || 'G'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -556,6 +684,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  profileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   quickActions: {
     flexDirection: 'row',

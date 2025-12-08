@@ -1,7 +1,7 @@
 import apiService from "./apiService";
 import { User, Address } from "./authService";
 
-// --- Interfaces giữ nguyên ---
+// --- Interfaces ---
 interface UserProfileResponse {
   statusCode: number;
   message: string;
@@ -79,6 +79,18 @@ interface UpdateAddressPayload {
   wardOrSubDistrict?: string;
   district?: string;
   city?: string;
+}
+
+interface UploadPhotoData {
+  userId: string;
+  photoUrl: string;
+}
+
+interface UploadPhotoResponse {
+  statusCode: number;
+  message: string;
+  data: UploadPhotoData;
+  timestamp: string;
 }
 
 class UserService {
@@ -213,6 +225,41 @@ class UserService {
     } catch (error) {
       console.error("Error fetching user balance:", error);
       throw new Error("Failed to fetch user balance");
+    }
+  }
+
+  /**
+   * Upload profile photo
+   * @param imageUri - Local image URI from picker/camera
+   * @returns Upload result with new photoUrl
+   */
+  async uploadProfilePhoto(imageUri: string): Promise<UploadPhotoData> {
+    try {
+      const formData = new FormData();
+
+      // Extract filename and determine type
+      const filename = imageUri.split("/").pop() || "profile_photo.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+
+      formData.append("photo", {
+        uri: imageUri,
+        name: filename,
+        type: type,
+      } as any);
+
+      console.log("📤 Uploading profile photo...");
+
+      const result = await apiService.uploadFile<UploadPhotoResponse>(
+        "/users/upload-photo",
+        formData
+      );
+
+      console.log("✅ Profile photo uploaded:", result.data);
+      return result.data || (result as any);
+    } catch (error) {
+      console.error("❌ Error uploading profile photo:", error);
+      throw new Error("Failed to upload profile photo");
     }
   }
 }

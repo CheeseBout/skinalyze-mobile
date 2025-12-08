@@ -43,7 +43,15 @@
     "loginAgain": "Vui lòng đăng nhập lại",
     "failedUpdate": "Không thể cập nhật hồ sơ",
     "failedDelete": "Không thể xóa địa chỉ",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "changePhoto": "Thay Đổi Ảnh",
+    "selectPhotoSource": "Chọn cách cập nhật ảnh đại diện của bạn",
+    "takePhoto": "Chụp Ảnh",
+    "chooseFromGallery": "Chọn từ Thư Viện",
+    "permissionRequired": "Cần Quyền Truy Cập",
+    "galleryPermissionMessage": "Vui lòng cho phép truy cập vào thư viện ảnh của bạn để chọn ảnh đại diện.",
+    "cameraPermissionMessage": "Vui lòng cho phép truy cập vào camera của bạn để chụp ảnh đại diện.",
+    "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu."
   },
   "mySubscriptions": {
     "title": "Gói Đăng Ký Của Tôi",
@@ -233,7 +241,15 @@
     "noDetails": "Không có chi tiết bổ sung",
     "manualRecord": "Ghi Chép Thủ Công",
     "symptoms": "Triệu Chứng",
-    "notes": "Ghi Chú"
+    "notes": "Ghi Chú",
+    "skinTypesLabel": "Loại Da",
+    "skinTypes": {
+      "oily": "Da Dầu",
+      "normal": "Da Thường",
+      "dry": "Da Khô",
+      "combination": "Da Hỗn Hợp",
+      "sensitive": "Da Nhạy Cảm"
+    }
   },
   "appointments": {
     "title": "Lịch Hẹn Của Tôi",

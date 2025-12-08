@@ -43,7 +43,15 @@
     "loginAgain": "Please login again",
     "failedUpdate": "Failed to update profile",
     "failedDelete": "Failed to delete address",
-    "delete": "Delete"
+    "delete": "Delete",
+    "changePhoto": "Change Photo",
+    "selectPhotoSource": "Choose how to update your profile photo",
+    "takePhoto": "Take Photo",
+    "chooseFromGallery": "Choose from Gallery",
+    "permissionRequired": "Permission Required",
+    "galleryPermissionMessage": "Please allow access to your photo library to select a profile picture.",
+    "cameraPermissionMessage": "Please allow access to your camera to take a profile picture.",
+    "failedPhotoUpload": "Failed to upload profile photo. Your other changes were saved."
   },
   "mySubscriptions": {
     "title": "My Subscriptions",
@@ -233,7 +241,15 @@
     "noDetails": "No additional details provided",
     "manualRecord": "Manual Record",
     "symptoms": "Symptoms",
-    "notes": "Notes"
+    "notes": "Notes",
+    "skinTypesLabel": "Skin Types",
+    "skinTypes": {
+      "oily": "Oily",
+      "normal": "Normal",
+      "dry": "Dry",
+      "combination": "Combination",
+      "sensitive": "Sensitive"
+    }
   },
   "appointments": {
     "title": "My Appointments",

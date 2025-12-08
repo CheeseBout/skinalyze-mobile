@@ -64,7 +64,6 @@ export default function AnalysisDetailScreen() {
 
   // Fetch recommended products
   useEffect(() => {
-    // Early return if no product IDs
     if (!productIdsKey) {
       setRecommendedProducts([]);
       return;
@@ -74,9 +73,7 @@ export default function AnalysisDetailScreen() {
       try {
         setLoadingProducts(true);
         const productIds = productIdsKey.split(',');
-        const products: Product[] = [];
         
-        // Fetch products in parallel for better performance
         const productPromises = productIds.map(async (productId) => {
           try {
             return await productService.getProductById(productId);
@@ -87,8 +84,6 @@ export default function AnalysisDetailScreen() {
         });
 
         const fetchedProducts = await Promise.all(productPromises);
-        
-        // Filter out null values (failed fetches)
         const validProducts = fetchedProducts.filter((p): p is Product => p !== null);
         
         setRecommendedProducts(validProducts);
@@ -101,7 +96,7 @@ export default function AnalysisDetailScreen() {
     };
 
     fetchRecommendedProducts();
-  }, [productIdsKey]); // Only depend on the stable string key
+  }, [productIdsKey]);
 
   if (!result) {
     return (
@@ -119,8 +114,6 @@ export default function AnalysisDetailScreen() {
 
   // --- LOGIC & CALCULATIONS ---
   const isManual = result.source === 'MANUAL';
-  const isConditionDetection = result.aiDetectedCondition !== null;
-  const isDiseaseDetection = result.aiDetectedDisease !== null;
   
   // 1. Determine Image
   const imageUrl = result.imageUrls && result.imageUrls.length > 0 
@@ -145,6 +138,18 @@ export default function AnalysisDetailScreen() {
 
   const confidence = result.confidence;
 
+  // Helper function to normalize translation keys to match locale files
+  // Converts keys like "drug_eruption" or "DRUG_ERUPTION" to "Drug_Eruption"
+  const normalizeKey = (key: string | null) => {
+    if (!key) return '';
+    
+    // Split by underscore, capitalize first letter of each part, join back
+    return key
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('_');
+  };
+
   // 4. Determine Colors & Icons & Texts
   let displayTitle = '';
   let displayType = '';
@@ -163,21 +168,14 @@ export default function AnalysisDetailScreen() {
     const notes = result.notes ? `${t('analysis.notes')}: ${result.notes}` : '';
     displayDescription = [symptoms, notes].filter(Boolean).join('\n\n') || t('analysis.noDetails');
 
-  } else if (isConditionDetection) {
-    // AI CONDITION LOOK
-    displayTitle = t('analysis.' + result.aiDetectedCondition);
-    displayType = t('analysis.skinCondition');
-    themeColor = primaryColor;
-    iconName = 'water';
-    displayDescription = t('analysis.' + result.aiDetectedCondition + '_desc');
-
   } else {
     // AI DISEASE LOOK
-    displayTitle = t('analysis.' + result.aiDetectedDisease);
+    const normalizedDisease = normalizeKey(result.aiDetectedDisease);
+    displayTitle = t('analysis.' + normalizedDisease);
     displayType = t('analysis.diseaseDetection');
-    themeColor = '#E91E63'; // Pink/Red
-    iconName = 'medical';
-    displayDescription = t('analysis.' + result.aiDetectedDisease + '_desc');
+    themeColor = '#E91E63'; 
+    iconName = 'search';
+    displayDescription = t('analysis.' + normalizedDisease + '_desc');
   }
 
   const handleAskAI = () => {
@@ -212,7 +210,7 @@ Focus on effective treatments for this detection.`
     return '#FF3B30'; // Red
   };
 
-  // Prepare product carousel items - memoize to prevent recreation
+  // Prepare product carousel items
   const productCarouselItems: ProductItem[] = useMemo(() => {
     return recommendedProducts.map((product) => ({
       type: 'product' as const,
@@ -361,57 +359,81 @@ Focus on effective treatments for this detection.`
               <Text style={styles.resultDescription}>
                 {displayDescription}
               </Text>
-            </View>
-          </Animated.View>
 
-          {/* METADATA GRID */}
-          <Animated.View
-            style={[
-              styles.detailsSection,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-            ]}
-          >
-            <Text style={styles.sectionTitle}>{t('analysis.analysisDetails')}</Text> 
-
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0F9FF' }]}>
-                  <Ionicons name="calendar" size={20} color="#2196F3" />
+              {/* Skin Type Chips - for AI detected conditions */}
+              {!isManual && result.aiDetectedCondition && (
+                <View style={styles.skinTypeSection}>
+                  <View style={styles.skinTypeLabelRow}>
+                    <Ionicons name="water" size={14} color="#666" />
+                    <Text style={styles.skinTypeLabel}>{t('analysis.skinTypesLabel')}</Text>
+                  </View>
+                  <View style={styles.chipContainer}>
+                    {result.aiDetectedCondition.split(',').map((condition: string, index: number) => {
+                      const trimmedCondition = condition.trim().toLowerCase();
+                      
+                      // Color mapping for different skin types
+                      const chipColors: { [key: string]: { bg: string; text: string } } = {
+                        'combination': { bg: '#E8F5E9', text: '#2E7D32' },
+                        'dry': { bg: '#FFF3E0', text: '#E65100' },
+                        'normal': { bg: '#E3F2FD', text: '#1565C0' },
+                        'oily': { bg: '#FFF9C4', text: '#F9A825' },
+                        'sensitive': { bg: '#FCE4EC', text: '#C2185B' },
+                      };
+                      const colors = chipColors[trimmedCondition] || { bg: '#F5F5F5', text: '#666' };
+                      
+                      // Get translated skin type name
+                      const translatedName = t(`analysis.skinTypes.${trimmedCondition}`);
+                      
+                      return (
+                        <View 
+                          key={index} 
+                          style={[styles.skinTypeChip, { backgroundColor: colors.bg }]}
+                        >
+                          <Text style={[styles.skinTypeChipText, { color: colors.text }]}>
+                            {translatedName}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
                 </View>
-                <Text style={styles.detailLabel}>{t('analysis.date')}</Text> 
-                <Text style={styles.detailValue}>
-                  {new Date(result.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </Text>
+              )}
+
+              {/* Metadata Row - moved here from separate section */}
+              <View style={styles.metadataRow}>
+                <View style={styles.metadataItem}>
+                  <Ionicons name="calendar" size={14} color="#2196F3" />
+                  <Text style={styles.metadataText}>
+                    {new Date(result.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </View>
+                
+                <View style={styles.metadataDot} />
+                
+                <View style={styles.metadataItem}>
+                  <Ionicons name="time" size={14} color="#FF9800" />
+                  <Text style={styles.metadataText}>
+                    {new Date(result.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#FFF4E6' }]}>
-                  <Ionicons name="time" size={20} color="#FF9800" />
+              <View style={styles.metadataRow}>
+                <View style={styles.metadataItem}>
+                  <Ionicons name={isManual ? 'create' : 'sparkles'} size={14} color="#34C759" />
+                  <Text style={styles.metadataText}>
+                    {isManual ? t('analysis.manual') : t('analysis.aiScan')}
+                  </Text>
                 </View>
-                <Text style={styles.detailLabel}>{t('analysis.time')}</Text> 
-                <Text style={styles.detailValue}>
-                  {new Date(result.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F0FDF4' }]}>
-                  <Ionicons name={isManual ? 'create' : 'sparkles'} size={20} color="#34C759" />
+                
+                <View style={styles.metadataDot} />
+                
+                <View style={styles.metadataItem}>
+                  <Ionicons name="layers" size={14} color="#A855F7" />
+                  <Text style={styles.metadataText}>
+                    {isManual ? t('analysis.manual') : t('analysis.disease')}
+                  </Text>
                 </View>
-                <Text style={styles.detailLabel}>{t('analysis.source')}</Text> 
-                <Text style={styles.detailValue}>
-                  {isManual ? t('analysis.manual') : t('analysis.aiScan')} 
-                </Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <View style={[styles.detailIconWrapper, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="layers" size={20} color="#A855F7" />
-                </View>
-                <Text style={styles.detailLabel}>{t('analysis.type')}</Text> 
-                <Text style={styles.detailValue}>
-                  {isManual ? t('analysis.manual') : (isConditionDetection ? t('analysis.condition') : t('analysis.disease'))} 
-                </Text>
               </View>
             </View>
           </Animated.View>
@@ -488,11 +510,7 @@ Focus on effective treatments for this detection.`
               onPress={handleAskAI}
               activeOpacity={0.8}
             >
-              <View style={[styles.askAIIcon, { backgroundColor: `${themeColor}15` }]}>
-                <Ionicons name="chatbubbles" size={20} color={themeColor} />
-              </View>
               <Text style={[styles.askAIText, { color: themeColor }]}>{t('analysis.askAI')}</Text> 
-              <Ionicons name="arrow-forward" size={18} color={themeColor} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -500,11 +518,7 @@ Focus on effective treatments for this detection.`
               onPress={() => router.push('/(stacks)/DermatologistListScreen')}
               activeOpacity={0.8}
             >
-              <View style={[styles.consultIcon, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="medical" size={20} color="#2196F3" />
-              </View>
               <Text style={[styles.consultText, { color: '#2196F3' }]}>Consult with Experts</Text>
-              <Ionicons name="arrow-forward" size={18} color="#2196F3" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -512,7 +526,6 @@ Focus on effective treatments for this detection.`
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
               activeOpacity={0.8}
             >
-              <Ionicons name="camera" size={20} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
             </TouchableOpacity>
           </Animated.View>
@@ -524,7 +537,6 @@ Focus on effective treatments for this detection.`
 }
 
 const styles = StyleSheet.create({
-  // ...existing styles...
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
@@ -587,7 +599,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0, left: 0, right: 0, height: 150,
     backgroundColor: 'transparent',
-    backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)',
   },
   headerOverlay: {
     position: 'absolute',
@@ -705,30 +716,59 @@ const styles = StyleSheet.create({
   resultDescription: {
     fontSize: 15, fontWeight: '400', color: '#333', lineHeight: 24,
   },
-  detailsSection: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 18, fontWeight: '800', color: '#1A1A1A', marginBottom: 16,
-    letterSpacing: -0.3,
+  skinTypeSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
   },
-  detailsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+  skinTypeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  detailCard: {
-    width: (width - 60) / 2, backgroundColor: '#FFFFFF', borderRadius: 16,
-    padding: 16, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
-  },
-  detailIconWrapper: {
-    width: 44, height: 44, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
-  },
-  detailLabel: {
-    fontSize: 11, fontWeight: '700', color: '#999', marginBottom: 4,
+  skinTypeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
     textTransform: 'uppercase',
   },
-  detailValue: {
-    fontSize: 13, fontWeight: '700', color: '#1A1A1A', textAlign: 'center',
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  skinTypeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  skinTypeChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  metadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metadataDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E0E0E0',
+  },
+  metadataText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1A1A1A',
   },
   disclaimer: {
     backgroundColor: '#FFF8E1', borderRadius: 16, padding: 16, marginBottom: 24,
