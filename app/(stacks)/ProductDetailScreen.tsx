@@ -24,6 +24,7 @@ import { useThemeColor } from '@/contexts/ThemeColorContext';
 import ReviewsComponent from '@/components/ReviewsComponent';
 import { useTranslation } from 'react-i18next';
 import Carousel, { ProductItem } from '@/components/Carousel';
+import CustomAlert from '@/components/CustomAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,23 @@ export default function ProductDetailScreen() {
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const { refreshCount } = useCartCount();
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -142,14 +160,19 @@ export default function ProductDetailScreen() {
       const token = await tokenService.getToken();
 
       if (!token) {
-        Alert.alert(
-          t('productDetail.authRequired'),
-          t('productDetail.loginToAddCart'),
-          [
-            { text: t('productDetail.cancel'), style: 'cancel' },
-            { text: t('productDetail.logIn'), onPress: () => router.push('/WelcomeScreen' as any) }
-          ]
-        );
+        setAlertConfig({
+          type: 'warning',
+          title: t('productDetail.authRequired'),
+          message: t('productDetail.loginToAddCart'),
+          confirmText: t('productDetail.logIn'),
+          cancelText: t('productDetail.cancel'),
+          onConfirm: () => {
+            setAlertVisible(false);
+            router.push('/WelcomeScreen' as any);
+          },
+          onCancel: () => setAlertVisible(false),
+        });
+        setAlertVisible(true);
         return;
       }
 
@@ -160,14 +183,23 @@ export default function ProductDetailScreen() {
       
       await refreshCount();
 
-      Alert.alert(
-        t('productDetail.addedToCart'),
-        t('productDetail.itemsAdded', { quantity, item: quantity === 1 ? t('productDetail.item') : t('productDetail.items'), productName: product.productName }),
-        [
-          { text: t('productDetail.continueShopping'), style: 'cancel' },
-          { text: t('productDetail.viewCart'), onPress: () => router.push('/(tabs)/CartScreen') }
-        ]
-      );
+      setAlertConfig({
+        type: 'success',
+        title: t('productDetail.addedToCart'),
+        message: t('productDetail.itemsAdded', { 
+          quantity, 
+          item: quantity === 1 ? t('productDetail.item') : t('productDetail.items'), 
+          productName: product.productName 
+        }),
+        confirmText: t('productDetail.viewCart'),
+        cancelText: t('productDetail.continueShopping'),
+        onConfirm: () => {
+          setAlertVisible(false);
+          router.push('/(tabs)/CartScreen');
+        },
+        onCancel: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
 
       setQuantity(1);
 
@@ -187,7 +219,14 @@ export default function ProductDetailScreen() {
         }
       }
 
-      Alert.alert(t('productDetail.cannotAddToCart'), errorMessage, [{ text: t('productDetail.ok') }]);
+      setAlertConfig({
+        type: 'error',
+        title: t('productDetail.cannotAddToCart'),
+        message: errorMessage,
+        confirmText: t('productDetail.ok'),
+        onConfirm: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
     } finally {
       setIsAddingToCart(false);
     }
@@ -604,6 +643,18 @@ export default function ProductDetailScreen() {
           )}
         </TouchableOpacity>
       </Animated.View>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   )
 }

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
-  Alert,
   ActivityIndicator,
   StatusBar,
   Animated,
@@ -22,6 +21,7 @@ import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/hooks/useLanguage";
 import * as ImagePicker from "expo-image-picker";
+import CustomAlert from "@/components/CustomAlert";
 
 const { width } = Dimensions.get("window");
 const QUICK_ACTION_COLUMNS = 3;
@@ -53,6 +53,51 @@ export default function ProfileScreen() {
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  // Helper function to show alert
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string,
+    confirmText: string = t('profile.ok'),
+    onConfirm: () => void = () => {},
+    cancelText?: string,
+    onCancel?: () => void
+  ) => {
+    setAlertConfig({
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setAlertVisible(false);
+        onConfirm();
+      },
+      onCancel: onCancel ? () => {
+        setAlertVisible(false);
+        onCancel();
+      } : undefined,
+    });
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     if (user) {
@@ -103,7 +148,8 @@ export default function ProfileScreen() {
     // Request permissions
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAlert(
+        'warning',
         t("profile.permissionRequired"),
         t("profile.galleryPermissionMessage")
       );
@@ -127,7 +173,8 @@ export default function ProfileScreen() {
     // Request camera permissions
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAlert(
+        'warning',
         t("profile.permissionRequired"),
         t("profile.cameraPermissionMessage")
       );
@@ -147,23 +194,14 @@ export default function ProfileScreen() {
   };
 
   const handleSelectPhoto = () => {
-    Alert.alert(
+    showAlert(
+      'info',
       t("profile.changePhoto"),
       t("profile.selectPhotoSource"),
-      [
-        {
-          text: t("profile.takePhoto"),
-          onPress: takePhoto,
-        },
-        {
-          text: t("profile.chooseFromGallery"),
-          onPress: pickImage,
-        },
-        {
-          text: t("profile.cancel"),
-          style: "cancel",
-        },
-      ]
+      t("profile.takePhoto"),
+      takePhoto,
+      t("profile.chooseFromGallery"),
+      pickImage
     );
   };
 
@@ -172,7 +210,11 @@ export default function ProfileScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t("profile.error"), t("profile.loginAgain"));
+        showAlert(
+          'error',
+          t("profile.error"),
+          t("profile.loginAgain")
+        );
         return;
       }
 
@@ -184,7 +226,11 @@ export default function ProfileScreen() {
           console.log("✅ Photo uploaded successfully");
         } catch (photoError: any) {
           console.error("Error uploading photo:", photoError);
-          Alert.alert(t("profile.error"), t("profile.failedPhotoUpload"));
+          showAlert(
+            'error',
+            t("profile.error"),
+            t("profile.failedPhotoUpload")
+          );
           // Continue with profile update even if photo upload fails
         } finally {
           setUploadingPhoto(false);
@@ -197,9 +243,15 @@ export default function ProfileScreen() {
 
       setIsEditing(false);
       setSelectedPhotoUri(null);
-      Alert.alert(t("profile.success"), t("profile.profileUpdated"));
+      
+      showAlert(
+        'success',
+        t("profile.success"),
+        t("profile.profileUpdated")
+      );
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
+        'error',
         t("profile.error"),
         error.message || t("profile.failedUpdate")
       );
@@ -221,42 +273,50 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    Alert.alert(t("profile.deleteAddress"), t("profile.deleteAddressConfirm"), [
-      { text: t("profile.cancel"), style: "cancel" },
-      {
-        text: t("profile.delete"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const token = await tokenService.getToken();
-            if (!token) return;
+    showAlert(
+      'warning',
+      t("profile.deleteAddress"),
+      t("profile.deleteAddressConfirm"),
+      t("profile.delete"),
+      async () => {
+        try {
+          const token = await tokenService.getToken();
+          if (!token) return;
 
-            await userService.deleteAddress(token, addressId);
-            await refreshUser();
-            Alert.alert(t("profile.success"), t("profile.addressDeleted"));
-          } catch (error: any) {
-            Alert.alert(
-              t("profile.error"),
-              error.message || t("profile.failedDelete")
-            );
-          }
-        },
+          await userService.deleteAddress(token, addressId);
+          await refreshUser();
+          
+          showAlert(
+            'success',
+            t("profile.success"),
+            t("profile.addressDeleted")
+          );
+        } catch (error: any) {
+          showAlert(
+            'error',
+            t("profile.error"),
+            error.message || t("profile.failedDelete")
+          );
+        }
       },
-    ]);
+      t("profile.cancel"),
+      () => {}
+    );
   };
 
   const handleLogout = () => {
-    Alert.alert(t("profile.logout"), t("profile.logoutConfirm"), [
-      { text: t("profile.cancel"), style: "cancel" },
-      {
-        text: t("profile.logout"),
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/WelcomeScreen" as any);
-        },
+    showAlert(
+      'warning',
+      t("profile.logout"),
+      t("profile.logoutConfirm"),
+      t("profile.logout"),
+      async () => {
+        await logout();
+        router.replace("/WelcomeScreen" as any);
       },
-    ]);
+      t("profile.cancel"),
+      () => {}
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -843,6 +903,18 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
       </ScrollView>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   );
 }

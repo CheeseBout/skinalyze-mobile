@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 export type ShippingMethod = "INTERNAL" | "GHN";
 
@@ -98,13 +99,15 @@ export const ShippingMethodSelector: React.FC<ShippingMethodSelectorProps> = ({
   primaryColor,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
       <ShippingMethodCard
         method="INTERNAL"
-        title="Giao hàng nội bộ"
-        subtitle="Shipper Skinalyze giao hàng"
-        estimatedTime="1-2 ngày"
+        title={t("checkout.shipping.internal.title")}
+        subtitle={t("checkout.shipping.internal.subtitle")}
+        estimatedTime={t("checkout.shipping.internal.estimatedTime")}
         fee={internalFee}
         icon="bicycle"
         selected={selectedMethod === "INTERNAL"}
@@ -114,9 +117,9 @@ export const ShippingMethodSelector: React.FC<ShippingMethodSelectorProps> = ({
 
       <ShippingMethodCard
         method="GHN"
-        title="Giao Hàng Nhanh (GHN)"
-        subtitle="Đối tác vận chuyển"
-        estimatedTime="2-3 ngày"
+        title={t("checkout.shipping.ghn.title")}
+        subtitle={t("checkout.shipping.ghn.subtitle")}
+        estimatedTime={t("checkout.shipping.ghn.estimatedTime")}
         fee={ghnFee}
         icon="cube"
         selected={selectedMethod === "GHN"}

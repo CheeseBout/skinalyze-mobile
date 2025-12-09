@@ -16,20 +16,18 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import tokenService from "@/services/tokenService";
-import userService from "@/services/userService";
+import userService, { Province, District, Commune } from "@/services/userService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
-import { WardPicker } from "@/components/WardPicker";
+import { AddressKitPicker } from "@/components/AddressKitPicker";
 
 interface AddressFormData {
   street: string;
   streetLine1: string;
   streetLine2: string;
   wardOrSubDistrict: string;
-  wardCode: string;
   district: string;
-  districtId: number | null;
   city: string;
 }
 
@@ -49,12 +47,15 @@ export default function AddressDetailScreen() {
     streetLine1: "",
     streetLine2: "",
     wardOrSubDistrict: "",
-    wardCode: "",
     district: "",
-    districtId: null,
     city: "",
   });
   const [errors, setErrors] = useState<Partial<AddressFormData>>({});
+
+  // AddressKit States
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState("");
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState("");
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState("");
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -96,11 +97,12 @@ export default function AddressDetailScreen() {
         streetLine1: address.streetLine1,
         streetLine2: address.streetLine2 || "",
         wardOrSubDistrict: address.wardOrSubDistrict,
-        wardCode: "", // TODO: Get from backend if available
         district: address.district,
-        districtId: null, // TODO: Get from backend if available
         city: address.city,
       });
+
+      // TODO: Reverse lookup codes from names if needed
+      // For now, leave codes empty - user can re-select if they want to edit
 
       startAnimations();
     } catch (error: any) {
@@ -114,7 +116,7 @@ export default function AddressDetailScreen() {
   const validateForm = (): boolean => {
     const newErrors: Partial<AddressFormData> = {};
 
-    if (!formData.street.trim()) newErrors.street = t("address.fillRequired"); // Or specific error key
+    if (!formData.street.trim()) newErrors.street = t("address.fillRequired");
     if (!formData.streetLine1.trim())
       newErrors.streetLine1 = t("address.fillRequired");
     if (!formData.wardOrSubDistrict.trim())
@@ -142,11 +144,7 @@ export default function AddressDetailScreen() {
       }
 
       if (isEditMode && addressId) {
-        await userService.updateAddress(
-          token,
-          addressId as string,
-          formData as any
-        );
+        await userService.updateAddress(token, addressId as string, formData);
         await refreshUser();
         Alert.alert(t("address.success"), t("address.updated"), [
           { text: "OK", onPress: () => router.back() },
@@ -204,6 +202,51 @@ export default function AddressDetailScreen() {
         },
       },
     ]);
+  };
+
+  // AddressKit Handlers
+  const handleProvinceSelect = (province: Province) => {
+    setSelectedProvinceCode(province.code);
+    setFormData({
+      ...formData,
+      city: province.name_with_type,
+    });
+    if (errors.city) setErrors({ ...errors, city: "" });
+
+    // Reset dependent selections
+    setSelectedDistrictCode("");
+    setSelectedCommuneCode("");
+    setFormData((prev) => ({
+      ...prev,
+      district: "",
+      wardOrSubDistrict: "",
+    }));
+  };
+
+  const handleDistrictSelect = (district: District) => {
+    setSelectedDistrictCode(district.code);
+    setFormData({
+      ...formData,
+      district: district.name_with_type,
+    });
+    if (errors.district) setErrors({ ...errors, district: "" });
+
+    // Reset commune selection
+    setSelectedCommuneCode("");
+    setFormData((prev) => ({
+      ...prev,
+      wardOrSubDistrict: "",
+    }));
+  };
+
+  const handleCommuneSelect = (commune: Commune) => {
+    setSelectedCommuneCode(commune.code);
+    setFormData({
+      ...formData,
+      wardOrSubDistrict: commune.name_with_type,
+    });
+    if (errors.wardOrSubDistrict)
+      setErrors({ ...errors, wardOrSubDistrict: "" });
   };
 
   if (initialLoading) {
@@ -264,7 +307,7 @@ export default function AddressDetailScreen() {
             />
           </View>
           <Text style={styles.headerTitle}>
-            {isEditMode ? t("address.editTitle") : t("address.addTitle")}
+            {isEditMode ? t("address.editAddress") : t("address.addAddress")}
           </Text>
         </View>
 
@@ -287,15 +330,15 @@ export default function AddressDetailScreen() {
             <View
               style={[
                 styles.cardHeaderIcon,
-                { backgroundColor: `${primaryColor}10` },
+                { backgroundColor: `${primaryColor}15` },
               ]}
             >
               <Ionicons name="location" size={20} color={primaryColor} />
             </View>
             <View>
-              <Text style={styles.cardTitle}>{t("address.detailsTitle")}</Text>
+              <Text style={styles.cardTitle}>{t("address.details")}</Text>
               <Text style={styles.cardSubtitle}>
-                {t("address.detailsSubtitle")}
+                {t("address.fillDetails")}
               </Text>
             </View>
           </View>
@@ -319,7 +362,7 @@ export default function AddressDetailScreen() {
               <InputField
                 label={t("address.streetLine1")}
                 placeholder={t("address.streetLine1Placeholder")}
-                icon="navigate-outline"
+                icon="location-outline"
                 value={formData.streetLine1}
                 onChangeText={(text) => {
                   setFormData({ ...formData, streetLine1: text });
@@ -335,117 +378,42 @@ export default function AddressDetailScreen() {
               <InputField
                 label={t("address.streetLine2")}
                 placeholder={t("address.streetLine2Placeholder")}
-                icon="navigate-outline"
+                icon="location-outline"
                 value={formData.streetLine2}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, streetLine2: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, streetLine2: text });
+                }}
                 primaryColor={primaryColor}
               />
             </View>
           </View>
 
-          {/* District Input - Để user nhập tay district ID */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              {t("address.district")} <Text style={styles.required}>*</Text>
-            </Text>
-            <Text style={styles.helperText}>
-              Nhập District ID (số) để load danh sách phường/xã từ GHN
-            </Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                errors.district && styles.inputWrapperError,
-              ]}
-            >
-              <Ionicons
-                name="map-outline"
-                size={18}
-                color="#666"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="VD: 1442 (Quận 1)"
-                placeholderTextColor="#999"
-                value={formData.districtId?.toString() || ""}
-                onChangeText={(text) => {
-                  const districtId = text ? parseInt(text) : null;
-                  setFormData({
-                    ...formData,
-                    districtId,
-                    district: text,
-                    wardCode: "", // Reset ward when district changes
-                    wardOrSubDistrict: "",
-                  });
-                  if (errors.district) setErrors({ ...errors, district: "" });
-                }}
-                keyboardType="numeric"
-              />
-            </View>
-            {errors.district && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={13} color="#FF3B30" />
-                <Text style={styles.errorText}>{errors.district}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Ward Picker - Uses GHN API */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              {t("address.wardOrSubDistrict")}{" "}
-              <Text style={styles.required}>*</Text>
-            </Text>
-            <WardPicker
-              districtId={formData.districtId}
-              selectedWardCode={formData.wardCode}
-              onWardSelect={(wardCode, wardName) => {
-                setFormData({
-                  ...formData,
-                  wardCode,
-                  wardOrSubDistrict: wardName,
-                });
-                if (errors.wardOrSubDistrict) {
-                  setErrors({ ...errors, wardOrSubDistrict: "" });
-                }
-              }}
-              primaryColor={primaryColor}
-              disabled={!formData.districtId}
-              placeholder={
-                formData.districtId
-                  ? t("address.wardPlaceholder")
-                  : "Nhập District ID trước"
-              }
-              error={errors.wardOrSubDistrict}
-            />
-          </View>
-
-          {/* City Input */}
-          <InputField
-            label={t("address.city")}
-            placeholder={t("address.cityPlaceholder")}
-            icon="globe-outline"
-            value={formData.city}
-            onChangeText={(text) => {
-              setFormData({ ...formData, city: text });
-              if (errors.city) setErrors({ ...errors, city: "" });
-            }}
-            error={errors.city}
-            required
+          {/* AddressKit Picker */}
+          <AddressKitPicker
+            selectedProvinceCode={selectedProvinceCode}
+            selectedDistrictCode={selectedDistrictCode}
+            selectedCommuneCode={selectedCommuneCode}
+            onProvinceSelect={handleProvinceSelect}
+            onDistrictSelect={handleDistrictSelect}
+            onCommuneSelect={handleCommuneSelect}
             primaryColor={primaryColor}
+            error={{
+              city: errors.city,
+              district: errors.district,
+              wardOrSubDistrict: errors.wardOrSubDistrict,
+            }}
           />
 
           <View
             style={[styles.infoBox, { backgroundColor: `${primaryColor}08` }]}
           >
-            <View style={[styles.infoIcon, { backgroundColor: primaryColor }]}>
-              <Ionicons name="information" size={16} color="#FFFFFF" />
+            <View
+              style={[styles.infoIcon, { backgroundColor: primaryColor }]}
+            >
+              <Ionicons name="information" size={14} color="#FFFFFF" />
             </View>
             <Text style={styles.infoText}>
-              💡 District ID: Tìm mã quận/huyện từ GHN API hoặc tài liệu. VD:
-              1442 (Quận 1 TP.HCM)
+              {t("address.infoText")}
             </Text>
           </View>
         </Animated.View>
@@ -472,9 +440,7 @@ export default function AddressDetailScreen() {
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 <Text style={styles.saveButtonText}>
-                  {isEditMode
-                    ? t("address.updateButton")
-                    : t("address.addButton")}
+                  {isEditMode ? t("address.update") : t("address.save")}
                 </Text>
               </>
             )}
@@ -482,14 +448,14 @@ export default function AddressDetailScreen() {
 
           {isEditMode && (
             <TouchableOpacity
-              style={[styles.deleteButton, loading && styles.buttonDisabled]}
+              style={styles.deleteButton}
               onPress={handleDelete}
               disabled={loading}
               activeOpacity={0.8}
             >
               <Ionicons name="trash-outline" size={20} color="#FF3B30" />
               <Text style={styles.deleteButtonText}>
-                {t("address.deleteButton")}
+                {t("address.delete")}
               </Text>
             </TouchableOpacity>
           )}
@@ -499,7 +465,7 @@ export default function AddressDetailScreen() {
   );
 }
 
-// Input Field Component (Updated to accept translation strings directly)
+// Input Field Component
 interface InputFieldProps {
   label: string;
   placeholder: string;

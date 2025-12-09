@@ -20,6 +20,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '@/hooks/useAuth'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 import { Picker } from '@react-native-picker/picker'; 
+import { AddressKitPicker } from '@/components/AddressKitPicker';
+import { Province, District, Commune } from '@/services/userService';
 
 // Static definition ensures no calculation errors
 const MONTH_NAMES = [
@@ -54,6 +56,11 @@ export default function SignUpScreen() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(1); // 1-12
   const [selectedDay, setSelectedDay] = useState(1);
+  
+  // AddressKit States - ĐỔI TÊN
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState('');
   
   const [phoneDigits, setPhoneDigits] = useState('')
   const { primaryColor } = useThemeColor();
@@ -154,6 +161,50 @@ export default function SignUpScreen() {
     return `${day} ${monthName} ${year}` // "23 Feb 2004"
   }
 
+  // AddressKit Handlers - CẬP NHẬT
+  const handleProvinceSelect = (province: Province) => {
+    setSelectedProvinceCode(province.code);
+    setFormData({
+      ...formData,
+      city: province.name_with_type, // Thay đổi từ province.name
+    });
+    if (errors.city) setErrors({ ...errors, city: '' });
+    
+    // Reset dependent selections
+    setSelectedDistrictCode('');
+    setSelectedCommuneCode('');
+    setFormData(prev => ({
+      ...prev,
+      district: '',
+      wardOrSubDistrict: '',
+    }));
+  };
+
+  const handleDistrictSelect = (district: District) => {
+    setSelectedDistrictCode(district.code);
+    setFormData({
+      ...formData,
+      district: district.name_with_type, // Thay đổi từ district.name
+    });
+    if (errors.district) setErrors({ ...errors, district: '' });
+    
+    // Reset commune selection
+    setSelectedCommuneCode('');
+    setFormData(prev => ({
+      ...prev,
+      wardOrSubDistrict: '',
+    }));
+  };
+
+  const handleCommuneSelect = (commune: Commune) => {
+    setSelectedCommuneCode(commune.code);
+    setFormData({
+      ...formData,
+      wardOrSubDistrict: commune.name_with_type, // Thay đổi từ commune.name
+    });
+    if (errors.wardOrSubDistrict) setErrors({ ...errors, wardOrSubDistrict: '' });
+  };
+
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
       {[1, 2, 3].map((step) => (
@@ -187,9 +238,6 @@ export default function SignUpScreen() {
 
   // Helper to get days in month (accounts for leap years correctly)
   const getDaysInMonth = (year: number, month: number) => {
-    // month is 1-12. Date constructor expects 0-11 for month index.
-    // But creating Date(year, month, 0) gives the last day of the PREVIOUS month.
-    // So Date(2004, 2, 0) -> Day 0 of March -> Last day of Feb.
     return new Date(year, month, 0).getDate();
   };
 
@@ -325,14 +373,14 @@ export default function SignUpScreen() {
                   </View>
                   <TextInput
                     style={styles.phoneInput}
-                    placeholder="XXX XXX XXX"
+                    placeholder="123456789"
                     placeholderTextColor="#999"
                     value={phoneDigits}
                     onChangeText={handlePhoneChange}
                     keyboardType="phone-pad"
                     maxLength={9}
                   />
-                  {phoneDigits.length === 9 && !errors.phone && (
+                  {phoneDigits && !errors.phone && (
                     <Ionicons name="checkmark-circle" size={20} color="#34C759" />
                   )}
                 </View>
@@ -342,10 +390,9 @@ export default function SignUpScreen() {
                     <Text style={styles.errorText}>{errors.phone}</Text>
                   </View>
                 )}
-                <Text style={styles.helperText}>Enter 9 digits after +84</Text>
+                <Text style={styles.helperText}>9 digits after country code</Text>
               </View>
 
-              {/* Date of Birth Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Date of Birth</Text>
                 <TouchableOpacity
@@ -367,12 +414,12 @@ export default function SignUpScreen() {
                 )}
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.nextButton, { backgroundColor: primaryColor }]}
                 onPress={() => setCurrentStep(2)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.nextButtonText}>Continue</Text>
+                <Text style={styles.nextButtonText}>Next</Text>
                 <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </>
@@ -422,17 +469,17 @@ export default function SignUpScreen() {
                     styles.matchText,
                     { color: confirmPassword === formData.password ? "#34C759" : "#FF3B30" }
                   ]}>
-                    {confirmPassword === formData.password ? 'Passwords match' : 'Passwords do not match'}
+                    {confirmPassword === formData.password ? "Passwords match" : "Passwords don't match"}
                   </Text>
                 </View>
               )}
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.nextButton, { backgroundColor: primaryColor }]}
                 onPress={() => setCurrentStep(3)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.nextButtonText}>Continue</Text>
+                <Text style={styles.nextButtonText}>Next</Text>
                 <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </>
@@ -445,7 +492,7 @@ export default function SignUpScreen() {
 
               <InputField
                 label="Street"
-                placeholder="e.g., DHT 13"
+                placeholder="e.g., 123"
                 icon="home-outline"
                 value={formData.street}
                 onChangeText={(text) => {
@@ -460,7 +507,7 @@ export default function SignUpScreen() {
                 <View style={styles.halfInput}>
                   <InputField
                     label="Street Line 1"
-                    placeholder="e.g., 41/12/16"
+                    placeholder="Building/House No."
                     icon="location-outline"
                     value={formData.streetLine1}
                     onChangeText={(text) => {
@@ -474,61 +521,39 @@ export default function SignUpScreen() {
                 <View style={styles.halfInput}>
                   <InputField
                     label="Street Line 2"
-                    placeholder="Optional"
+                    placeholder="Apt/Unit"
                     icon="location-outline"
-                    value={formData.streetLine2 || ''}
-                    onChangeText={(text) => setFormData({ ...formData, streetLine2: text })}
+                    value={formData.streetLine2}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, streetLine2: text })
+                    }}
                     primaryColor={primaryColor}
                   />
                 </View>
               </View>
 
-              <InputField
-                label="Ward/Sub-district"
-                placeholder="e.g., DHT"
-                icon="business-outline"
-                value={formData.wardOrSubDistrict}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, wardOrSubDistrict: text })
-                  if (errors.wardOrSubDistrict) setErrors({ ...errors, wardOrSubDistrict: '' })
-                }}
-                error={errors.wardOrSubDistrict}
+              {/* AddressKit Picker */}
+              <AddressKitPicker
+                selectedProvinceCode={selectedProvinceCode}
+                selectedDistrictCode={selectedDistrictCode}
+                selectedCommuneCode={selectedCommuneCode}
+                onProvinceSelect={handleProvinceSelect}
+                onDistrictSelect={handleDistrictSelect}
+                onCommuneSelect={handleCommuneSelect}
                 primaryColor={primaryColor}
+                error={{
+                  city: errors.city,
+                  district: errors.district,
+                  wardOrSubDistrict: errors.wardOrSubDistrict,
+                }}
               />
 
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
-                  <InputField
-                    label="District"
-                    placeholder="District 12"
-                    icon="map-outline"
-                    value={formData.district}
-                    onChangeText={(text) => {
-                      setFormData({ ...formData, district: text })
-                      if (errors.district) setErrors({ ...errors, district: '' })
-                    }}
-                    error={errors.district}
-                    primaryColor={primaryColor}
-                  />
-                </View>
-                <View style={styles.halfInput}>
-                  <InputField
-                    label="City"
-                    placeholder="HCM City"
-                    icon="globe-outline"
-                    value={formData.city}
-                    onChangeText={(text) => {
-                      setFormData({ ...formData, city: text })
-                      if (errors.city) setErrors({ ...errors, city: '' })
-                    }}
-                    error={errors.city}
-                    primaryColor={primaryColor}
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                style={[styles.registerButton, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]}
+              <TouchableOpacity
+                style={[
+                  styles.registerButton,
+                  { backgroundColor: primaryColor },
+                  loading && styles.buttonDisabled
+                ]}
                 onPress={handleRegister}
                 disabled={loading}
                 activeOpacity={0.8}
@@ -537,8 +562,8 @@ export default function SignUpScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                     <Text style={styles.registerButtonText}>Create Account</Text>
+                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                   </>
                 )}
               </TouchableOpacity>
@@ -569,70 +594,54 @@ export default function SignUpScreen() {
           <View style={styles.datePickerContainer}>
             <View style={styles.datePickerHeader}>
               <Text style={styles.datePickerTitle}>Select Date of Birth</Text>
-              <TouchableOpacity onPress={() => setShowCalendar(false)} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={28} color={primaryColor} />
+              <TouchableOpacity onPress={() => setShowCalendar(false)}>
+                <Ionicons name="close" size={24} color="#1A1A1A" />
               </TouchableOpacity>
             </View>
             <View style={styles.pickerRow}>
-              {/* Year Picker */}
-              <View style={styles.pickerWrapper}>
-                <Text style={styles.pickerLabel}>Year</Text>
-                <Picker
-                  selectedValue={selectedYear}
-                  onValueChange={(value) => {
-                    setSelectedYear(value);
-                    // Validation to ensure day is valid for new year (e.g. Feb 29 -> Feb 28)
-                    const maxDays = getDaysInMonth(value, selectedMonth);
-                    if (selectedDay > maxDays) setSelectedDay(maxDays);
-                  }}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                >
-                  {years.map((year) => (
-                    <Picker.Item key={year} label={String(year)} value={year} />
-                  ))}
-                </Picker>
-              </View>
-
-              {/* Month Picker */}
-              <View style={styles.pickerWrapper}>
-                <Text style={styles.pickerLabel}>Month</Text>
-                <Picker
-                  selectedValue={selectedMonth}
-                  onValueChange={(value) => {
-                    setSelectedMonth(value);
-                    // Validation to ensure day is valid for new month (e.g. Jan 31 -> Feb 28)
-                    const maxDays = getDaysInMonth(selectedYear, value);
-                    if (selectedDay > maxDays) setSelectedDay(maxDays);
-                  }}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                >
-                  {MONTH_NAMES.map((month, index) => (
-                    <Picker.Item key={index} label={month} value={index + 1} />
-                  ))}
-                </Picker>
-              </View>
-
-              {/* Day Picker */}
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabel}>Day</Text>
                 <Picker
                   selectedValue={selectedDay}
-                  onValueChange={setSelectedDay}
+                  onValueChange={(val) => setSelectedDay(val)}
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                 >
-                  {days.map((day) => (
-                    <Picker.Item key={day} label={String(day)} value={day} />
+                  {days.map((d) => (
+                    <Picker.Item key={d} label={String(d)} value={d} />
+                  ))}
+                </Picker>
+              </View>
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <Picker
+                  selectedValue={selectedMonth}
+                  onValueChange={(val) => setSelectedMonth(val)}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {MONTH_NAMES.map((m, i) => (
+                    <Picker.Item key={i} label={m} value={i + 1} />
+                  ))}
+                </Picker>
+              </View>
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <Picker
+                  selectedValue={selectedYear}
+                  onValueChange={(val) => setSelectedYear(val)}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {years.map((y) => (
+                    <Picker.Item key={y} label={String(y)} value={y} />
                   ))}
                 </Picker>
               </View>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.confirmButton, { backgroundColor: primaryColor }]}
               onPress={handleDateConfirm}
-              activeOpacity={0.8}
             >
               <Text style={styles.confirmButtonText}>Confirm</Text>
             </TouchableOpacity>

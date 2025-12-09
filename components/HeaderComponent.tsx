@@ -3,10 +3,10 @@ import React, { useState, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth'
-import { Alert } from 'react-native';
 import { useNotificationWebSocket } from '@/hooks/useNotificationWebSocket';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import { useTranslation } from 'react-i18next';
+import CustomAlert from './CustomAlert';
 
 export default function HeaderComponent() {
   const [searchText, setSearchText] = useState('');
@@ -20,6 +20,23 @@ export default function HeaderComponent() {
   // Animation refs
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.9)).current;
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const menuItems = [
     { name: t('profile.title'), icon: 'person', url: 'ProfileScreen' },
@@ -55,22 +72,25 @@ export default function HeaderComponent() {
 
   const handleNavigate = async (path: string) => {
     handleMenuPress(); // Close menu with animation
+    
     if (path === 'WelcomeScreen') {
-      Alert.alert(
-        t('profile.logout'),
-        t('profile.logoutConfirm'),
-        [
-          { text: t('profile.cancel'), style: 'cancel' },
-          {
-            text: t('profile.logout'),
-            style: 'destructive',
-            onPress: async () => {
-              await logout();
-              router.replace('/WelcomeScreen');
-            }
-          }
-        ]
-      );
+      // Show CustomAlert for logout confirmation
+      setAlertConfig({
+        type: 'warning',
+        title: t('profile.logout'),
+        message: t('profile.logoutConfirm'),
+        confirmText: t('profile.logout'),
+        cancelText: t('profile.cancel'),
+        onConfirm: async () => {
+          setAlertVisible(false);
+          await logout();
+          router.replace('/WelcomeScreen' as any);
+        },
+        onCancel: () => {
+          setAlertVisible(false);
+        },
+      });
+      setAlertVisible(true);
     } else {
       router.push(path as any);
     }
@@ -138,6 +158,18 @@ export default function HeaderComponent() {
           </Animated.View>
         </Pressable>
       </Modal>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   )
 }

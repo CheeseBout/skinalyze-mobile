@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -27,6 +26,9 @@ import {
   ShippingMethod,
 } from "@/components/ShippingMethodSelector";
 import ghnService from "@/services/ghnService";
+import CustomAlert from "@/components/CustomAlert";
+import AddressPickerModal from "@/app/(stacks)/AddressSelectionScreen";
+import { Address } from "@/services/authService";
 
 export default function CheckoutScreen() {
   const { t } = useTranslation();
@@ -56,9 +58,57 @@ export default function CheckoutScreen() {
   // Shipping state
   const [shippingMethod, setShippingMethod] =
     useState<ShippingMethod>("INTERNAL");
-  const [shippingFee, setShippingFee] = useState<number>(20000); // Default internal fee
-  const [ghnFee, setGhnFee] = useState<number>(35000); // Default GHN fee
+  const [shippingFee, setShippingFee] = useState<number>(20000);
+  const [ghnFee, setGhnFee] = useState<number>(35000);
   const [calculatingFee, setCalculatingFee] = useState(false);
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  // Address picker modal state
+  const [addressPickerVisible, setAddressPickerVisible] = useState(false);
+
+  // Helper function to show alert
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string,
+    confirmText: string = t('checkout.ok'),
+    onConfirm: () => void = () => {},
+    cancelText?: string,
+    onCancel?: () => void
+  ) => {
+    setAlertConfig({
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setAlertVisible(false);
+        onConfirm();
+      },
+      onCancel: onCancel ? () => {
+        setAlertVisible(false);
+        onCancel();
+      } : undefined,
+    });
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     loadCart();
@@ -109,17 +159,26 @@ export default function CheckoutScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t("checkout.error"), t("checkout.loginRequired"));
-        router.back();
+        showAlert(
+          'warning',
+          t("checkout.error"),
+          t("checkout.loginRequired"),
+          t('checkout.ok'),
+          () => router.back()
+        );
         return;
       }
 
       const cartData = await cartService.getUserCart();
 
       if (!cartData || cartData.items.length === 0) {
-        Alert.alert(t("checkout.emptyCart"), t("checkout.emptyCartDesc"), [
-          { text: t("checkout.ok"), onPress: () => router.back() },
-        ]);
+        showAlert(
+          'info',
+          t("checkout.emptyCart"),
+          t("checkout.emptyCartDesc"),
+          t('checkout.ok'),
+          () => router.back()
+        );
         return;
       }
 
@@ -136,10 +195,12 @@ export default function CheckoutScreen() {
       );
 
       if (selectedCartItems.length === 0) {
-        Alert.alert(
+        showAlert(
+          'warning',
           t("checkout.noItemsSelected"),
           t("checkout.selectItemsToCheckout"),
-          [{ text: t("checkout.ok"), onPress: () => router.back() }]
+          t('checkout.ok'),
+          () => router.back()
         );
         return;
       }
@@ -147,7 +208,11 @@ export default function CheckoutScreen() {
       setSelectedItems(selectedCartItems);
     } catch (error) {
       console.error("Error loading cart:", error);
-      Alert.alert(t("checkout.error"), t("checkout.loadError"));
+      showAlert(
+        'error',
+        t("checkout.error"),
+        t("checkout.loadError")
+      );
     } finally {
       setLoading(false);
     }
@@ -170,12 +235,20 @@ export default function CheckoutScreen() {
 
   const handleCheckout = async () => {
     if (!shippingAddress.trim()) {
-      Alert.alert(t("checkout.required"), t("checkout.enterShippingAddress"));
+      showAlert(
+        'warning',
+        t("checkout.required"),
+        t("checkout.enterShippingAddress")
+      );
       return;
     }
 
     if (selectedItems.length === 0) {
-      Alert.alert(t("checkout.error"), t("checkout.noItemsForCheckout"));
+      showAlert(
+        'error',
+        t("checkout.error"),
+        t("checkout.noItemsForCheckout")
+      );
       return;
     }
 
@@ -183,20 +256,18 @@ export default function CheckoutScreen() {
 
     // Check if using wallet and balance is insufficient
     if (paymentMethod === "wallet" && balance < totalPrice) {
-      Alert.alert(
+      showAlert(
+        'warning',
         t("checkout.insufficientBalance"),
         t("checkout.balanceMessage", {
           balance: balance.toLocaleString(),
           currency,
           total: totalPrice.toLocaleString(),
         }),
-        [
-          { text: t("checkout.ok"), style: "default" },
-          {
-            text: t("checkout.topUpWallet"),
-            onPress: () => router.push("/(stacks)/WithdrawalScreen"),
-          },
-        ]
+        t('checkout.topUpWallet'),
+        () => router.push("/(stacks)/WithdrawalScreen"),
+        t('checkout.ok'),
+        () => {}
       );
       return;
     }
@@ -206,7 +277,9 @@ export default function CheckoutScreen() {
         ? t("checkout.walletBalance")
         : orderService.getPaymentMethodLabel(paymentMethod);
 
-    Alert.alert(
+    // Show confirmation alert
+    showAlert(
+      'info',
       t("checkout.confirmOrder"),
       t("checkout.confirmMessage", {
         total: productService.formatPrice(totalPrice),
@@ -219,156 +292,147 @@ export default function CheckoutScreen() {
               })
             : "",
       }),
-      [
-        { text: t("checkout.cancel"), style: "cancel" },
-        {
-          text: t("checkout.confirm"),
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              const token = await tokenService.getToken();
-              if (!token) {
-                Alert.alert(t("checkout.error"), t("checkout.loginAgain"));
-                return;
-              }
+      t("checkout.confirm"),
+      async () => {
+        try {
+          setSubmitting(true);
+          const token = await tokenService.getToken();
+          if (!token) {
+            showAlert(
+              'error',
+              t("checkout.error"),
+              t("checkout.loginAgain")
+            );
+            return;
+          }
 
-              // Extract selected product IDs
-              const selectedProductIds = selectedItems.map(
-                (item) => item.productId
-              );
+          // Extract selected product IDs
+          const selectedProductIds = selectedItems.map(
+            (item) => item.productId
+          );
 
-              const order = await orderService.checkout(token, {
-                shippingAddress: shippingAddress.trim(),
-                province: province.trim(),
-                district: district.trim(),
-                ward: ward.trim(),
-                shippingMethod,
-                totalAmount: totalPrice,
-                paymentMethod,
-                notes: notes.trim() || undefined,
+          const order = await orderService.checkout(token, {
+            shippingAddress: shippingAddress.trim(),
+            province: province.trim(),
+            district: district.trim(),
+            ward: ward.trim(),
+            shippingMethod,
+            totalAmount: totalPrice,
+            paymentMethod,
+            notes: notes.trim() || undefined,
+          });
+
+          // Refresh balance if paid with wallet
+          let newBalance = balance;
+          if (paymentMethod === "wallet") {
+            await fetchBalance();
+            const balanceData = await userService.getBalance();
+            newBalance = balanceData.balance;
+          }
+
+          // For banking payment, navigate to PaymentScreen with QR details
+          if (paymentMethod === "banking" && order.payment) {
+            router.replace({
+              pathname: "/(stacks)/PaymentScreen",
+              params: {
+                paymentCode: order.payment.paymentCode || "",
+                expiredAt: order.payment.expiredAt || "",
+                appointmentId: "",
+                orderId: order.orderId,
+                bankingInfo: JSON.stringify({
+                  bankName: order.payment.bankingInfo?.bankName || "",
+                  accountNumber:
+                    order.payment.bankingInfo?.accountNumber || "",
+                  accountName: order.payment.bankingInfo?.accountName || "",
+                  amount: order.payment.amount || 0,
+                  qrCodeUrl: order.payment.qrCodeUrl || "",
+                }),
+              },
+            });
+            return;
+          }
+
+          // For other payment methods, show success alert
+          showAlert(
+            'success',
+            "Order Placed!",
+            `Order ID: ${order.orderId}\nYour order has been placed successfully.${
+              paymentMethod === "wallet"
+                ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}`
+                : ""
+            }`,
+            t("checkout.viewOrder"),
+            () => {
+              router.replace({
+                pathname: "/(stacks)/OrderDetailScreen",
+                params: { orderId: order.orderId },
               });
+            },
+            t("checkout.goToHome"),
+            () => router.replace("/(tabs)/HomeScreen")
+          );
+        } catch (error: any) {
+          console.error("Checkout error:", error);
 
-              // Refresh balance if paid with wallet
-              let newBalance = balance;
-              if (paymentMethod === "wallet") {
-                await fetchBalance();
-                const balanceData = await userService.getBalance();
-                newBalance = balanceData.balance;
-              }
-
-              // For banking payment, navigate to PaymentScreen with QR details
-              if (paymentMethod === "banking" && order.payment) {
-                router.replace({
-                  pathname: "/(stacks)/PaymentScreen",
-                  params: {
-                    paymentCode: order.payment.paymentCode || "",
-                    expiredAt: order.payment.expiredAt || "",
-                    appointmentId: "",
-                    orderId: order.orderId,
-                    bankingInfo: JSON.stringify({
-                      bankName: order.payment.bankingInfo?.bankName || "",
-                      accountNumber:
-                        order.payment.bankingInfo?.accountNumber || "",
-                      accountName: order.payment.bankingInfo?.accountName || "",
-                      amount: order.payment.amount || 0,
-                      qrCodeUrl: order.payment.qrCodeUrl || "",
-                    }),
-                  },
-                });
-                return;
-              }
-
-              // For other payment methods, show success alert
-              Alert.alert(
-                "Order Placed!",
-                `Order ID: ${
-                  order.orderId
-                }\nYour order has been placed successfully.${
-                  paymentMethod === "wallet"
-                    ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}`
-                    : ""
-                }`,
-                [
-                  {
-                    text: t("checkout.viewOrder"),
-                    onPress: () => {
-                      router.replace({
-                        pathname: "/(stacks)/OrderDetailScreen",
-                        params: { orderId: order.orderId },
-                      });
-                    },
-                  },
-                  {
-                    text: t("checkout.goToHome"),
-                    onPress: () => router.replace("/(tabs)/HomeScreen"),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error("Checkout error:", error);
-
-              // Handle insufficient balance error
-              const errorMessage =
-                error.message || "Failed to place order. Please try again.";
-              if (
-                errorMessage.includes("Số dư không đủ") ||
-                errorMessage.includes("insufficient")
-              ) {
-                Alert.alert(t("checkout.insufficientBalance"), errorMessage);
-              } else {
-                Alert.alert(t("checkout.checkoutFailed"), errorMessage);
-              }
-            } finally {
-              setSubmitting(false);
-            }
-          },
-        },
-      ]
+          // Handle insufficient balance error
+          const errorMessage =
+            error.message || "Failed to place order. Please try again.";
+          if (
+            errorMessage.includes("Số dư không đủ") ||
+            errorMessage.includes("insufficient")
+          ) {
+            showAlert(
+              'error',
+              t("checkout.insufficientBalance"),
+              errorMessage
+            );
+          } else {
+            showAlert(
+              'error',
+              t("checkout.checkoutFailed"),
+              errorMessage
+            );
+          }
+        } finally {
+          setSubmitting(false);
+        }
+      },
+      t("checkout.cancel"),
+      () => {}
     );
   };
 
   const handleAddressSelect = () => {
     if (user?.addresses && user.addresses.length > 0) {
-      Alert.alert(
-        t("checkout.selectAddress"),
-        t("checkout.chooseSavedAddress"),
-        [
-          ...user.addresses.map((address, index) => ({
-            text: `${address.streetLine1}, ${address.city}`,
-            onPress: () => {
-              const formattedAddress = [
-                address.streetLine1,
-                address.streetLine2,
-                address.street,
-                address.wardOrSubDistrict,
-                address.district,
-                address.city,
-              ]
-                .filter(Boolean)
-                .join(", ");
-              setShippingAddress(formattedAddress);
-              setProvince(address.city || "");
-              setDistrict(address.district || "");
-              setWard(address.wardOrSubDistrict || "");
-              setAddressEditable(false);
-            },
-          })),
-          {
-            text: t("checkout.enterManually"),
-            onPress: () => {
-              setShippingAddress("");
-              setAddressEditable(true);
-            },
-          },
-          {
-            text: t("checkout.cancel"),
-            style: "cancel" as const,
-          },
-        ]
-      );
+      setAddressPickerVisible(true);
     } else {
       setAddressEditable(true);
     }
+  };
+
+  const handleSelectAddress = (address: Address) => {
+    const formattedAddress = [
+      address.streetLine1,
+      address.streetLine2,
+      address.street,
+      address.wardOrSubDistrict,
+      address.district,
+      address.city,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    setShippingAddress(formattedAddress);
+    setProvince(address.city || "");
+    setDistrict(address.district || "");
+    setWard(address.wardOrSubDistrict || "");
+    setAddressEditable(false);
+    setAddressPickerVisible(false);
+  };
+
+  const handleEnterManually = () => {
+    setShippingAddress("");
+    setAddressEditable(true);
+    setAddressPickerVisible(false);
   };
 
   if (loading) {
@@ -446,7 +510,7 @@ export default function CheckoutScreen() {
               </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Phí giao hàng</Text>
+              <Text style={styles.summaryLabel}>{t("checkout.shippingFee")}</Text>
               <Text style={styles.summaryValue}>
                 {productService.formatPrice(shippingFee)}
               </Text>
@@ -505,7 +569,7 @@ export default function CheckoutScreen() {
 
         {/* Shipping Method */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phương thức giao hàng</Text>
+          <Text style={styles.sectionTitle}>{t("checkout.shippingMethod")}</Text>
           <ShippingMethodSelector
             selectedMethod={shippingMethod}
             onMethodChange={(method) => {
@@ -704,6 +768,30 @@ export default function CheckoutScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
+
+      {/* Address Picker Modal */}
+      <AddressPickerModal
+        visible={addressPickerVisible}
+        addresses={user?.addresses || []}
+        onSelectAddress={handleSelectAddress}
+        onEnterManually={handleEnterManually}
+        onCancel={() => setAddressPickerVisible(false)}
+        primaryColor={primaryColor}
+        title={t("checkout.selectAddress")}
+        subtitle={t("checkout.chooseSavedAddress")}
+      />
     </KeyboardAvoidingView>
   );
 }
