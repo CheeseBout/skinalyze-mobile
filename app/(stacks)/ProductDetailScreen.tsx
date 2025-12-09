@@ -321,7 +321,7 @@ export default function ProductDetailScreen() {
         <View style={styles.imageSection}>
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <Image
-              source={{ uri: product.productImages[selectedImageIndex] + `.jpg` }}
+              source={{ uri: product.productImages[selectedImageIndex] }}
               style={styles.mainImage}
               resizeMode="cover"
             />
@@ -384,7 +384,7 @@ export default function ProductDetailScreen() {
                   ]}
                   activeOpacity={0.7}
                 >
-                  <Image source={{ uri: image + `.jpg` }} style={styles.thumbnailImage} />
+                  <Image source={{ uri: image }} style={styles.thumbnailImage} />
                   {selectedImageIndex === index && (
                     <View style={[styles.thumbnailCheck, { backgroundColor: primaryColor }]}>
                       <Ionicons name="checkmark" size={12} color="#FFFFFF" />
