@@ -53,6 +53,24 @@
     "cameraPermissionMessage": "Vui lòng cho phép truy cập vào camera của bạn để chụp ảnh đại diện.",
     "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu."
   },
+  "home": {
+    "goodMorning": "Chào buổi sáng",
+    "goodAfternoon": "Chào buổi chiều",
+    "goodEvening": "Chào buổi tối",
+    "analyze": "Phân tích da",
+    "scanSkin": "Quét làn da của bạn",
+    "orders": "Đơn hàng",
+    "trackOrders": "Theo dõi đơn hàng",
+    "hotDeals": "Ưu đãi Hot",
+    "seeAll": "Xem tất cả",
+    "categories": "Danh mục",
+    "loadingCategories": "Đang tải danh mục...",
+    "allProducts": "Tất cả sản phẩm",
+    "oops": "Rất tiếc!",
+    "tryAgain": "Thử lại",
+    "loadingProducts": "Đang tải sản phẩm...",
+    "loadingMoreProducts": "Đang tải thêm..."
+  },
   "mySubscriptions": {
     "title": "Gói Đăng Ký Của Tôi",
     "loading": "Đang tải gói đăng ký...",
@@ -734,6 +752,7 @@
     "home": "Trang Chủ",
     "analyze": "Phân Tích",
     "cart": "Giỏ Hàng",
+    "schedule": "Lịch Hẹn",
     "orders": "Đơn Hàng",
     "profile": "Hồ Sơ"
   }

@@ -153,7 +153,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ScheduleScreen"
         options={{
-          title: t('tabBar.orders'),
+          title: t('tabBar.schedule'),
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "calendar" : "calendar-outline"}

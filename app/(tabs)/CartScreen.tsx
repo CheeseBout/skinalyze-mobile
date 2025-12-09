@@ -6,7 +6,6 @@ import {
   TouchableOpacity, 
   Image, 
   ActivityIndicator,
-  Alert,
   RefreshControl
 } from 'react-native'
 import React, { useState, useCallback } from 'react'
@@ -16,8 +15,9 @@ import cartService, { Cart, CartItem } from '@/services/cartService'
 import productService from '@/services/productService'
 import tokenService from '@/services/tokenService'
 import { useCartCount } from '@/hooks/userCartCount'
-import { useThemeColor } from '@/contexts/ThemeColorContext';
-import { useTranslation } from 'react-i18next';
+import { useThemeColor } from '@/contexts/ThemeColorContext'
+import { useTranslation } from 'react-i18next'
+import CustomAlert from '@/components/CustomAlert'
 
 // Extended CartItem with product image
 interface CartItemWithImage extends CartItem {
@@ -36,7 +36,52 @@ export default function CartScreen() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const { refreshCount } = useCartCount()
-  const { primaryColor } = useThemeColor();
+  const { primaryColor } = useThemeColor()
+
+  // CustomAlert state
+  const [alertVisible, setAlertVisible] = useState(false)
+  const [alertConfig, setAlertConfig] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  })
+
+  // Helper function to show alert
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string,
+    confirmText: string = t('common.cancel'),
+    onConfirm: () => void = () => {},
+    cancelText?: string,
+    onCancel?: () => void
+  ) => {
+    setAlertConfig({
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setAlertVisible(false)
+        onConfirm()
+      },
+      onCancel: onCancel ? () => {
+        setAlertVisible(false)
+        onCancel()
+      } : undefined,
+    })
+    setAlertVisible(true)
+  }
 
   const fetchProductImages = useCallback(async (cartData: Cart) => {
     if (!cartData || cartData.items.length === 0) {
@@ -102,7 +147,7 @@ export default function CartScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      ('📱 CartScreen focused - refreshing cart and badge')
+      console.log('📱 CartScreen focused - refreshing cart and badge')
       loadCart()
     }, [loadCart])
   )
@@ -163,7 +208,7 @@ export default function CartScreen() {
 
       const token = await tokenService.getToken()
       if (!token) {
-        Alert.alert('Error', 'Please log in again')
+        showAlert('error', t('cart.error'), t('cart.loginAgain'))
         return
       }
 
@@ -181,7 +226,7 @@ export default function CartScreen() {
       }, 100)
     } catch (err) {
       console.error('Error updating quantity:', err)
-      Alert.alert('Error', 'Failed to update quantity')
+      showAlert('error', t('cart.error'), t('cart.updateQuantityError'))
     } finally {
       setUpdatingItems(prev => {
         const newSet = new Set(prev)
@@ -189,100 +234,94 @@ export default function CartScreen() {
         return newSet
       })
     }
-  }, [fetchProductImages, refreshCount])
+  }, [fetchProductImages, refreshCount, t])
 
   const handleRemoveItem = useCallback((item: CartItem) => {
-    Alert.alert(
+    showAlert(
+      'warning',
       t('cart.removeItem'),
       t('cart.removeConfirm', { itemName: item.productName }),
-      [
-        { text: t('cart.cancel'), style: 'cancel' },
-        {
-          text: t('cart.remove'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setUpdatingItems(prev => new Set(prev).add(item.productId))
+      t('cart.remove'),
+      async () => {
+        try {
+          setUpdatingItems(prev => new Set(prev).add(item.productId))
 
-              const token = await tokenService.getToken()
-              if (!token) {
-                Alert.alert('Error', 'Please log in again')
-                return
-              }
-
-              const updatedCart = await cartService.removeFromCart(token, item.productId)
-              setCart(updatedCart)
-              await fetchProductImages(updatedCart)
-              
-              // Remove from selected items
-              setSelectedItems(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(item.productId)
-                return newSet
-              })
-              
-              setTimeout(async () => {
-                await refreshCount()
-              }, 100)
-            } catch (err) {
-              console.error('Error removing item:', err)
-              Alert.alert('Error', 'Failed to remove item')
-            } finally {
-              setUpdatingItems(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(item.productId)
-                return newSet
-              })
-            }
+          const token = await tokenService.getToken()
+          if (!token) {
+            showAlert('error', t('cart.error'), t('cart.loginAgain'))
+            return
           }
+
+          const updatedCart = await cartService.removeFromCart(token, item.productId)
+          setCart(updatedCart)
+          await fetchProductImages(updatedCart)
+          
+          // Remove from selected items
+          setSelectedItems(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(item.productId)
+            return newSet
+          })
+          
+          setTimeout(async () => {
+            await refreshCount()
+          }, 100)
+        } catch (err) {
+          console.error('Error removing item:', err)
+          showAlert('error', t('cart.error'), t('cart.removeItemError'))
+        } finally {
+          setUpdatingItems(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(item.productId)
+            return newSet
+          })
         }
-      ]
+      },
+      t('cart.cancel'),
+      () => {}
     )
-  }, [fetchProductImages, refreshCount])
+  }, [fetchProductImages, refreshCount, t])
 
   const handleClearCart = useCallback(() => {
     if (!cart || cart.items.length === 0) return
 
-    Alert.alert(
+    showAlert(
+      'warning',
       t('cart.clearCart'),
       t('cart.clearConfirm'),
-      [
-        { text: t('cart.cancel'), style: 'cancel' },
-        {
-          text: t('cart.clearAll'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await tokenService.getToken()
-              if (!token) {
-                Alert.alert('Error', 'Please log in again')
-                return
-              }
-
-              await cartService.clearCart(token)
-              setSelectedItems(new Set())
-              setSelectAll(false)
-              await loadCart()
-            } catch (err) {
-              console.error('Error clearing cart:', err)
-              Alert.alert('Error', 'Failed to clear cart')
-            }
+      t('cart.clearAll'),
+      async () => {
+        try {
+          const token = await tokenService.getToken()
+          if (!token) {
+            showAlert('error', t('cart.error'), t('cart.loginAgain'))
+            return
           }
+
+          await cartService.clearCart(token)
+          setSelectedItems(new Set())
+          setSelectAll(false)
+          await loadCart()
+        } catch (err) {
+          console.error('Error clearing cart:', err)
+          showAlert('error', t('cart.error'), t('cart.loadError'))
         }
-      ]
+      },
+      t('cart.cancel'),
+      () => {}
     )
-  }, [cart, loadCart])
+  }, [cart, loadCart, t])
 
   const handleCheckout = useCallback(() => {
     if (!cart || cart.items.length === 0) return
     
     if (selectedItems.size === 0) {
-      Alert.alert(t('cart.noItemsSelected'), t('cart.selectItemsToCheckout'))
+      showAlert('warning', t('cart.noItemsSelected'), t('cart.selectItemsToCheckout'))
       return
     }
 
     // Get selected product IDs as array
-    const selectedProductIds = Array.from(selectedItems);
+    const selectedProductIds = Array.from(selectedItems)
     
     router.push({
       pathname: '/(stacks)/CheckoutScreen',
@@ -290,7 +329,7 @@ export default function CartScreen() {
         selectedProductIds: JSON.stringify(selectedProductIds)
       }
     })
-  }, [cart, selectedItems, router])
+  }, [cart, selectedItems, router, t])
 
   const renderCartItem = useCallback(({ item }: { item: CartItemWithImage }) => {
     const isUpdating = updatingItems.has(item.productId)
@@ -391,7 +430,7 @@ export default function CartScreen() {
         </View>
       </View>
     )
-  }, [updatingItems, selectedItems, handleUpdateQuantity, handleRemoveItem, toggleSelectItem, router])
+  }, [updatingItems, selectedItems, handleUpdateQuantity, handleRemoveItem, toggleSelectItem, router, primaryColor])
 
   const renderEmptyCart = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -407,7 +446,7 @@ export default function CartScreen() {
         <Text style={styles.shopButtonText}>{t('cart.startShopping')}</Text>
       </TouchableOpacity>
     </View>
-  ), [router, primaryColor])
+  ), [router, primaryColor, t])
 
   const renderLoginRequired = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -418,12 +457,12 @@ export default function CartScreen() {
       </Text>
       <TouchableOpacity
         style={styles.shopButton}
-        onPress={() => router.push('/WelcomeScreen')}
+        onPress={() => router.push('/WelcomeScreen' as any)}
       >
         <Text style={styles.shopButtonText}>{t('cart.logIn')}</Text>
       </TouchableOpacity>
     </View>
-  ), [router])
+  ), [router, t])
 
   if (isLoading) {
     return (
@@ -528,6 +567,18 @@ export default function CartScreen() {
           <Ionicons name="arrow-forward" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
+
+      {/* CustomAlert */}
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   )
 }

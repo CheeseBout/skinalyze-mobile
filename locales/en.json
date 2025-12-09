@@ -597,7 +597,21 @@
     "retry": "Retry",
     "noProducts": "No products available",
     "noProductsDesc": "Check back later for new products",
-    "tryAgain": "Try Again"
+    "tryAgain": "Try Again",
+    "goodMorning": "Good Morning",
+    "goodAfternoon": "Good Afternoon",
+    "goodEvening": "Good Evening",
+    "analyze": "Analyze Skin",
+    "scanSkin": "Scan your skin",
+    "orders": "My Orders",
+    "trackOrders": "Track orders",
+    "hotDeals": "Hot Deals",
+    "seeAll": "See All",
+    "loadingCategories": "Loading categories...",
+    "allProducts": "All Products",
+    "oops": "Oops!",
+    "loadingProducts": "Loading products...",
+    "loadingMoreProducts": "Loading more..."
   },
   "productDetail": {
     "loading": "Loading product...",
@@ -728,6 +742,7 @@
     "home": "Home",
     "analyze": "Analyze",
     "cart": "Cart",
+    "schedule": "Schedule",
     "orders": "Orders",
     "profile": "Profile"
   }
