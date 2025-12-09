@@ -755,5 +755,28 @@
     "schedule": "Lịch Hẹn",
     "orders": "Đơn Hàng",
     "profile": "Hồ Sơ"
+  },
+  "shippingTracking": {
+    "title": "Theo Dõi Vận Chuyển",
+    "loading": "Đang tải thông tin...",
+    "noData": "Chưa có thông tin vận chuyển",
+    "noDataDesc": "Thông tin vận chuyển sẽ có sẵn khi đơn hàng của bạn được giao. Vui lòng kiểm tra lại sau.",
+    "retry": "Thử Lại",
+    "orderId": "Mã đơn hàng",
+    "status": "Trạng thái",
+    "ghnCode": "Mã vận đơn GHN",
+    "trackingInfo": "Thông tin vận chuyển",
+    "currentLocation": "Vị trí hiện tại",
+    "expectedDelivery": "Thời gian dự kiến giao",
+    "ghnStatus": "Trạng thái GHN",
+    "trackingHistory": "Lịch sử vận chuyển",
+    "shippingStaff": "Nhân viên giao hàng",
+    "callStaff": "Gọi nhân viên giao hàng",
+    "callStaffMessage": "Bạn muốn gọi cho {{name}}?",
+    "call": "Gọi",
+    "cancel": "Hủy",
+    "internalNote": "Đơn hàng đang được giao bởi đội ngũ nội bộ",
+    "ghnMethod": "Giao Hàng Nhanh (GHN)",
+    "internalMethod": "Giao nội bộ"
   }
 }

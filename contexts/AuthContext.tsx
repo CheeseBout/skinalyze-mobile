@@ -1,7 +1,13 @@
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
-import { User } from '@/services/authService';
-import tokenService from '@/services/tokenService';
-import userService from '@/services/userService';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from "react";
+import { User } from "@/services/authService";
+import tokenService from "@/services/tokenService";
+import userService from "@/services/userService";
 
 interface AuthContextType {
   user: User | null;
@@ -39,19 +45,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const token = await tokenService.getToken();
-      
+
       if (token) {
         console.log("🔄 Auto-login: Found token, fetching profile...");
-        
+
         // Gọi API lấy profile
         const responseData = await userService.getProfile(token);
-        
+
         console.log("👤 Profile response raw:", responseData);
 
         // --- BẮT ĐẦU SỬA LỖI ---
         // 1. Kiểm tra nếu responseData bị undefined hoặc null
         if (!responseData) {
-             throw new Error("No response data received from profile service");
+          throw new Error("No response data received from profile service");
         }
 
         // 2. Dùng Optional Chaining (?.) để truy cập an toàn
@@ -60,19 +66,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // --- KẾT THÚC SỬA LỖI ---
 
         if (userData && userData.email) {
-             setUser(userData);
-             console.log("✅ Auto-login success for:", userData.fullName);
+          setUser(userData);
+          console.log("✅ Auto-login success for:", userData.fullName);
         } else {
-             console.warn("⚠️ Profile data invalid or missing email");
-             // Nếu dữ liệu trả về không đúng cấu trúc User, coi như lỗi
-             throw new Error("Invalid user data structure");
+          console.warn("⚠️ Profile data invalid or missing email");
+          // Nếu dữ liệu trả về không đúng cấu trúc User, coi như lỗi
+          throw new Error("Invalid user data structure");
         }
       } else {
         // Không có token -> Dừng loading
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('❌ Error checking auth status:', error);
+      console.error("❌ Error checking auth status:", error);
       // Nếu có lỗi (token hết hạn, mạng lỗi, data rỗng) -> Xóa token và Logout
       await tokenService.clearAll();
       setUser(null);
@@ -84,23 +90,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (token: string, userData: User) => {
     try {
       await tokenService.saveToken(token);
-      
+
       try {
         const fullUserData = await userService.getProfile(token);
         // Kiểm tra an toàn cho cả hàm login
         if (fullUserData) {
-            const safeUserData = (fullUserData as any)?.data || fullUserData;
-            setUser({ ...safeUserData });
-            console.log('✅ User logged in with full profile:', safeUserData.fullName);
+          const safeUserData = (fullUserData as any)?.data || fullUserData;
+          setUser({ ...safeUserData });
+          console.log("✅ User logged in with full profile:", safeUserData);
         } else {
-            setUser({ ...userData });
+          setUser({ ...userData });
         }
       } catch (profileError) {
-        console.warn('⚠️ Could not fetch full profile, using provided data:', profileError);
+        console.warn(
+          "⚠️ Could not fetch full profile, using provided data:",
+          profileError
+        );
         setUser({ ...userData });
       }
     } catch (error) {
-      console.error('Error during login:', error);
+      console.error("Error during login:", error);
       throw error;
     }
   };
@@ -109,9 +118,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await tokenService.clearAll();
       setUser(null);
-      console.log('User logged out successfully');
+      console.log("User logged out successfully");
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
       throw error;
     }
   };
@@ -122,12 +131,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (token) {
         const responseData = await userService.getProfile(token);
         if (responseData) {
-            const userData = (responseData as any)?.data || responseData;
-            setUser((prevUser) => ({ ...(prevUser || {}), ...userData }));
+          const userData = (responseData as any)?.data || responseData;
+          setUser((prevUser) => ({ ...(prevUser || {}), ...userData }));
         }
       }
     } catch (error) {
-      console.error('Error refreshing user (non-blocking):', error);
+      console.error("Error refreshing user (non-blocking):", error);
     }
   };
 
@@ -145,10 +154,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  
+
   return context;
 }

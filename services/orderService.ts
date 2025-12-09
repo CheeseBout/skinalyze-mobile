@@ -136,7 +136,10 @@ export interface CheckoutPayload {
 export interface CheckoutResponse {
   statusCode: number;
   message: string;
-  data: Order;
+  data: {
+    order: Order;
+    message: string;
+  };
   timestamp: string;
 }
 
@@ -153,7 +156,7 @@ class OrderService {
         payload
       );
 
-      return response.data;
+      return response.data.order;
     } catch (error) {
       console.error("❌ Checkout error:", error);
       throw error;

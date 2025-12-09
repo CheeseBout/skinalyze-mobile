@@ -18,6 +18,7 @@ import shippingLogService, {
 } from "@/services/shippingLogService";
 import tokenService from "@/services/tokenService";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 export default function ShippingTrackingScreen() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function ShippingTrackingScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (orderId && isAuthenticated) {
@@ -44,7 +46,8 @@ export default function ShippingTrackingScreen() {
 
       const token = await tokenService.getToken();
       if (!token) {
-        setError("Vui lòng đăng nhập");
+        // Don't set error, just show no data state
+        setTrackingData(null);
         return;
       }
 
@@ -55,7 +58,8 @@ export default function ShippingTrackingScreen() {
       setTrackingData(data);
     } catch (err: any) {
       console.error("Error loading shipping tracking:", err);
-      setError(err.message || "Không thể tải thông tin vận chuyển");
+      // Don't set error, just leave trackingData as null to show no data state
+      setTrackingData(null);
     } finally {
       setLoading(false);
     }
@@ -71,12 +75,14 @@ export default function ShippingTrackingScreen() {
     if (!trackingData?.shippingStaff) return;
 
     Alert.alert(
-      "Gọi nhân viên giao hàng",
-      `Bạn muốn gọi cho ${trackingData.shippingStaff.fullName}?`,
+      t("shippingTracking.callStaff"),
+      t("shippingTracking.callStaffMessage", {
+        name: trackingData.shippingStaff.fullName,
+      }),
       [
-        { text: "Hủy", style: "cancel" },
+        { text: t("shippingTracking.cancel"), style: "cancel" },
         {
-          text: "Gọi",
+          text: t("shippingTracking.call"),
           onPress: () => {
             const phoneNumber = trackingData.shippingStaff!.phone;
             Linking.openURL(`tel:${phoneNumber}`);
@@ -96,18 +102,20 @@ export default function ShippingTrackingScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Theo dõi vận chuyển</Text>
+          <Text style={styles.headerTitle}>{t("shippingTracking.title")}</Text>
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={primaryColor} />
-          <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+          <Text style={styles.loadingText}>
+            {t("shippingTracking.loading")}
+          </Text>
         </View>
       </View>
     );
   }
 
-  if (error) {
+  if (!trackingData && !loading) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -117,17 +125,22 @@ export default function ShippingTrackingScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Theo dõi vận chuyển</Text>
+          <Text style={styles.headerTitle}>{t("shippingTracking.title")}</Text>
           <View style={styles.backButton} />
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-          <Text style={styles.errorText}>{error}</Text>
+          <Ionicons name="cube-outline" size={64} color="#999" />
+          <Text style={styles.noDataTitle}>{t("shippingTracking.noData")}</Text>
+          <Text style={styles.noDataDesc}>
+            {t("shippingTracking.noDataDesc")}
+          </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: primaryColor }]}
             onPress={loadTrackingData}
           >
-            <Text style={styles.retryButtonText}>Thử lại</Text>
+            <Text style={styles.retryButtonText}>
+              {t("shippingTracking.retry")}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -151,7 +164,7 @@ export default function ShippingTrackingScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Theo dõi vận chuyển</Text>
+        <Text style={styles.headerTitle}>{t("shippingTracking.title")}</Text>
         <TouchableOpacity style={styles.backButton} onPress={onRefresh}>
           <Ionicons name="refresh" size={24} color="#1A1A1A" />
         </TouchableOpacity>
@@ -166,7 +179,9 @@ export default function ShippingTrackingScreen() {
       >
         {/* Order ID */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mã đơn hàng</Text>
+          <Text style={styles.sectionTitle}>
+            {t("shippingTracking.orderId")}
+          </Text>
           <View style={styles.orderIdCard}>
             <Ionicons name="receipt-outline" size={24} color={primaryColor} />
             <Text style={styles.orderId}>{trackingData.orderId}</Text>
@@ -175,7 +190,9 @@ export default function ShippingTrackingScreen() {
 
         {/* Status */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trạng thái</Text>
+          <Text style={styles.sectionTitle}>
+            {t("shippingTracking.status")}
+          </Text>
           <View style={styles.statusCard}>
             <View
               style={[styles.statusBadge, { backgroundColor: statusColor }]}
@@ -185,8 +202,8 @@ export default function ShippingTrackingScreen() {
             </View>
             <Text style={styles.shippingMethodBadge}>
               {trackingData.shippingMethod === "GHN"
-                ? "Giao Hàng Nhanh"
-                : "Giao nội bộ"}
+                ? t("shippingTracking.ghnMethod")
+                : t("shippingTracking.internalMethod")}
             </Text>
           </View>
         </View>
@@ -194,7 +211,9 @@ export default function ShippingTrackingScreen() {
         {/* GHN Order Code */}
         {trackingData.ghnOrderCode && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Mã vận đơn GHN</Text>
+            <Text style={styles.sectionTitle}>
+              {t("shippingTracking.ghnCode")}
+            </Text>
             <View style={styles.ghnCodeCard}>
               <Ionicons name="barcode-outline" size={24} color={primaryColor} />
               <Text style={styles.ghnCode}>{trackingData.ghnOrderCode}</Text>
@@ -207,7 +226,9 @@ export default function ShippingTrackingScreen() {
           <>
             {/* Current Status & Location */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thông tin vận chuyển</Text>
+              <Text style={styles.sectionTitle}>
+                {t("shippingTracking.trackingInfo")}
+              </Text>
               <View style={styles.trackingInfoCard}>
                 <View style={styles.infoRow}>
                   <Ionicons
@@ -216,7 +237,9 @@ export default function ShippingTrackingScreen() {
                     color={primaryColor}
                   />
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Vị trí hiện tại</Text>
+                    <Text style={styles.infoLabel}>
+                      {t("shippingTracking.currentLocation")}
+                    </Text>
                     <Text style={styles.infoValue}>
                       {trackingData.ghnTracking.currentLocation}
                     </Text>
@@ -232,7 +255,9 @@ export default function ShippingTrackingScreen() {
                     color={primaryColor}
                   />
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Thời gian dự kiến giao</Text>
+                    <Text style={styles.infoLabel}>
+                      {t("shippingTracking.expectedDelivery")}
+                    </Text>
                     <Text style={styles.infoValue}>
                       {shippingLogService.formatDateTime(
                         trackingData.ghnTracking.expectedDeliveryTime
@@ -250,7 +275,9 @@ export default function ShippingTrackingScreen() {
                     color={primaryColor}
                   />
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Trạng thái GHN</Text>
+                    <Text style={styles.infoLabel}>
+                      {t("shippingTracking.ghnStatus")}
+                    </Text>
                     <Text style={styles.infoValue}>
                       {shippingLogService.getStatusLabel(
                         trackingData.ghnTracking.status
@@ -265,7 +292,9 @@ export default function ShippingTrackingScreen() {
             {trackingData.ghnTracking.logs &&
               trackingData.ghnTracking.logs.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Lịch sử vận chuyển</Text>
+                  <Text style={styles.sectionTitle}>
+                    {t("shippingTracking.trackingHistory")}
+                  </Text>
                   <View style={styles.logsContainer}>
                     {trackingData.ghnTracking.logs.map((log, index) => (
                       <View key={index} style={styles.logItem}>
@@ -312,7 +341,9 @@ export default function ShippingTrackingScreen() {
         {/* Shipping Staff Info */}
         {trackingData.shippingStaff && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nhân viên giao hàng</Text>
+            <Text style={styles.sectionTitle}>
+              {t("shippingTracking.shippingStaff")}
+            </Text>
             <View style={styles.staffCard}>
               <View style={styles.staffAvatar}>
                 <Ionicons name="person" size={32} color="#FFF" />
@@ -340,7 +371,7 @@ export default function ShippingTrackingScreen() {
           <View style={styles.noteCard}>
             <Ionicons name="information-circle" size={20} color="#007AFF" />
             <Text style={styles.noteText}>
-              Đơn hàng đang được giao bởi đội ngũ nội bộ
+              {t("shippingTracking.internalNote")}
             </Text>
           </View>
         )}
@@ -404,6 +435,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
+  },
+  noDataTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  noDataDesc: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    paddingHorizontal: 32,
+    lineHeight: 20,
   },
   retryButton: {
     marginTop: 24,

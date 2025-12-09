@@ -16,11 +16,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import tokenService from "@/services/tokenService";
-import userService, { Province, District, Commune } from "@/services/userService";
+import userService from "@/services/userService";
+import ghnService, {
+  GHNProvince,
+  GHNDistrict,
+  Ward,
+} from "@/services/ghnService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
-import { AddressKitPicker } from "@/components/AddressKitPicker";
 
 interface AddressFormData {
   street: string;
@@ -29,6 +33,8 @@ interface AddressFormData {
   wardOrSubDistrict: string;
   district: string;
   city: string;
+  districtId?: number;
+  wardCode?: string;
 }
 
 export default function AddressDetailScreen() {
@@ -49,25 +55,49 @@ export default function AddressDetailScreen() {
     wardOrSubDistrict: "",
     district: "",
     city: "",
+    districtId: undefined,
+    wardCode: undefined,
   });
   const [errors, setErrors] = useState<Partial<AddressFormData>>({});
 
-  // AddressKit States
-  const [selectedProvinceCode, setSelectedProvinceCode] = useState("");
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState("");
-  const [selectedCommuneCode, setSelectedCommuneCode] = useState("");
+  // GHN Address Selection States
+  const [provinces, setProvinces] = useState<GHNProvince[]>([]);
+  const [districts, setDistricts] = useState<GHNDistrict[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+
+  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(
+    null
+  );
+  const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(
+    null
+  );
+  const [selectedWardCode, setSelectedWardCode] = useState<string>("");
+
+  const [showProvincePicker, setShowProvincePicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+  const [showWardPicker, setShowWardPicker] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    loadProvinces();
     if (isEditMode && addressId) {
       loadAddressDetails();
     } else {
       startAnimations();
     }
   }, [addressId]);
+
+  const loadProvinces = async () => {
+    try {
+      const provinceList = await ghnService.getProvinces();
+      setProvinces(provinceList);
+    } catch (error) {
+      console.error("Error loading provinces:", error);
+    }
+  };
 
   const startAnimations = () => {
     Animated.parallel([
@@ -99,10 +129,24 @@ export default function AddressDetailScreen() {
         wardOrSubDistrict: address.wardOrSubDistrict,
         district: address.district,
         city: address.city,
+        districtId: address.districtId,
+        wardCode: address.wardCode,
       });
 
-      // TODO: Reverse lookup codes from names if needed
-      // For now, leave codes empty - user can re-select if they want to edit
+      // Set selected IDs if available
+      if (address.districtId) {
+        setSelectedDistrictId(address.districtId);
+        // Load wards for this district
+        try {
+          const wardList = await ghnService.getWards(address.districtId);
+          setWards(wardList);
+        } catch (error) {
+          console.error("Error loading wards:", error);
+        }
+      }
+      if (address.wardCode) {
+        setSelectedWardCode(address.wardCode);
+      }
 
       startAnimations();
     } catch (error: any) {
@@ -204,49 +248,74 @@ export default function AddressDetailScreen() {
     ]);
   };
 
-  // AddressKit Handlers
-  const handleProvinceSelect = (province: Province) => {
-    setSelectedProvinceCode(province.code);
+  // GHN Address Handlers
+  const handleProvinceSelect = async (province: GHNProvince) => {
+    setSelectedProvinceId(province.ProvinceID);
     setFormData({
       ...formData,
-      city: province.name_with_type,
+      city: province.ProvinceName,
     });
     if (errors.city) setErrors({ ...errors, city: "" });
 
+    // Load districts for this province
+    try {
+      const districtList = await ghnService.getDistricts(province.ProvinceID);
+      setDistricts(districtList);
+    } catch (error) {
+      console.error("Error loading districts:", error);
+    }
+
     // Reset dependent selections
-    setSelectedDistrictCode("");
-    setSelectedCommuneCode("");
+    setSelectedDistrictId(null);
+    setSelectedWardCode("");
+    setWards([]);
     setFormData((prev) => ({
       ...prev,
       district: "",
       wardOrSubDistrict: "",
+      districtId: undefined,
+      wardCode: undefined,
     }));
+    setShowProvincePicker(false);
   };
 
-  const handleDistrictSelect = (district: District) => {
-    setSelectedDistrictCode(district.code);
+  const handleDistrictSelect = async (district: GHNDistrict) => {
+    setSelectedDistrictId(district.DistrictID);
     setFormData({
       ...formData,
-      district: district.name_with_type,
+      district: district.DistrictName,
+      districtId: district.DistrictID,
     });
     if (errors.district) setErrors({ ...errors, district: "" });
 
-    // Reset commune selection
-    setSelectedCommuneCode("");
+    // Load wards for this district
+    try {
+      const wardList = await ghnService.getWards(district.DistrictID);
+      setWards(wardList);
+    } catch (error) {
+      console.error("Error loading wards:", error);
+    }
+
+    // Reset ward selection
+    setSelectedWardCode("");
     setFormData((prev) => ({
       ...prev,
       wardOrSubDistrict: "",
+      wardCode: undefined,
     }));
+    setShowDistrictPicker(false);
   };
 
-  const handleCommuneSelect = (commune: Commune) => {
-    setSelectedCommuneCode(commune.code);
+  const handleWardSelect = (ward: Ward) => {
+    setSelectedWardCode(ward.WardCode);
     setFormData({
       ...formData,
-      wardOrSubDistrict: commune.name_with_type,
+      wardOrSubDistrict: ward.WardName,
+      wardCode: ward.WardCode,
     });
     if (errors.wardOrSubDistrict)
       setErrors({ ...errors, wardOrSubDistrict: "" });
+    setShowWardPicker(false);
   };
 
   if (initialLoading) {
@@ -388,33 +457,97 @@ export default function AddressDetailScreen() {
             </View>
           </View>
 
-          {/* AddressKit Picker */}
-          <AddressKitPicker
-            selectedProvinceCode={selectedProvinceCode}
-            selectedDistrictCode={selectedDistrictCode}
-            selectedCommuneCode={selectedCommuneCode}
-            onProvinceSelect={handleProvinceSelect}
-            onDistrictSelect={handleDistrictSelect}
-            onCommuneSelect={handleCommuneSelect}
-            primaryColor={primaryColor}
-            error={{
-              city: errors.city,
-              district: errors.district,
-              wardOrSubDistrict: errors.wardOrSubDistrict,
-            }}
-          />
+          {/* GHN Address Pickers */}
+          {/* Province Picker */}
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>
+              {t("address.city")} <Text style={styles.required}>*</Text>
+            </Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, errors.city && styles.pickerError]}
+              onPress={() => setShowProvincePicker(true)}
+            >
+              <Ionicons name="business-outline" size={20} color="#666" />
+              <Text
+                style={[
+                  styles.pickerText,
+                  !formData.city && styles.pickerPlaceholder,
+                ]}
+              >
+                {formData.city || t("address.selectCity")}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+            {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
+          </View>
+
+          {/* District Picker */}
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>
+              {t("address.district")} <Text style={styles.required}>*</Text>
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.pickerButton,
+                errors.district && styles.pickerError,
+                !selectedProvinceId && styles.pickerDisabled,
+              ]}
+              onPress={() => selectedProvinceId && setShowDistrictPicker(true)}
+              disabled={!selectedProvinceId}
+            >
+              <Ionicons name="map-outline" size={20} color="#666" />
+              <Text
+                style={[
+                  styles.pickerText,
+                  !formData.district && styles.pickerPlaceholder,
+                ]}
+              >
+                {formData.district || t("address.selectDistrict")}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+            {errors.district && (
+              <Text style={styles.errorText}>{errors.district}</Text>
+            )}
+          </View>
+
+          {/* Ward Picker */}
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>
+              {t("address.ward")} <Text style={styles.required}>*</Text>
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.pickerButton,
+                errors.wardOrSubDistrict && styles.pickerError,
+                !selectedDistrictId && styles.pickerDisabled,
+              ]}
+              onPress={() => selectedDistrictId && setShowWardPicker(true)}
+              disabled={!selectedDistrictId}
+            >
+              <Ionicons name="location-outline" size={20} color="#666" />
+              <Text
+                style={[
+                  styles.pickerText,
+                  !formData.wardOrSubDistrict && styles.pickerPlaceholder,
+                ]}
+              >
+                {formData.wardOrSubDistrict || t("address.selectWard")}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+            {errors.wardOrSubDistrict && (
+              <Text style={styles.errorText}>{errors.wardOrSubDistrict}</Text>
+            )}
+          </View>
 
           <View
             style={[styles.infoBox, { backgroundColor: `${primaryColor}08` }]}
           >
-            <View
-              style={[styles.infoIcon, { backgroundColor: primaryColor }]}
-            >
+            <View style={[styles.infoIcon, { backgroundColor: primaryColor }]}>
               <Ionicons name="information" size={14} color="#FFFFFF" />
             </View>
-            <Text style={styles.infoText}>
-              {t("address.infoText")}
-            </Text>
+            <Text style={styles.infoText}>{t("address.infoText")}</Text>
           </View>
         </Animated.View>
 
@@ -454,13 +587,145 @@ export default function AddressDetailScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              <Text style={styles.deleteButtonText}>
-                {t("address.delete")}
-              </Text>
+              <Text style={styles.deleteButtonText}>{t("address.delete")}</Text>
             </TouchableOpacity>
           )}
         </Animated.View>
       </ScrollView>
+
+      {/* Province Picker Modal */}
+      {showProvincePicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("address.selectCity")}</Text>
+              <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
+                <Ionicons name="close" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {provinces.map((province) => (
+                <TouchableOpacity
+                  key={province.ProvinceID}
+                  style={[
+                    styles.modalItem,
+                    selectedProvinceId === province.ProvinceID &&
+                      styles.modalItemSelected,
+                  ]}
+                  onPress={() => handleProvinceSelect(province)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      selectedProvinceId === province.ProvinceID &&
+                        styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {province.ProvinceName}
+                  </Text>
+                  {selectedProvinceId === province.ProvinceID && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={primaryColor}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* District Picker Modal */}
+      {showDistrictPicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {t("address.selectDistrict")}
+              </Text>
+              <TouchableOpacity onPress={() => setShowDistrictPicker(false)}>
+                <Ionicons name="close" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {districts.map((district) => (
+                <TouchableOpacity
+                  key={district.DistrictID}
+                  style={[
+                    styles.modalItem,
+                    selectedDistrictId === district.DistrictID &&
+                      styles.modalItemSelected,
+                  ]}
+                  onPress={() => handleDistrictSelect(district)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      selectedDistrictId === district.DistrictID &&
+                        styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {district.DistrictName}
+                  </Text>
+                  {selectedDistrictId === district.DistrictID && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={primaryColor}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Ward Picker Modal */}
+      {showWardPicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("address.selectWard")}</Text>
+              <TouchableOpacity onPress={() => setShowWardPicker(false)}>
+                <Ionicons name="close" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {wards.map((ward) => (
+                <TouchableOpacity
+                  key={ward.WardCode}
+                  style={[
+                    styles.modalItem,
+                    selectedWardCode === ward.WardCode &&
+                      styles.modalItemSelected,
+                  ]}
+                  onPress={() => handleWardSelect(ward)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      selectedWardCode === ward.WardCode &&
+                        styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {ward.WardName}
+                  </Text>
+                  {selectedWardCode === ward.WardCode && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={primaryColor}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -772,5 +1037,94 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     letterSpacing: 0.3,
+  },
+  pickerContainer: {
+    marginBottom: 20,
+  },
+  pickerLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  pickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderColor: "#E5E5E5",
+    gap: 10,
+  },
+  pickerError: {
+    borderColor: "#FF3B30",
+    backgroundColor: "#FFF5F5",
+  },
+  pickerDisabled: {
+    opacity: 0.5,
+  },
+  pickerText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1A1A1A",
+    fontWeight: "500",
+  },
+  pickerPlaceholder: {
+    color: "#999",
+    fontWeight: "400",
+  },
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
+  },
+  modalList: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  modalItemSelected: {
+    backgroundColor: "#F8F8F8",
+  },
+  modalItemText: {
+    fontSize: 15,
+    color: "#1A1A1A",
+    fontWeight: "500",
+  },
+  modalItemTextSelected: {
+    fontWeight: "700",
   },
 });

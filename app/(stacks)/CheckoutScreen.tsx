@@ -47,6 +47,8 @@ export default function CheckoutScreen() {
   const [province, setProvince] = useState("");
   const [district, setDistrict] = useState("");
   const [ward, setWard] = useState("");
+  const [districtId, setDistrictId] = useState<number | null>(null);
+  const [wardCode, setWardCode] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [useWallet, setUseWallet] = useState(false);
@@ -65,7 +67,7 @@ export default function CheckoutScreen() {
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
-    type: 'success' | 'error' | 'warning' | 'info';
+    type: "success" | "error" | "warning" | "info";
     title: string;
     message: string;
     confirmText?: string;
@@ -73,9 +75,9 @@ export default function CheckoutScreen() {
     onConfirm: () => void;
     onCancel?: () => void;
   }>({
-    type: 'info',
-    title: '',
-    message: '',
+    type: "info",
+    title: "",
+    message: "",
     onConfirm: () => {},
   });
 
@@ -84,10 +86,10 @@ export default function CheckoutScreen() {
 
   // Helper function to show alert
   const showAlert = (
-    type: 'success' | 'error' | 'warning' | 'info',
+    type: "success" | "error" | "warning" | "info",
     title: string,
     message: string,
-    confirmText: string = t('checkout.ok'),
+    confirmText: string = t("checkout.ok"),
     onConfirm: () => void = () => {},
     cancelText?: string,
     onCancel?: () => void
@@ -102,10 +104,12 @@ export default function CheckoutScreen() {
         setAlertVisible(false);
         onConfirm();
       },
-      onCancel: onCancel ? () => {
-        setAlertVisible(false);
-        onCancel();
-      } : undefined,
+      onCancel: onCancel
+        ? () => {
+            setAlertVisible(false);
+            onCancel();
+          }
+        : undefined,
     });
     setAlertVisible(true);
   };
@@ -115,6 +119,13 @@ export default function CheckoutScreen() {
     loadUserAddress();
     fetchBalance();
   }, []);
+
+  // Calculate GHN fee when address or cart changes
+  useEffect(() => {
+    if (districtId && wardCode && selectedItems.length > 0) {
+      calculateGHNFee();
+    }
+  }, [districtId, wardCode, selectedItems]);
 
   const fetchBalance = async () => {
     setBalanceLoading(true);
@@ -129,6 +140,56 @@ export default function CheckoutScreen() {
       console.error("Error fetching balance:", error);
     } finally {
       setBalanceLoading(false);
+    }
+  };
+
+  const calculateGHNFee = async () => {
+    // Skip if address info is incomplete
+    if (!district || !ward || selectedItems.length === 0) {
+      return;
+    }
+
+    // Skip if missing districtId or wardCode
+    if (!districtId || !wardCode) {
+      console.warn("⚠️ Missing districtId or wardCode for GHN calculation");
+      setGhnFee(35000);
+      return;
+    }
+
+    try {
+      setCalculatingFee(true);
+      console.log("🚚 Calculating GHN shipping fee...", {
+        toDistrictId: districtId,
+        toWardCode: wardCode,
+      });
+
+      // Calculate order value for insurance
+      const orderValue = calculateSubtotal();
+
+      // Hardcoded sender location: Thủ Đức, Long Bình warehouse
+      const fromDistrictId = 3695; // Long Bình
+      const fromWardCode = "90751"; // Thủ Đức
+
+      const fee = await ghnService.calculateCheckoutFee(
+        fromDistrictId,
+        districtId,
+        wardCode,
+        orderValue
+      );
+
+      console.log("✅ GHN fee calculated:", fee);
+      setGhnFee(fee);
+
+      // Update shipping fee if GHN is selected
+      if (shippingMethod === "GHN") {
+        setShippingFee(fee);
+      }
+    } catch (error: any) {
+      console.error("❌ Error calculating GHN fee:", error);
+      // Fallback to default fee on error
+      setGhnFee(35000);
+    } finally {
+      setCalculatingFee(false);
     }
   };
 
@@ -151,6 +212,8 @@ export default function CheckoutScreen() {
       setProvince(primaryAddress.city || "");
       setDistrict(primaryAddress.district || "");
       setWard(primaryAddress.wardOrSubDistrict || "");
+      setDistrictId(primaryAddress.districtId || null);
+      setWardCode(primaryAddress.wardCode || "");
     }
   };
 
@@ -160,10 +223,10 @@ export default function CheckoutScreen() {
       const token = await tokenService.getToken();
       if (!token) {
         showAlert(
-          'warning',
+          "warning",
           t("checkout.error"),
           t("checkout.loginRequired"),
-          t('checkout.ok'),
+          t("checkout.ok"),
           () => router.back()
         );
         return;
@@ -173,10 +236,10 @@ export default function CheckoutScreen() {
 
       if (!cartData || cartData.items.length === 0) {
         showAlert(
-          'info',
+          "info",
           t("checkout.emptyCart"),
           t("checkout.emptyCartDesc"),
-          t('checkout.ok'),
+          t("checkout.ok"),
           () => router.back()
         );
         return;
@@ -196,10 +259,10 @@ export default function CheckoutScreen() {
 
       if (selectedCartItems.length === 0) {
         showAlert(
-          'warning',
+          "warning",
           t("checkout.noItemsSelected"),
           t("checkout.selectItemsToCheckout"),
-          t('checkout.ok'),
+          t("checkout.ok"),
           () => router.back()
         );
         return;
@@ -208,11 +271,7 @@ export default function CheckoutScreen() {
       setSelectedItems(selectedCartItems);
     } catch (error) {
       console.error("Error loading cart:", error);
-      showAlert(
-        'error',
-        t("checkout.error"),
-        t("checkout.loadError")
-      );
+      showAlert("error", t("checkout.error"), t("checkout.loadError"));
     } finally {
       setLoading(false);
     }
@@ -236,7 +295,7 @@ export default function CheckoutScreen() {
   const handleCheckout = async () => {
     if (!shippingAddress.trim()) {
       showAlert(
-        'warning',
+        "warning",
         t("checkout.required"),
         t("checkout.enterShippingAddress")
       );
@@ -244,11 +303,7 @@ export default function CheckoutScreen() {
     }
 
     if (selectedItems.length === 0) {
-      showAlert(
-        'error',
-        t("checkout.error"),
-        t("checkout.noItemsForCheckout")
-      );
+      showAlert("error", t("checkout.error"), t("checkout.noItemsForCheckout"));
       return;
     }
 
@@ -257,16 +312,16 @@ export default function CheckoutScreen() {
     // Check if using wallet and balance is insufficient
     if (paymentMethod === "wallet" && balance < totalPrice) {
       showAlert(
-        'warning',
+        "warning",
         t("checkout.insufficientBalance"),
         t("checkout.balanceMessage", {
           balance: balance.toLocaleString(),
           currency,
           total: totalPrice.toLocaleString(),
         }),
-        t('checkout.topUpWallet'),
+        t("checkout.topUpWallet"),
         () => router.push("/(stacks)/WithdrawalScreen"),
-        t('checkout.ok'),
+        t("checkout.ok"),
         () => {}
       );
       return;
@@ -279,7 +334,7 @@ export default function CheckoutScreen() {
 
     // Show confirmation alert
     showAlert(
-      'info',
+      "info",
       t("checkout.confirmOrder"),
       t("checkout.confirmMessage", {
         total: productService.formatPrice(totalPrice),
@@ -298,11 +353,7 @@ export default function CheckoutScreen() {
           setSubmitting(true);
           const token = await tokenService.getToken();
           if (!token) {
-            showAlert(
-              'error',
-              t("checkout.error"),
-              t("checkout.loginAgain")
-            );
+            showAlert("error", t("checkout.error"), t("checkout.loginAgain"));
             return;
           }
 
@@ -341,8 +392,7 @@ export default function CheckoutScreen() {
                 orderId: order.orderId,
                 bankingInfo: JSON.stringify({
                   bankName: order.payment.bankingInfo?.bankName || "",
-                  accountNumber:
-                    order.payment.bankingInfo?.accountNumber || "",
+                  accountNumber: order.payment.bankingInfo?.accountNumber || "",
                   accountName: order.payment.bankingInfo?.accountName || "",
                   amount: order.payment.amount || 0,
                   qrCodeUrl: order.payment.qrCodeUrl || "",
@@ -354,9 +404,11 @@ export default function CheckoutScreen() {
 
           // For other payment methods, show success alert
           showAlert(
-            'success',
+            "success",
             "Order Placed!",
-            `Order ID: ${order.orderId}\nYour order has been placed successfully.${
+            `Order ID: ${
+              order.orderId
+            }\nYour order has been placed successfully.${
               paymentMethod === "wallet"
                 ? `\n\nNew Balance: ${newBalance.toLocaleString()} ${currency}`
                 : ""
@@ -381,17 +433,9 @@ export default function CheckoutScreen() {
             errorMessage.includes("Số dư không đủ") ||
             errorMessage.includes("insufficient")
           ) {
-            showAlert(
-              'error',
-              t("checkout.insufficientBalance"),
-              errorMessage
-            );
+            showAlert("error", t("checkout.insufficientBalance"), errorMessage);
           } else {
-            showAlert(
-              'error',
-              t("checkout.checkoutFailed"),
-              errorMessage
-            );
+            showAlert("error", t("checkout.checkoutFailed"), errorMessage);
           }
         } finally {
           setSubmitting(false);
@@ -425,6 +469,8 @@ export default function CheckoutScreen() {
     setProvince(address.city || "");
     setDistrict(address.district || "");
     setWard(address.wardOrSubDistrict || "");
+    setDistrictId(address.districtId || null);
+    setWardCode(address.wardCode || "");
     setAddressEditable(false);
     setAddressPickerVisible(false);
   };
@@ -510,7 +556,9 @@ export default function CheckoutScreen() {
               </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t("checkout.shippingFee")}</Text>
+              <Text style={styles.summaryLabel}>
+                {t("checkout.shippingFee")}
+              </Text>
               <Text style={styles.summaryValue}>
                 {productService.formatPrice(shippingFee)}
               </Text>
@@ -569,7 +617,9 @@ export default function CheckoutScreen() {
 
         {/* Shipping Method */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("checkout.shippingMethod")}</Text>
+          <Text style={styles.sectionTitle}>
+            {t("checkout.shippingMethod")}
+          </Text>
           <ShippingMethodSelector
             selectedMethod={shippingMethod}
             onMethodChange={(method) => {
@@ -579,6 +629,7 @@ export default function CheckoutScreen() {
             internalFee={20000}
             ghnFee={ghnFee}
             primaryColor={primaryColor}
+            ghnLoading={calculatingFee}
           />
         </View>
 

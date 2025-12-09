@@ -1,8 +1,6 @@
 import apiService from "./apiService";
 import { User, Address } from "./authService";
-
-// --- VN Public API Base URL ---
-const VN_PUBLIC_API_BASE_URL = "https://vn-public-apis.fpo.vn";
+import ghnService, { GHNProvince, GHNDistrict, Ward } from "./ghnService";
 
 // --- Interfaces ---
 interface UserProfileResponse {
@@ -96,77 +94,36 @@ interface UploadPhotoResponse {
   timestamp: string;
 }
 
-// --- VN Public API Interfaces ---
-/**
- * Tỉnh/Thành phố
- */
-export interface Province {
-  code: string;
-  name: string;
-  name_with_type: string;
-  slug: string;
-  type: string;
-}
-
-/**
- * Quận/Huyện
- */
-export interface District {
-  code: string;
-  name: string;
-  name_with_type: string;
-  slug: string;
-  type: string;
-  province_code: string;
-}
-
-/**
- * Xã/Phường/Thị trấn
- */
-export interface Commune {
-  code: string;
-  name: string;
-  name_with_type: string;
-  slug: string;
-  type: string;
-  district_code: string;
-}
-
-/**
- * Response từ VN Public API
- */
-interface VNPublicAPIResponse<T> {
-  data: {
-    data: T[];
-    total: number;
-    page: number;
-    limit: number;
-  };
-  error: {
-    message: string;
-  };
-}
+// --- Re-export GHN Interfaces for backward compatibility ---
+export type Province = GHNProvince;
+export type District = GHNDistrict;
+export type Commune = Ward;
 
 class UserService {
   async getProfile(token: string): Promise<User> {
     try {
       const response = await apiService.get<any>("/users/profile");
-      
-      console.log("🔍 UserService Raw Response:", JSON.stringify(response, null, 2));
+
+      console.log(
+        "🔍 UserService Raw Response:",
+        JSON.stringify(response, null, 2)
+      );
 
       if (response && response.data) {
         return response.data;
       }
-      
+
       if (response && (response.userId || response.email)) {
         return response;
       }
 
-      console.warn("⚠️ UserService: Unknown profile structure, returning raw response");
+      console.warn(
+        "⚠️ UserService: Unknown profile structure, returning raw response"
+      );
       return response;
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      throw error; 
+      throw error;
     }
   }
 
@@ -190,10 +147,7 @@ class UserService {
     data: UpdateProfilePayload
   ): Promise<User> {
     try {
-      const response = await apiService.patch<any>(
-        "/users/profile",
-        data
-      );
+      const response = await apiService.patch<any>("/users/profile", data);
       return response.data || response;
     } catch (error) {
       console.error("Error updating user profile:", error);
@@ -316,240 +270,87 @@ class UserService {
   // ==================== VN PUBLIC API INTEGRATION ====================
 
   /**
-   * Lấy danh sách tất cả tỉnh/thành phố
-   * @param searchQuery - Từ khóa tìm kiếm (optional)
+   * Lấy danh sách tỉnh/thành phố từ GHN API
    * @returns Danh sách các tỉnh/thành phố
-   * 
+   *
    * @example
-   * // Lấy tất cả tỉnh/thành
    * const provinces = await userService.getProvinces();
-   * 
-   * // Tìm kiếm theo từ khóa
-   * const provinces = await userService.getProvinces("ninh");
    */
-  async getProvinces(searchQuery?: string): Promise<Province[]> {
-    try {
-      let url = `${VN_PUBLIC_API_BASE_URL}/provinces/getAll?limit=-1`;
-      
-      if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}&cols=name,name_with_type`;
-      }
-      
-      console.log("🌍 Fetching provinces from VN Public API:", url);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      // API trả về { data: { data: [...], total, page, limit }, error: {...} }
-      const provinces = result.data?.data || [];
-      console.log(`✅ Fetched ${provinces.length} provinces`);
-      
-      return provinces;
-    } catch (error) {
-      console.error("❌ Error fetching provinces from VN Public API:", error);
-      throw new Error("Failed to fetch provinces");
-    }
+  async getProvinces(): Promise<Province[]> {
+    return ghnService.getProvinces();
   }
 
   /**
-   * Lấy danh sách quận/huyện theo tỉnh
-   * @param provinceCode - Code của tỉnh/thành (VD: "01" cho Hà Nội, "79" cho TP.HCM)
-   * @param searchQuery - Từ khóa tìm kiếm (optional)
+   * Lấy danh sách quận/huyện theo tỉnh từ GHN API
+   * @param provinceId - ID của tỉnh/thành (GHN ProvinceID)
    * @returns Danh sách các quận/huyện
-   * 
+   *
    * @example
-   * // Lấy danh sách quận/huyện của Hà Nội
-   * const districts = await userService.getDistricts("01");
+   * const districts = await userService.getDistricts(202); // Hồ Chí Minh
    */
-  async getDistricts(
-    provinceCode: string,
-    searchQuery?: string
-  ): Promise<District[]> {
-    try {
-      let url = `${VN_PUBLIC_API_BASE_URL}/districts/getByProvince?provinceCode=${provinceCode}&limit=-1`;
-      
-      if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}&cols=name,name_with_type`;
-      }
-      
-      console.log("🏙️ Fetching districts from VN Public API:", url);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const districts = result.data?.data || [];
-      
-      console.log(`✅ Fetched ${districts.length} districts for province ${provinceCode}`);
-      
-      return districts;
-    } catch (error) {
-      console.error("❌ Error fetching districts from VN Public API:", error);
-      throw new Error("Failed to fetch districts");
-    }
+  async getDistricts(provinceId: number): Promise<District[]> {
+    return ghnService.getDistricts(provinceId);
   }
 
   /**
-   * Lấy danh sách xã/phường/thị trấn theo quận/huyện
-   * @param districtCode - Code của quận/huyện
-   * @param searchQuery - Từ khóa tìm kiếm (optional)
+   * Lấy danh sách xã/phường/thị trấn theo quận/huyện từ GHN API
+   * @param districtId - ID của quận/huyện (GHN DistrictID)
    * @returns Danh sách các xã/phường/thị trấn
-   * 
+   *
    * @example
-   * // Lấy danh sách xã/phường của quận Ba Đình
-   * const wards = await userService.getWardsByDistrict("001");
+   * const wards = await userService.getWardsByDistrict(1442); // Quận 1, HCM
    */
-  async getWardsByDistrict(
-    districtCode: string,
-    searchQuery?: string
-  ): Promise<Commune[]> {
-    try {
-      let url = `${VN_PUBLIC_API_BASE_URL}/wards/getByDistrict?districtCode=${districtCode}&limit=-1`;
-      
-      if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}&cols=name,name_with_type`;
-      }
-      
-      console.log("🏘️ Fetching wards from VN Public API:", url);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const wards = result.data?.data || [];
-      
-      console.log(`✅ Fetched ${wards.length} wards for district ${districtCode}`);
-      
-      return wards;
-    } catch (error) {
-      console.error("❌ Error fetching wards from VN Public API:", error);
-      throw new Error("Failed to fetch wards");
-    }
+  async getWardsByDistrict(districtId: number): Promise<Commune[]> {
+    return ghnService.getWards(districtId);
   }
 
   /**
-   * Lấy danh sách TẤT CẢ quận/huyện
-   * @param searchQuery - Từ khóa tìm kiếm (optional)
-   * @returns Danh sách tất cả quận/huyện
+   * @deprecated GHN API không hỗ trợ lấy tất cả districts. Dùng getDistricts(provinceId) thay thế.
    */
-  async getAllDistricts(searchQuery?: string): Promise<District[]> {
-    try {
-      let url = `${VN_PUBLIC_API_BASE_URL}/districts/getAll?limit=-1`;
-      
-      if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}&cols=name,name_with_type`;
-      }
-      
-      console.log("🏙️ Fetching all districts from VN Public API:", url);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const districts = result.data?.data || [];
-      
-      console.log(`✅ Fetched ${districts.length} total districts`);
-      
-      return districts;
-    } catch (error) {
-      console.error("❌ Error fetching all districts from VN Public API:", error);
-      throw new Error("Failed to fetch all districts");
-    }
+  async getAllDistricts(): Promise<District[]> {
+    throw new Error(
+      "getAllDistricts is deprecated. Use getDistricts(provinceId) instead."
+    );
   }
 
   /**
-   * Lấy danh sách TẤT CẢ xã/phường/thị trấn
-   * @param searchQuery - Từ khóa tìm kiếm (optional)
-   * @returns Danh sách tất cả xã/phường/thị trấn
+   * @deprecated GHN API không hỗ trợ lấy tất cả wards. Dùng getWardsByDistrict(districtId) thay thế.
    */
-  async getAllWards(searchQuery?: string): Promise<Commune[]> {
-    try {
-      let url = `${VN_PUBLIC_API_BASE_URL}/wards/getAll?limit=-1`;
-      
-      if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}&cols=name,name_with_type`;
-      }
-      
-      console.log("🏘️ Fetching all wards from VN Public API:", url);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const wards = result.data?.data || [];
-      
-      console.log(`✅ Fetched ${wards.length} total wards`);
-      
-      return wards;
-    } catch (error) {
-      console.error("❌ Error fetching all wards from VN Public API:", error);
-      throw new Error("Failed to fetch all wards");
-    }
+  async getAllWards(): Promise<Commune[]> {
+    throw new Error(
+      "getAllWards is deprecated. Use getWardsByDistrict(districtId) instead."
+    );
   }
 
   /**
-   * Tìm kiếm tỉnh/thành theo tên
-   * @param searchText - Text để tìm kiếm
-   * @returns Danh sách các tỉnh/thành phù hợp
+   * @deprecated GHN API không hỗ trợ search. Dùng getDistricts(provinceId) và filter ở client.
    */
-  async searchProvinces(searchText: string): Promise<Province[]> {
-    return this.getProvinces(searchText);
+  async searchDistricts(): Promise<District[]> {
+    throw new Error(
+      "searchDistricts is deprecated. Use getDistricts(provinceId) and filter on client."
+    );
   }
 
   /**
-   * Tìm kiếm quận/huyện theo tên trong một tỉnh
-   * @param provinceCode - Code tỉnh/thành
-   * @param searchText - Text để tìm kiếm
-   * @returns Danh sách các quận/huyện phù hợp
+   * @deprecated GHN API không hỗ trợ search. Dùng getWardsByDistrict(districtId) và filter ở client.
    */
-  async searchDistricts(
-    provinceCode: string,
-    searchText: string
-  ): Promise<District[]> {
-    return this.getDistricts(provinceCode, searchText);
+  async searchWards(): Promise<Commune[]> {
+    throw new Error(
+      "searchWards is deprecated. Use getWardsByDistrict(districtId) and filter on client."
+    );
   }
 
   /**
-   * Tìm kiếm xã/phường theo tên trong một quận/huyện
-   * @param districtCode - Code quận/huyện
-   * @param searchText - Text để tìm kiếm
-   * @returns Danh sách các xã/phường phù hợp
-   */
-  async searchWards(
-    districtCode: string,
-    searchText: string
-  ): Promise<Commune[]> {
-    return this.getWardsByDistrict(districtCode, searchText);
-  }
-
-  /**
-   * Lấy thông tin đầy đủ của địa chỉ từ ward code
-   * @param wardCode - Code của xã/phường
-   * @param districtCode - Code của quận/huyện
-   * @param provinceCode - Code của tỉnh/thành
+   * Lấy thông tin đầy đủ của địa chỉ từ GHN IDs
+   * @param wardCode - WardCode của phường/xã (string)
+   * @param districtId - DistrictID của quận/huyện (number)
+   * @param provinceId - ProvinceID của tỉnh/thành (number)
    * @returns Thông tin đầy đủ: ward, district, province
    */
   async getFullAddressInfo(
     wardCode: string,
-    districtCode: string,
-    provinceCode: string
+    districtId: number,
+    provinceId: number
   ): Promise<{
     ward: Commune | null;
     district: District | null;
@@ -557,14 +358,16 @@ class UserService {
   }> {
     try {
       const [wards, districts, provinces] = await Promise.all([
-        this.getWardsByDistrict(districtCode),
-        this.getDistricts(provinceCode),
+        this.getWardsByDistrict(districtId),
+        this.getDistricts(provinceId),
         this.getProvinces(),
       ]);
 
-      const ward = wards.find(w => w.code === wardCode) || null;
-      const district = districts.find(d => d.code === districtCode) || null;
-      const province = provinces.find(p => p.code === provinceCode) || null;
+      const ward = wards.find((w) => w.WardCode === wardCode) || null;
+      const district =
+        districts.find((d) => d.DistrictID === districtId) || null;
+      const province =
+        provinces.find((p) => p.ProvinceID === provinceId) || null;
 
       return {
         ward,

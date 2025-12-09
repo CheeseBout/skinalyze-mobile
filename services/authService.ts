@@ -14,6 +14,8 @@ export interface RegisterPayload {
   wardOrSubDistrict: string;
   district: string;
   city: string;
+  districtId?: number;
+  wardCode?: string;
 }
 
 export interface LoginPayload {
@@ -30,6 +32,8 @@ export interface Address {
   wardOrSubDistrict: string;
   district: string;
   city: string;
+  districtId?: number;
+  wardCode?: string;
   createdAt: string;
   updatedAt: string;
 }

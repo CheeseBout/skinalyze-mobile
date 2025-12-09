@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +21,7 @@ interface ShippingMethodCardProps {
   selected: boolean;
   onSelect: () => void;
   primaryColor: string;
+  loading?: boolean;
 }
 
 const ShippingMethodCard: React.FC<ShippingMethodCardProps> = ({
@@ -27,6 +34,7 @@ const ShippingMethodCard: React.FC<ShippingMethodCardProps> = ({
   selected,
   onSelect,
   primaryColor,
+  loading = false,
 }) => {
   return (
     <TouchableOpacity
@@ -60,7 +68,17 @@ const ShippingMethodCard: React.FC<ShippingMethodCardProps> = ({
             </View>
             <View style={styles.detailItem}>
               <Ionicons name="cash-outline" size={14} color="#666" />
-              <Text style={styles.detailText}>{fee.toLocaleString()}đ</Text>
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={primaryColor}
+                  style={{ marginLeft: 4 }}
+                />
+              ) : (
+                <Text style={styles.detailText}>
+                  {fee ? fee.toLocaleString() : "35,000"}đ
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -89,6 +107,7 @@ interface ShippingMethodSelectorProps {
   ghnFee: number;
   primaryColor: string;
   disabled?: boolean;
+  ghnLoading?: boolean;
 }
 
 export const ShippingMethodSelector: React.FC<ShippingMethodSelectorProps> = ({
@@ -98,6 +117,7 @@ export const ShippingMethodSelector: React.FC<ShippingMethodSelectorProps> = ({
   ghnFee,
   primaryColor,
   disabled = false,
+  ghnLoading = false,
 }) => {
   const { t } = useTranslation();
 
@@ -125,6 +145,7 @@ export const ShippingMethodSelector: React.FC<ShippingMethodSelectorProps> = ({
         selected={selectedMethod === "GHN"}
         onSelect={() => !disabled && onMethodChange("GHN")}
         primaryColor={primaryColor}
+        loading={ghnLoading}
       />
     </View>
   );
