@@ -536,7 +536,11 @@
     "items": "sản phẩm",
     "moreItems": "sản phẩm khác",
     "noOrders": "Bạn chưa có đơn hàng nào",
-    "noStatusOrders": "Không có đơn hàng {{status}}"
+    "noStatusOrders": "Không có đơn hàng {{status}}",
+    "internalShipping": "Nội bộ",
+    "ghnShipping": "GHN",
+    "batch": "Lô",
+    "ghnLabel": "GHN:"
   },
   "orderDetail": {
     "error": "Lỗi",
@@ -611,7 +615,14 @@
     "product": "sản phẩm",
     "products": "sản phẩm",
     "reset": "Đặt Lại",
-    "loadingMore": "Đang tải thêm sản phẩm..."
+    "loadingMore": "Đang tải thêm sản phẩm...",
+    "oily-skin": "Da Dầu",
+    "dry-skin": "Da Khô",
+    "sensitive-skin": "Da Nhạy Cảm",
+    "combination-skin": "Da Hỗn Hợp",
+    "normal-skin": "Da Thường",
+    "price-low": "Giá: Thấp",
+    "price-high": "Giá: Cao"
   },
   "home": {
     "goodMorning": "Chào Buổi Sáng",
