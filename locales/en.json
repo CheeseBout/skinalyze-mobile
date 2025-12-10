@@ -4,6 +4,10 @@
     "cancel": "Cancel"
   },
   "profile": {
+    "ok": "OK",
+    "topUp": "Top Up",
+    "withdraw": "Withdraw",
+    "history": "History",
     "title": "My Profile",
     "loading": "Loading profile...",
     "analysis": "Analysis",
@@ -23,6 +27,7 @@
     "address": "Address",
     "home": "Home",
     "walletBalance": "Wallet Balance",
+    "withdrawalHistory": "Withdrawal History",
     "verified": "Verified",
     "unverified": "Unverified",
     "saveChanges": "Save Changes",
@@ -778,5 +783,28 @@
     "internalNote": "This order is being delivered by our internal team",
     "ghnMethod": "Express Delivery (GHN)",
     "internalMethod": "Internal Delivery"
+  },
+  "withdrawalRequests": {
+    "title": "Withdrawal History",
+    "loading": "Loading...",
+    "empty": "No withdrawal requests",
+    "emptyDesc": "Your withdrawal requests will appear here",
+    "withdrawalAmount": "Withdrawal Amount",
+    "bank": "Bank:",
+    "accountNumber": "Account No.:",
+    "accountHolder": "Account Holder:",
+    "notes": "Notes:",
+    "rejectionReason": "Rejection Reason",
+    "verified": "Verified:",
+    "approved": "Approved:",
+    "completed": "Completed:",
+    "status": {
+      "pending": "Pending",
+      "verified": "Verified",
+      "approved": "Approved",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    }
   }
 }

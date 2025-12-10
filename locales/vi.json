@@ -4,6 +4,10 @@
     "cancel": "Hủy"
   },
   "profile": {
+    "ok": "OK",
+    "topUp": "Nạp Tiền",
+    "withdraw": "Rút Tiền",
+    "history": "Lịch Sử",
     "title": "Hồ Sơ Của Tôi",
     "loading": "Đang tải hồ sơ...",
     "analysis": "Phân Tích",
@@ -23,6 +27,7 @@
     "address": "Địa Chỉ",
     "home": "Nhà",
     "walletBalance": "Số Dư Ví",
+    "withdrawalHistory": "Lịch Sử Rút Tiền",
     "verified": "Đã Xác Minh",
     "unverified": "Chưa Xác Minh",
     "saveChanges": "Lưu Thay Đổi",
@@ -778,5 +783,28 @@
     "internalNote": "Đơn hàng đang được giao bởi đội ngũ nội bộ",
     "ghnMethod": "Giao Hàng Nhanh (GHN)",
     "internalMethod": "Giao nội bộ"
+  },
+  "withdrawalRequests": {
+    "title": "Lịch sử rút tiền",
+    "loading": "Đang tải...",
+    "empty": "Chưa có yêu cầu rút tiền",
+    "emptyDesc": "Các yêu cầu rút tiền của bạn sẽ được hiển thị ở đây",
+    "withdrawalAmount": "Số tiền rút",
+    "bank": "Ngân hàng:",
+    "accountNumber": "Số TK:",
+    "accountHolder": "Chủ TK:",
+    "notes": "Ghi chú:",
+    "rejectionReason": "Lý do từ chối",
+    "verified": "Xác minh:",
+    "approved": "Duyệt:",
+    "completed": "Hoàn thành:",
+    "status": {
+      "pending": "Đang chờ",
+      "verified": "Đã xác minh",
+      "approved": "Đã duyệt",
+      "completed": "Hoàn thành",
+      "rejected": "Từ chối",
+      "cancelled": "Đã hủy"
+    }
   }
 }
