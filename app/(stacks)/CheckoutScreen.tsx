@@ -647,7 +647,7 @@ export default function CheckoutScreen() {
         </View>
 
         {/* Payment Method */}
-        <View style={styles.section}>
+        <View style={styles.sectionPayent}>
           <Text style={styles.sectionTitle}>{t("checkout.paymentMethod")}</Text>
 
           {/* Wallet Balance */}
@@ -891,6 +891,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+  },
+  sectionPayent: {
+    marginBottom: 120,
   },
   sectionHeader: {
     flexDirection: "row",
