@@ -351,6 +351,19 @@
       "copiedTitle": "Đã sao chép liên kết",
       "copiedMessage": "Liên kết cuộc hẹn đã được sao chép."
     },
+    "rating": {
+      "title": "Đánh giá bác sĩ",
+      "prompt": "Buổi tư vấn với {{name}} như thế nào?",
+      "placeholder": "Chia sẻ cảm nhận của bạn (không bắt buộc)",
+      "submit": "Gửi đánh giá",
+      "submittedTitle": "Cảm ơn bạn",
+      "submittedMessage": "Đánh giá của bạn đã được ghi nhận.",
+      "errorTitle": "Không thể gửi đánh giá",
+      "errorMessage": "Đã xảy ra lỗi khi gửi đánh giá.",
+      "missingRating": "Vui lòng chọn số sao trước khi gửi.",
+      "alreadyRated": "Bạn đã đánh giá lịch hẹn này.",
+      "noContent": "Bạn không để lại nội dung đánh giá."
+    },
     "routineButton": "Xem phác đồ điều trị",
     "cancel": {
       "button": "Hủy lịch hẹn",

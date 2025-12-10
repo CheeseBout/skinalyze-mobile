@@ -276,6 +276,7 @@
       "pendingConfirmation": "Pending Confirmation",
       "settled": "Settled"
     },
+
     "cards": {
       "date": "Date",
       "time": "Time",
@@ -283,7 +284,7 @@
       "unknown": "Unknown"
     },
     "types": {
-      "consultation": "Consultation",
+      "newProblem": "New Problem",
       "followUp": "Follow-up"
     },
     "viewDetails": "View Details"
@@ -294,64 +295,94 @@
       "close": "Close"
     },
     "errors": {
-      "loginRequired": "Please sign in to view appointment details.",
-      "appointmentNotFound": "Appointment not found.",
-      "loadError": "Failed to load appointment details.",
-      "cancellationFailed": "Failed to cancel appointment.",
-      "invalidMeetingLink": "No meeting link available.",
+      "noId": "No appointment ID provided.",
+      "load": "Failed to load appointment details.",
+      "notFound": "Appointment not found.",
+      "checkInTitle": "Check-in failed",
+      "checkInMessage": "We couldn't record your check-in.",
+      "meetingTitle": "Error",
       "meetingMessage": "Could not open the meeting link."
     },
     "sections": {
-      "appointmentInfo": "Appointment Information",
-      "dermatologistInfo": "Dermatologist Information",
-      "patientNotes": "Patient Notes",
-      "diagnosis": "Diagnosis",
-      "prescription": "Prescription",
-      "meetingLink": "Meeting Link"
-    },
-    "labels": {
-      "appointmentId": "Appointment ID",
-      "date": "Date",
-      "time": "Time",
-      "status": "Status",
-      "type": "Type",
-      "purpose": "Purpose",
-      "notes": "Notes",
-      "diagnosis": "Diagnosis",
-      "prescription": "Prescription",
-      "dermatologist": "Dermatologist",
-      "specialty": "Specialty"
+      "dermatologist": {
+        "title": "Dermatologist",
+        "fallback": "Dermatologist"
+      },
+      "patient": {
+        "title": "Patient",
+        "name": "Name:",
+        "email": "Email:",
+        "fallback": "Patient"
+      },
+      "details": {
+        "title": "Appointment Details",
+        "date": "Date:",
+        "time": "Time:",
+        "type": "Type:",
+        "note": "Your note:",
+        "medicalNote": "Doctor's medical note:",
+        "adminNote": "Admin update:"
+      }
     },
     "join": {
-      "title": "Join Meeting",
-      "description": "Click the link below to join your video consultation:",
-      "button": "Join Now",
-      "copy": "Copy Link",
+      "unavailable": "Join unavailable",
+      "joinable": "You can join {{minutes}} minutes early",
+      "rejoin": "Rejoin appointment",
+      "checkIn": "Check in & Join",
+      "copiedTitle": "Link copied",
       "copiedMessage": "Meeting link copied to clipboard."
     },
-    "routineButton": "View Treatment Routine",
+    "rating": {
+      "title": "Rate Your Dermatologist",
+      "prompt": "How was your consultation with {{name}}?",
+      "placeholder": "Share more about your experience (optional)",
+      "submit": "Submit Rating",
+      "submittedTitle": "Thank you!",
+      "submittedMessage": "Your rating has been recorded.",
+      "errorTitle": "Can't Submit Rating",
+      "errorMessage": "We couldn't submit your rating.",
+      "missingRating": "Please select a star rating before submitting.",
+      "alreadyRated": "You have already rated this appointment.",
+      "noContent": "No written feedback was provided."
+    },
+    "routineButton": "View treatment routine",
     "cancel": {
-      "button": "Cancel Appointment",
-      "confirmTitle": "Cancel Appointment",
-      "confirmMessage": "Are you sure you want to cancel this appointment? This action cannot be undone.",
-      "confirmButton": "Yes, Cancel",
-      "cancelButton": "No, Keep It",
-      "successTitle": "Appointment Cancelled",
-      "successMessage": "Your appointment has been cancelled successfully.",
-      "failureTitle": "Cancellation Failed",
-      "failureMessage": "An error occurred."
+      "button": "Cancel appointment",
+      "title": "Confirm cancellation?",
+      "refund": "You're cancelling more than 24 hours in advance. The appointment will be refunded.",
+      "noRefund": "You're cancelling within 24 hours. This appointment won't be refunded.",
+      "processing": "Cancelling...",
+      "confirm": "Confirm cancellation",
+      "stay": "Stay",
+      "successTitle": "Success",
+      "successMessage": "Your appointment has been cancelled.",
+      "failureTitle": "Cancellation failed",
+      "failureMessage": "Something went wrong."
     },
     "report": {
-      "title": "Appointment Report",
-      "notAvailable": "No report available yet.",
-      "labels": {
-        "symptoms": "Symptoms",
-        "diagnosis": "Diagnosis",
-        "prescription": "Prescription",
-        "notes": "Notes",
-        "followUpDate": "Follow-up Date",
-        "recommendations": "Recommendations"
-      }
+      "menuTitle": "Report an issue",
+      "noShow": "Doctor didn't join",
+      "interrupt": "Report interruption",
+      "noShowTitle": "Report doctor no-show",
+      "noShowSubtitle": "Did the doctor skip this appointment?",
+      "noShowPlaceholder": "Add details (e.g. Doctor never joined the call...)",
+      "cancel": "Cancel",
+      "submit": "Submit report",
+      "interruptTitle": "Report interruption",
+      "interruptSubtitle": "Why was the appointment interrupted?",
+      "reason": "Reason:",
+      "details": "Details:",
+      "detailsPlaceholder": "Describe what happened...",
+      "doctorIssue": "Doctor issue",
+      "platformIssue": "Platform/technical issue",
+      "customerIssue": "My issue",
+      "noShowSuccessTitle": "Report sent",
+      "noShowSuccessMessage": "We've received your doctor no-show report.",
+      "noShowErrorMessage": "Couldn't submit the report.",
+      "interruptSuccessTitle": "Report sent",
+      "interruptSuccessMessage": "We've received your interruption report.",
+      "interruptErrorMessage": "Couldn't submit the report.",
+      "errorTitle": "Error"
     }
   },
   "routines": {
@@ -443,7 +474,7 @@
     "orderSummary": "Order Summary",
     "items": "Items",
     "subtotal": "Subtotal",
-    "shipping": "Shipping",
+    "shippingLabel": "Shipping",
     "shippingFee": "Shipping Fee",
     "shippingMethod": "Shipping Method",
     "free": "Free",

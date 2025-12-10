@@ -27,6 +27,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 
 import appointmentService from "@/services/appointmentService";
+import ratingService from "@/services/ratingService";
+import RatingComponent from "@/components/RatingComponent";
 import {
   AppointmentDetailDto,
   InterruptAppointmentDto,
@@ -34,6 +36,7 @@ import {
   TerminationReason,
 } from "@/types/appointment.type";
 import { AppointmentStatus, AppointmentType } from "@/types/appointment.type";
+import { CreateRatingDto, Rating } from "@/types/rating.type";
 import CustomAlert from "@/components/CustomAlert";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
@@ -170,6 +173,11 @@ export default function AppointmentDetailScreen() {
     message: "",
     type: "info",
   });
+  const [existingRating, setExistingRating] = useState<Rating | null>(null);
+  const [isLoadingRating, setIsLoadingRating] = useState(false);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingContent, setRatingContent] = useState("");
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   const fetchAppointment = useCallback(async () => {
@@ -284,6 +292,68 @@ export default function AppointmentDetailScreen() {
       setIsNoShowModalVisible(false);
     }
   }, [canReportNoShow, isNoShowModalVisible]);
+
+  useEffect(() => {
+    const status = appointment?.appointmentStatus;
+
+    if (!appointmentId) {
+      setExistingRating(null);
+      setRatingValue(0);
+      setRatingContent("");
+      return;
+    }
+
+    const isEligibleForRating =
+      status === AppointmentStatus.COMPLETED ||
+      status === AppointmentStatus.SETTLED;
+
+    if (!isEligibleForRating) {
+      setExistingRating(null);
+      setRatingValue(0);
+      setRatingContent("");
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRating = async () => {
+      setIsLoadingRating(true);
+      try {
+        const rating = await ratingService.getMyAppointmentRating(
+          appointmentId
+        );
+        if (!isMounted) {
+          return;
+        }
+        setExistingRating(rating);
+      } catch (error) {
+        if (isMounted) {
+          console.error("Failed to load rating:", error);
+          setExistingRating(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingRating(false);
+        }
+      }
+    };
+
+    loadRating();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [appointmentId, appointment?.appointmentStatus]);
+
+  useEffect(() => {
+    if (existingRating) {
+      setRatingValue(existingRating.rating);
+      setRatingContent(existingRating.content ?? "");
+    } else {
+      setRatingValue(0);
+      setRatingContent("");
+    }
+  }, [existingRating]);
 
   // 2. Xử lý Báo cáo No-Show
   const submitReportNoShow = async () => {
@@ -438,6 +508,65 @@ export default function AppointmentDetailScreen() {
     }
   };
 
+  const handleSelectRating = useCallback((value: number) => {
+    setRatingValue(value);
+  }, []);
+
+  const handleSubmitRating = async () => {
+    if (!appointmentId) return;
+
+    if (ratingValue <= 0) {
+      setFeedbackAlert({
+        visible: true,
+        title: t("appointmentDetail.rating.errorTitle"),
+        message: t("appointmentDetail.rating.missingRating"),
+        type: "warning",
+        confirmText: t("appointmentDetail.actions.close"),
+      });
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const payload: CreateRatingDto = {
+        appointmentId,
+        rating: ratingValue,
+        content: ratingContent.trim() || undefined,
+      };
+
+      const createdRating = await ratingService.createRating(payload);
+      setExistingRating(createdRating);
+      setFeedbackAlert({
+        visible: true,
+        title: t("appointmentDetail.rating.submittedTitle"),
+        message: t("appointmentDetail.rating.submittedMessage"),
+        type: "success",
+        confirmText: t("appointmentDetail.actions.close"),
+      });
+    } catch (error: any) {
+      const normalizedMessage = error?.message?.toString().toLowerCase() ?? "";
+      if (normalizedMessage.includes("already")) {
+        try {
+          const rating = await ratingService.getMyAppointmentRating(
+            appointmentId
+          );
+          setExistingRating(rating);
+        } catch (refreshError) {
+          console.error("Failed to refresh existing rating:", refreshError);
+        }
+      }
+      setFeedbackAlert({
+        visible: true,
+        title: t("appointmentDetail.rating.errorTitle"),
+        message: error?.message || t("appointmentDetail.rating.errorMessage"),
+        type: "error",
+        confirmText: t("appointmentDetail.actions.close"),
+      });
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <ActivityIndicator size="large" style={styles.center} />;
@@ -481,6 +610,18 @@ export default function AppointmentDetailScreen() {
       appointment.appointmentStatus === AppointmentStatus.IN_PROGRESS &&
       hasCheckedIn &&
       hasMeetingUrl;
+
+    const canRateAppointment =
+      appointment.appointmentStatus === AppointmentStatus.COMPLETED ||
+      appointment.appointmentStatus === AppointmentStatus.SETTLED;
+
+    const dermatologistName =
+      appointment.dermatologist?.user?.fullName ||
+      t("appointmentDetail.sections.dermatologist.fallback", {
+        defaultValue: t("appointmentDetail.sections.dermatologist.title", {
+          defaultValue: "Dermatologist",
+        }),
+      });
 
     const joinButtonLabel = !canJoinNow
       ? !isJoinableStatus || !hasMeetingUrl
@@ -557,10 +698,7 @@ export default function AppointmentDetailScreen() {
                 }
               />
               <View style={styles.doctorInfo}>
-                <Text style={styles.doctorName}>
-                  {appointment.dermatologist?.user?.fullName ||
-                    t("appointmentDetail.sections.dermatologist.fallback")}
-                </Text>
+                <Text style={styles.doctorName}>{dermatologistName}</Text>
                 {/* (Assuming API does NOT have 'specialization',
                 {/* <Text style={styles.doctorSpec}>
                   {appointment.dermatologist?.specialization?.join(", ") || "Specialist"}
@@ -568,6 +706,84 @@ export default function AppointmentDetailScreen() {
               </View>
             </View>
           </View>
+
+          {canRateAppointment && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>
+                {t("appointmentDetail.rating.title")}
+              </Text>
+              {isLoadingRating ? (
+                <ActivityIndicator
+                  style={styles.ratingLoader}
+                  color={primaryColor}
+                />
+              ) : existingRating ? (
+                <>
+                  <RatingComponent
+                    value={existingRating.rating}
+                    size={28}
+                    readOnly
+                    style={styles.ratingStarsRow}
+                    accessibilityLabel={t("appointmentDetail.rating.title")}
+                  />
+                  <Text style={styles.ratingInfoText}>
+                    {t("appointmentDetail.rating.alreadyRated")}
+                  </Text>
+                  {existingRating.content ? (
+                    <Text style={styles.ratingContentText}>
+                      {existingRating.content}
+                    </Text>
+                  ) : (
+                    <Text style={styles.ratingInfoText}>
+                      {t("appointmentDetail.rating.noContent")}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.ratingPromptText}>
+                    {t("appointmentDetail.rating.prompt", {
+                      name: dermatologistName,
+                    })}
+                  </Text>
+                  <RatingComponent
+                    value={ratingValue}
+                    onChange={handleSelectRating}
+                    size={28}
+                    style={styles.ratingStarsRow}
+                    accessibilityLabel={t("appointmentDetail.rating.title")}
+                  />
+                  <TextInput
+                    style={styles.ratingInput}
+                    placeholder={t("appointmentDetail.rating.placeholder")}
+                    placeholderTextColor="#9E9E9E"
+                    multiline
+                    numberOfLines={4}
+                    value={ratingContent}
+                    onChangeText={setRatingContent}
+                  />
+                  <Pressable
+                    style={[
+                      styles.ratingSubmitButton,
+                      { backgroundColor: primaryColor },
+                      (ratingValue === 0 || isSubmittingRating) &&
+                        styles.ratingSubmitButtonDisabled,
+                    ]}
+                    onPress={handleSubmitRating}
+                    disabled={ratingValue === 0 || isSubmittingRating}
+                  >
+                    {isSubmittingRating ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.ratingSubmitButtonText}>
+                        {t("appointmentDetail.rating.submit")}
+                      </Text>
+                    )}
+                  </Pressable>
+                </>
+              )}
+            </View>
+          )}
 
           {/* Customer Information */}
           <View style={styles.card}>
@@ -684,52 +900,54 @@ export default function AppointmentDetailScreen() {
         </ScrollView>
         {/* Footer */}
         <View style={styles.footer}>
-          <View style={styles.joinRow}>
-            <Pressable
-              style={[
-                styles.joinButton,
-                (!canJoinNow || isJoining) && styles.buttonDisabled,
-              ]}
-              onPress={handleJoinMeeting}
-              disabled={!canJoinNow || isJoining}
-            >
-              {isJoining ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <MaterialCommunityIcons
-                    name="video-plus"
-                    size={24}
-                    color="#fff"
-                  />
-                  <Text style={styles.joinButtonText}>{joinButtonLabel}</Text>
-                </>
-              )}
-            </Pressable>
-
-            {canCopyLink && (
+          {isJoinableStatus && (
+            <View style={styles.joinRow}>
               <Pressable
-                style={styles.copyButton}
-                onPress={async () => {
-                  if (!appointment.meetingUrl) return;
-                  await Clipboard.setStringAsync(appointment.meetingUrl);
-                  setFeedbackAlert({
-                    visible: true,
-                    title: t("appointmentDetail.join.copiedTitle"),
-                    message: t("appointmentDetail.join.copiedMessage"),
-                    type: "success",
-                    confirmText: t("appointmentDetail.actions.close"),
-                  });
-                }}
+                style={[
+                  styles.joinButton,
+                  (!canJoinNow || isJoining) && styles.buttonDisabled,
+                ]}
+                onPress={handleJoinMeeting}
+                disabled={!canJoinNow || isJoining}
               >
-                <MaterialCommunityIcons
-                  name="content-copy"
-                  size={22}
-                  color={primaryColor}
-                />
+                {isJoining ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons
+                      name="video-plus"
+                      size={24}
+                      color="#fff"
+                    />
+                    <Text style={styles.joinButtonText}>{joinButtonLabel}</Text>
+                  </>
+                )}
               </Pressable>
-            )}
-          </View>
+
+              {canCopyLink && (
+                <Pressable
+                  style={styles.copyButton}
+                  onPress={async () => {
+                    if (!appointment.meetingUrl) return;
+                    await Clipboard.setStringAsync(appointment.meetingUrl);
+                    setFeedbackAlert({
+                      visible: true,
+                      title: t("appointmentDetail.join.copiedTitle"),
+                      message: t("appointmentDetail.join.copiedMessage"),
+                      type: "success",
+                      confirmText: t("appointmentDetail.actions.close"),
+                    });
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="content-copy"
+                    size={22}
+                    color={primaryColor}
+                  />
+                </Pressable>
+              )}
+            </View>
+          )}
 
           {routineId && (
             <Pressable
@@ -1335,5 +1553,52 @@ const styles = StyleSheet.create({
   formButtonTextSubmit: {
     color: "#fff",
     fontWeight: "600",
+  },
+  ratingLoader: {
+    marginTop: 12,
+  },
+  ratingPromptText: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 12,
+  },
+  ratingStarsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  ratingInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    textAlignVertical: "top",
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  ratingSubmitButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  ratingSubmitButtonDisabled: {
+    backgroundColor: "#9E9E9E",
+  },
+  ratingSubmitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  ratingInfoText: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 12,
+  },
+  ratingContentText: {
+    fontSize: 15,
+    color: "#333",
+    backgroundColor: "#f5f5f5",
+    padding: 10,
+    borderRadius: 8,
   },
 });
