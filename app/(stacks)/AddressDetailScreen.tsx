@@ -514,7 +514,7 @@ export default function AddressDetailScreen() {
           {/* Ward Picker */}
           <View style={styles.pickerContainer}>
             <Text style={styles.pickerLabel}>
-              {t("address.ward")} <Text style={styles.required}>*</Text>
+              {t("address.commune")} <Text style={styles.required}>*</Text>
             </Text>
             <TouchableOpacity
               style={[

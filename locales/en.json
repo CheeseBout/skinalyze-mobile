@@ -152,6 +152,7 @@
     "wardOrSubDistrict": "Ward/Sub-district",
     "district": "District",
     "city": "City/Province",
+    "commune": "Commune/Ward",
     "streetPlaceholder": "e.g., DHT 13",
     "streetLine1Placeholder": "e.g., 41/12/16",
     "streetLine2Placeholder": "Optional",
@@ -184,7 +185,10 @@
     "delete": "Delete",
     "editAddress": "Edit Address",
     "addAddress": "Add Address",
-    "save": "Save"
+    "save": "Save",
+    "selectCity": "Select City/Province",
+    "selectDistrict": "Select District",
+    "selectWard": "Select Ward/Sub-district"
   },
   "analysis": {
     "historyTitle": "Analysis History",
@@ -274,7 +278,11 @@
       "rescheduled": "Rescheduled",
       "pendingPayment": "Pending Payment",
       "pendingConfirmation": "Pending Confirmation",
-      "settled": "Settled"
+      "settled": "Settled",
+      "all": "All",
+      "noShow": "No-show",
+      "interrupted": "Interrupted",
+      "disputed": "Disputed"
     },
 
     "cards": {
@@ -394,6 +402,7 @@
     "emptyAll": "You don't have any treatment routines yet.",
     "emptyStatus": "No routines with status {{status}}.",
     "status": {
+      "all": "All",
       "active": "Active",
       "completed": "Completed",
       "paused": "Paused",
@@ -527,7 +536,18 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled",
     "viewDetails": "View Details",
-    "noStatusOrders": "No {{status}} orders"
+    "noStatusOrders": "No {{status}} orders",
+    "items": "Items",
+    "loadError": "Failed to load orders",
+    "noOrders": "You don't have any orders yet",
+    "rejected": "Rejected",
+    "completed": "Completed",
+    "shipping": "Shipping",
+    "moreItems": "more items",
+    "internalShipping": "Internal",
+    "ghnShipping": "GHN",
+    "batch": "Batch",
+    "ghnLabel": "GHN:"
   },
   "orderDetail": {
     "title": "Order Details",
@@ -579,7 +599,15 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled"
     },
-    "notes": "Notes:"
+    "notes": "Notes:",
+    "reviewed": "Reviewed",
+    "lastUpdated": "Last Updated",
+    "loadingDetails": "Loading details...",
+    "packageDelivered": "Package Delivered",
+    "receivedCompleteOrder": "Received Complete Order",
+    "confirmReceipt": "Confirm Receipt",
+    "confirmMessage": "Have you received and inspected your order? Confirming receipt will complete the order process.",
+    "yesReceived": "Yes"
   },
   "header": {
     "searchPlaceholder": "Search skincare products..."
@@ -620,7 +648,36 @@
       "treatment": "Treatment",
       "mask": "Mask"
     },
-    "loadingMore": "Loading more products..."
+    "skinType": "Skin Type",
+    "allTypes": "All Types",
+    "oily": "Oily",
+    "normal": "Normal",
+    "dry": "Dry",
+    "sensitive": "Sensitive",
+    "combination": "Combination",
+    "inStockOnly": "In Stock Only",
+    "searchProducts": "Search Products",
+    "findPerfect": "Find your perfect skincare products",
+    "popularSearches": "Popular Searches",
+    "recentSearches": "Recent Searches",
+    "noProductsFound": "No Products Found",
+    "tryAdjusting": "Try adjusting your search or filters",
+    "loadingProducts": "Loading products...",
+    "oops": "Oops!",
+    "tryAgain": "Try Again",
+    "product": "product",
+    "products": "products",
+    "reset": "Reset",
+    "loadingMore": "Loading more products...",
+    "oily-skin": "Oily Skin",
+    "dry-skin": "Dry Skin",
+    "sensitive-skin": "Sensitive Skin",
+    "combination-skin": "Combination Skin",
+    "normal-skin": "Normal Skin",
+    "relevance": "Relevance",
+    "price-low": "Low",
+    "price-high": "High",
+    "newest": "Newest"
   },
   "home": {
     "welcome": "Welcome to Skinalyze",
@@ -652,7 +709,8 @@
     "allProducts": "All Products",
     "oops": "Oops!",
     "loadingProducts": "Loading products...",
-    "loadingMoreProducts": "Loading more..."
+    "loadingMoreProducts": "Loading more...",
+    "guest": "Guest"
   },
   "productDetail": {
     "loading": "Loading product...",
@@ -741,7 +799,22 @@
       "step4": "Keep a neutral expression",
       "step5": "Avoid shadows on your face"
     },
-    "advanced": "Advanced"
+    "advanced": "Advanced",
+    "aiSkinAnalysis": "AI Skin Analysis",
+    "diseaseDetection": "Disease Detection",
+    "identifyDiseases": "Identify Diseases",
+    "anySkinArea": "Any Skin Area",
+    "aiPowered": "AI-Powered Analysis",
+    "manualEntry": "Manual Entry",
+    "recordWithoutCamera": "Record Analysis Without Camera",
+    "resultsInformational": "The analysis results are for informational purposes only and should not replace professional medical advice.",
+    "chooseSkinArea": "Choose Skin Area",
+    "facialSkinArea": "Facial Skin",
+    "useFrontCamera": "Use Front Camera for Facial Analysis",
+    "otherSkinArea": "Other Skin Area",
+    "useBackCamera": "Use Back Camera for Other Areas",
+    "positionFaceDisease": "Position the affected skin area within the frame",
+    "holdCameraClose": "Hold the camera close to the skin"
   },
   "manualEntry": {
     "title": "Manual Entry",
@@ -777,7 +850,18 @@
       "eczema": "Eczema",
       "psoriasis": "Psoriasis",
       "rosacea": "Rosacea"
-    }
+    },
+    "attachPhoto": "Attach Photo",
+    "optionalImage": "Optional image to support your entry",
+    "tapToUpload": "Tap to upload photo",
+    "fileTypes": "Supported file types: JPG, PNG",
+    "medicalDetails": "Medical Details",
+    "describeCondition": "Describe your skin condition or disease",
+    "chiefComplaint": "Chief Complaint",
+    "chiefComplaintPlaceholder": "Describe your main skin concerns...",
+    "additionalNotes": "Additional Notes",
+    "fieldsRequired": "* Indicates required fields",
+    "saveRecord": "Save Record"
   },
   "tabBar": {
     "home": "Home",
