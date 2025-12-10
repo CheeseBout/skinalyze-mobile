@@ -152,6 +152,7 @@
     "wardOrSubDistrict": "Ward/Sub-district",
     "district": "District",
     "city": "City/Province",
+    "commune": "Commune/Ward",
     "streetPlaceholder": "e.g., DHT 13",
     "streetLine1Placeholder": "e.g., 41/12/16",
     "streetLine2Placeholder": "Optional",
@@ -184,7 +185,10 @@
     "delete": "Delete",
     "editAddress": "Edit Address",
     "addAddress": "Add Address",
-    "save": "Save"
+    "save": "Save",
+    "selectCity": "Select City/Province",
+    "selectDistrict": "Select District",
+    "selectWard": "Select Ward/Sub-district"
   },
   "analysis": {
     "historyTitle": "Analysis History",
@@ -274,7 +278,11 @@
       "rescheduled": "Rescheduled",
       "pendingPayment": "Pending Payment",
       "pendingConfirmation": "Pending Confirmation",
-      "settled": "Settled"
+      "settled": "Settled",
+      "all": "All",
+      "noShow": "No-show",
+      "interrupted": "Interrupted",
+      "disputed": "Disputed"
     },
     "cards": {
       "date": "Date",
@@ -363,6 +371,7 @@
     "emptyAll": "You don't have any treatment routines yet.",
     "emptyStatus": "No routines with status {{status}}.",
     "status": {
+      "all": "All",
       "active": "Active",
       "completed": "Completed",
       "paused": "Paused",
@@ -817,7 +826,7 @@
     "fileTypes": "Supported file types: JPG, PNG",
     "medicalDetails": "Medical Details",
     "describeCondition": "Describe your skin condition or disease",
-    "chiefComplaints": "Chief Complaints",
+    "chiefComplaint": "Chief Complaint",
     "chiefComplaintPlaceholder": "Describe your main skin concerns...",
     "additionalNotes": "Additional Notes",
     "fieldsRequired": "* Indicates required fields",
