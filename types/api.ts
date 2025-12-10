@@ -7,5 +7,11 @@ export interface ApiResponse<T> {
   statusCode: number;
   message: string;
   data: T;
-  timestamp?: string; 
+  timestamp?: string;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

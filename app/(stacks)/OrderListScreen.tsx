@@ -195,7 +195,7 @@ export default function OrderListScreen() {
                 {totalItems} {t("orders.items")}
               </Text>
               <Text style={[styles.totalAmountText, { color: primaryColor }]}>
-                {orderService.formatCurrency(totalAmount)}
+                {orderService.formatCurrency(item.payment.amount)}
               </Text>
             </View>
           </View>

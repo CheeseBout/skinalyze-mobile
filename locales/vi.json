@@ -176,6 +176,7 @@
     "wardOrSubDistrict": "Phường/Xã",
     "district": "Quận/Huyện",
     "city": "Tỉnh/Thành phố",
+    "commune": "Xã/Phường",
     "streetPlaceholder": "ví dụ: DHT 13",
     "streetLine1Placeholder": "ví dụ: 41/12/16",
     "streetLine2Placeholder": "Tùy Chọn",
@@ -355,6 +356,19 @@
       "checkIn": "Check-in & Tham gia",
       "copiedTitle": "Đã sao chép liên kết",
       "copiedMessage": "Liên kết cuộc hẹn đã được sao chép."
+    },
+    "rating": {
+      "title": "Đánh giá bác sĩ",
+      "prompt": "Buổi tư vấn với {{name}} như thế nào?",
+      "placeholder": "Chia sẻ cảm nhận của bạn (không bắt buộc)",
+      "submit": "Gửi đánh giá",
+      "submittedTitle": "Cảm ơn bạn",
+      "submittedMessage": "Đánh giá của bạn đã được ghi nhận.",
+      "errorTitle": "Không thể gửi đánh giá",
+      "errorMessage": "Đã xảy ra lỗi khi gửi đánh giá.",
+      "missingRating": "Vui lòng chọn số sao trước khi gửi.",
+      "alreadyRated": "Bạn đã đánh giá lịch hẹn này.",
+      "noContent": "Bạn không để lại nội dung đánh giá."
     },
     "routineButton": "Xem phác đồ điều trị",
     "cancel": {
@@ -541,7 +555,11 @@
     "items": "sản phẩm",
     "moreItems": "sản phẩm khác",
     "noOrders": "Bạn chưa có đơn hàng nào",
-    "noStatusOrders": "Không có đơn hàng {{status}}"
+    "noStatusOrders": "Không có đơn hàng {{status}}",
+    "internalShipping": "Nội bộ",
+    "ghnShipping": "GHN",
+    "batch": "Lô",
+    "ghnLabel": "GHN:"
   },
   "orderDetail": {
     "error": "Lỗi",
@@ -616,7 +634,14 @@
     "product": "sản phẩm",
     "products": "sản phẩm",
     "reset": "Đặt Lại",
-    "loadingMore": "Đang tải thêm sản phẩm..."
+    "loadingMore": "Đang tải thêm sản phẩm...",
+    "oily-skin": "Da Dầu",
+    "dry-skin": "Da Khô",
+    "sensitive-skin": "Da Nhạy Cảm",
+    "combination-skin": "Da Hỗn Hợp",
+    "normal-skin": "Da Thường",
+    "price-low": "Giá: Thấp",
+    "price-high": "Giá: Cao"
   },
   "home": {
     "goodMorning": "Chào Buổi Sáng",

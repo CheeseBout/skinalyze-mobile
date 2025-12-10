@@ -486,19 +486,11 @@ export default function OrderDetailScreen() {
               {orderService.formatCurrency(totalAmount)}
             </Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>
-              {t("orderDetail.shippingFee")}
-            </Text>
-            <Text style={styles.summaryValue}>
-              {orderService.formatCurrency(parseFloat(shippingFee))}
-            </Text>
-          </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.totalLabel}>{t("orderDetail.total")}</Text>
             <Text style={[styles.totalValue, { color: primaryColor }]}>
-              {orderService.formatCurrency(totalWithShipping)}
+              {orderService.formatCurrency(order.payment.amount)}
             </Text>
           </View>
         </View>
@@ -518,6 +510,12 @@ export default function OrderDetailScreen() {
                 {orderService.getPaymentMethodLabel(
                   order.payment.paymentMethod
                 )}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>{t("orderDetail.total")}</Text>
+              <Text style={styles.infoValue}>
+                {orderService.formatCurrency(parseFloat(order.payment.amount))}
               </Text>
             </View>
             <View style={styles.infoRow}>
