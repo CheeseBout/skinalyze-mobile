@@ -267,7 +267,9 @@
       "combination": "Combination",
       "normal": "Normal",
       "sensitive": "Sensitive"
-    }
+    },
+    "noFaceDetectedTitle": "No Face Detected",
+    "noFaceDetectedMsg": "We could not find a face in the image. Please ensure your face is well-lit and centered."
   },
   "appointments": {
     "title": "My Appointments",
@@ -293,7 +295,6 @@
       "interrupted": "Interrupted",
       "disputed": "Disputed"
     },
-
     "cards": {
       "date": "Date",
       "time": "Time",
@@ -587,9 +588,12 @@
     "cancelOrder": "Cancel Order",
     "reorder": "Reorder",
     "contactSupport": "Contact Support",
+    "writeReview": "Write Review",
     "cancelTitle": "Cancel Order",
     "cancelConfirm": "Are you sure you want to cancel this order?",
     "cancel": "No",
+    "success": "Success",
+    "orderCompleted": "Order completed successfully",
     "confirmCancel": "Yes, Cancel",
     "cancelSuccess": "Order cancelled successfully",
     "cancelError": "Failed to cancel order",
@@ -824,7 +828,12 @@
     "otherSkinArea": "Other Skin Area",
     "useBackCamera": "Use Back Camera for Other Areas",
     "positionFaceDisease": "Position the affected skin area within the frame",
-    "holdCameraClose": "Hold the camera close to the skin"
+    "holdCameraClose": "Hold the camera close to the skin",
+    "analysisFailed": "Analysis Failed",
+    "ok": "OK",
+    "aiProcessing": "AI is processing your image, please wait...",
+    "noFaceDetectedTitle": "No Face Detected",
+    "noFaceDetectedMsg": "We could not find a face in the image. Please ensure your face is well-lit and centered."
   },
   "manualEntry": {
     "title": "Manual Entry",

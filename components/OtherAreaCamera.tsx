@@ -2,9 +2,12 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } fr
 import React, { useState, useRef } from 'react';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+// Update the import path to where your CustomAlert file is located
+import CustomAlert from '@/components/CustomAlert'; 
 
 interface OtherAreaCameraProps {
-  onCapture?: (imageUri: string) => void;
+  // Updated type to Promise<void> to ensure we can await the service call
+  onCapture?: (imageUri: string) => Promise<void> | void; 
   onClose: () => void;
   title?: string;
 }
@@ -18,6 +21,18 @@ export default function OtherAreaCamera({
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+
+  // State for Custom Alert
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error' as 'error' | 'success' | 'warning' | 'info',
+  });
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
 
   if (!permission) {
     return (
@@ -40,7 +55,12 @@ export default function OtherAreaCamera({
 
   const takePicture = async () => {
     if (!cameraRef.current) {
-      Alert.alert('Error', 'Camera not ready');
+      setAlertConfig({
+        visible: true,
+        title: 'Camera Error',
+        message: 'Camera is not ready. Please try again.',
+        type: 'error'
+      });
       return;
     }
 
@@ -55,12 +75,33 @@ export default function OtherAreaCamera({
       }
 
       if (onCapture) {
-        onCapture(photo.uri);
+        // We await here so we can catch errors thrown by the Service
+        await onCapture(photo.uri);
       }
 
-    } catch (error) {
-      console.error('Error taking picture:', error);
-      Alert.alert('Error', 'Failed to capture image');
+    } catch (error: any) {
+      console.error('Error taking picture or analyzing:', error);
+      
+      let errorTitle = 'Capture Failed';
+      let errorMessage = 'An unexpected error occurred while processing the image.';
+      let errorType: 'error' | 'warning' = 'error';
+
+      // CHECK FOR SPECIFIC FACE DETECTION ERROR
+      const errorString = error?.message || String(error);
+      if (errorString.includes('No face detected')) {
+        errorTitle = 'No Face Detected';
+        errorMessage = 'We could not detect a face in this photo. Please ensure the face is clearly visible, well-lit, and centered in the frame.';
+        errorType = 'warning'; // Warning is often friendlier for user-error instructions
+      }
+
+      setAlertConfig({
+        visible: true,
+        title: errorTitle,
+        message: errorMessage,
+        type: errorType
+      });
+
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -88,13 +129,23 @@ export default function OtherAreaCamera({
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="large" color="#fff" />
+              <ActivityIndicator size="large" color="#007AFF" />
             ) : (
               <View style={styles.captureButtonInner} />
             )}
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={hideAlert}
+        confirmText="Try Again"
+      />
     </View>
   );
 }
@@ -154,7 +205,8 @@ const styles = StyleSheet.create({
     pointerEvents: 'auto',
   },
   captureButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.8, // Changed to 0.8 so the loader is visible clearly
+    backgroundColor: '#e0e0e0',
   },
   captureButtonInner: {
     width: 60,
