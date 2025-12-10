@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Animated,
   Modal,
@@ -25,6 +24,7 @@ import ghnService, {
   GHNDistrict,
   Ward,
 } from "@/services/ghnService";
+import CustomAlert from "@/components/CustomAlert"; // Import CustomAlert
 
 // Static definition ensures no calculation errors
 const MONTH_NAMES = [
@@ -99,6 +99,19 @@ export default function SignUpScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info" as "success" | "error" | "warning" | "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   useEffect(() => {
     loadProvinces();
     Animated.parallel([
@@ -164,10 +177,13 @@ export default function SignUpScreen() {
 
   const handleRegister = async () => {
     if (!validateForm()) {
-      Alert.alert(
-        "Validation Error",
-        "Please fill in all required fields correctly."
-      );
+      setAlertConfig({
+        visible: true,
+        title: "Validation Error",
+        message: "Please fill in all required fields correctly.",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return;
     }
 
@@ -176,17 +192,24 @@ export default function SignUpScreen() {
       const response = await register(formData);
       await authLogin(response.data.access_token, response.data.user);
 
-      Alert.alert("Success", "Registration successful! Welcome to Skinalyze!", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/(tabs)/HomeScreen"),
+      setAlertConfig({
+        visible: true,
+        title: "Success",
+        message: "Registration successful! Welcome to Skinalyze!",
+        type: "success",
+        onConfirm: () => {
+          hideAlert();
+          router.replace("/(tabs)/HomeScreen");
         },
-      ]);
+      });
     } catch (error: any) {
-      Alert.alert(
-        "Registration Failed",
-        error.message || "Unable to register. Please try again."
-      );
+      setAlertConfig({
+        visible: true,
+        title: "Registration Failed",
+        message: error.message || "Unable to register. Please try again.",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -766,7 +789,9 @@ export default function SignUpScreen() {
                     errors.wardOrSubDistrict && styles.inputError,
                     !selectedDistrictId && styles.pickerDisabled,
                   ]}
-                  onPress={() => selectedDistrictId && setShowWardPicker(true)}
+                  onPress={() =>
+                    selectedDistrictId && setShowWardPicker(true)
+                  }
                   disabled={!selectedDistrictId}
                 >
                   <Ionicons name="location-outline" size={20} color="#666" />
@@ -1036,6 +1061,16 @@ export default function SignUpScreen() {
           </View>
         </Modal>
       )}
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="OK"
+      />
     </KeyboardAvoidingView>
   );
 }

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +16,7 @@ import tokenService from "@/services/tokenService";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import reviewService from "@/services/reviewService";
 import { useTranslation } from "react-i18next";
+import CustomAlert from "@/components/CustomAlert"; // Ensure path matches your project structure
 
 export default function OrderDetailScreen() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function OrderDetailScreen() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [processingAction, setProcessingAction] = useState(false); // To handle button loading state
+  const [processingAction, setProcessingAction] = useState(false);
   const [reviewEligibility, setReviewEligibility] = useState<
     Record<
       string,
@@ -35,13 +35,24 @@ export default function OrderDetailScreen() {
     >
   >({});
 
+  // State for CustomAlert
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info" as "success" | "error" | "warning" | "info",
+    confirmText: "OK",
+    cancelText: undefined as string | undefined,
+    onConfirm: () => {},
+    onCancel: undefined as (() => void) | undefined,
+  });
+
   useEffect(() => {
     if (orderId && isAuthenticated) {
       fetchOrderDetail();
     }
   }, [orderId, isAuthenticated]);
 
-  // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (orderId && isAuthenticated && order) {
@@ -52,9 +63,23 @@ export default function OrderDetailScreen() {
     }, [orderId, isAuthenticated, order])
   );
 
+  // Helper to close alert
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const fetchOrderDetail = async () => {
     if (!isAuthenticated || !orderId) {
-      Alert.alert(t("orderDetail.error"), t("orderDetail.invalidInfo"));
+      setAlertConfig({
+        visible: true,
+        title: t("orderDetail.error"),
+        message: t("orderDetail.invalidInfo"),
+        type: "error",
+        confirmText: "OK",
+        cancelText: undefined,
+        onConfirm: hideAlert,
+        onCancel: undefined,
+      });
       return;
     }
 
@@ -62,7 +87,16 @@ export default function OrderDetailScreen() {
       setLoading(true);
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t("orderDetail.error"), t("orderDetail.loginToView"));
+        setAlertConfig({
+          visible: true,
+          title: t("orderDetail.error"),
+          message: t("orderDetail.loginToView"),
+          type: "error",
+          confirmText: "OK",
+          cancelText: undefined,
+          onConfirm: hideAlert,
+          onCancel: undefined,
+        });
         return;
       }
       const data = await orderService.getOrderById(orderId, token);
@@ -73,56 +107,80 @@ export default function OrderDetailScreen() {
       }
     } catch (error: any) {
       console.error("Error fetching order detail:", error);
-      Alert.alert(
-        t("orderDetail.error"),
-        error.message || t("orderDetail.unableLoad")
-      );
+      setAlertConfig({
+        visible: true,
+        title: t("orderDetail.error"),
+        message: error.message || t("orderDetail.unableLoad"),
+        type: "error",
+        confirmText: "OK",
+        cancelText: undefined,
+        onConfirm: hideAlert,
+        onCancel: undefined,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCompleteOrder = () => {
-    Alert.alert(
-      t("orderDetail.confirmReceipt"),
-      t("orderDetail.confirmMessage"),
-      [
-        { text: t("orderDetail.cancel"), style: "cancel" },
-        {
-          text: t("orderDetail.yesReceived"),
-          onPress: async () => {
-            try {
-              setProcessingAction(true);
-              const token = await tokenService.getToken();
+    // Show confirmation CustomAlert
+    setAlertConfig({
+      visible: true,
+      title: t("orderDetail.confirmReceipt"),
+      message: t("orderDetail.confirmMessage"),
+      type: "warning", // Warning type for critical actions
+      confirmText: t("orderDetail.yesReceived"),
+      cancelText: t("orderDetail.cancel"),
+      onCancel: hideAlert,
+      onConfirm: async () => {
+        hideAlert(); // Close the modal first
+        await processCompleteOrder(); // Trigger the API call
+      },
+    });
+  };
 
-              if (!token || !order) return;
+  const processCompleteOrder = async () => {
+    try {
+      setProcessingAction(true);
+      const token = await tokenService.getToken();
 
-              // Call the service method (ensure this method exists in your orderService)
-              const updatedOrder = await orderService.confirmCompleteOrder(
-                order.orderId,
-                token
-              );
+      if (!token || !order) return;
 
-              setOrder(updatedOrder);
-              Alert.alert(
-                t("orderDetail.success"),
-                t("orderDetail.orderCompleted")
-              );
+      const updatedOrder = await orderService.confirmCompleteOrder(
+        order.orderId,
+        token
+      );
 
-              // Refresh review eligibility based on new status
-              checkReviewEligibility(updatedOrder.orderItems);
-            } catch (error: any) {
-              Alert.alert(
-                t("orderDetail.error"),
-                error.message || t("orderDetail.failedComplete")
-              );
-            } finally {
-              setProcessingAction(false);
-            }
-          },
-        },
-      ]
-    );
+      setOrder(updatedOrder);
+
+      // Show Success CustomAlert
+      setAlertConfig({
+        visible: true,
+        title: t("orderDetail.success"),
+        message: t("orderDetail.orderCompleted"),
+        type: "success",
+        confirmText: "OK",
+        cancelText: undefined,
+        onConfirm: hideAlert,
+        onCancel: undefined,
+      });
+
+      checkReviewEligibility(updatedOrder.orderItems);
+    } catch (error: any) {
+      // Show Error CustomAlert
+      setAlertConfig({
+        visible: true,
+        title: t("orderDetail.error"),
+        message: error.message || t("orderDetail.failedComplete"),
+        type: "error",
+        confirmText: "OK",
+        cancelText: undefined,
+        onConfirm: hideAlert,
+        onCancel: undefined,
+      });
+    } finally {
+      setProcessingAction(false);
+    }
   };
 
   const checkReviewEligibility = async (orderItems: OrderItem[]) => {
@@ -183,7 +241,6 @@ export default function OrderDetailScreen() {
       order?.status === "COMPLETED" || order?.status === "DELIVERED";
     const eligibility = reviewEligibility[item.product.productId];
 
-    // Only allow review if order is effectively delivered/completed and user hasn't reviewed yet
     const canShowReviewButton =
       isCompleted &&
       eligibility?.canReview &&
@@ -231,7 +288,6 @@ export default function OrderDetailScreen() {
             <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
           </View>
 
-          {/* Review Button */}
           {canShowReviewButton && (
             <TouchableOpacity
               style={[styles.reviewButton, { borderColor: primaryColor }]}
@@ -244,7 +300,6 @@ export default function OrderDetailScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Reviewed Indicator */}
           {isCompleted && eligibility?.hasReviewed && (
             <View style={styles.reviewedIndicator}>
               <Ionicons name="checkmark-circle" size={16} color="#34C759" />
@@ -287,16 +342,27 @@ export default function OrderDetailScreen() {
             {t("orderDetail.goBack")}
           </Text>
         </TouchableOpacity>
+        
+        {/* Render Alert even in error state if triggered before unmounting */}
+        <CustomAlert
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          confirmText={alertConfig.confirmText}
+          cancelText={alertConfig.cancelText}
+          onConfirm={alertConfig.onConfirm}
+          onCancel={alertConfig.onCancel}
+        />
       </View>
     );
   }
 
-  const totalAmount = orderService.calculateOrderTotal(order.orderItems); // Subtotal
+  const totalAmount = orderService.calculateOrderTotal(order.orderItems);
   const shippingFee =
-    order.shippingLogs?.find((log) => log.shippingFee)?.shippingFee || "0"; // Extract shipping fee
-  const totalWithShipping = totalAmount + parseFloat(shippingFee); // Total including shipping
+    order.shippingLogs?.find((log) => log.shippingFee)?.shippingFee || "0";
+  const totalWithShipping = totalAmount + parseFloat(shippingFee);
 
-  // Determine icon based on status
   let statusIconName: keyof typeof Ionicons.glyphMap = "time";
   if (order.status === "DELIVERED") statusIconName = "cube";
   else if (order.status === "COMPLETED")
@@ -306,7 +372,6 @@ export default function OrderDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -538,7 +603,6 @@ export default function OrderDetailScreen() {
         )}
 
         {/* COMPLETE ORDER BUTTON SECTION */}
-        {/* Only rendered when status is DELIVERED */}
         {order.status === "DELIVERED" && (
           <View style={styles.actionContainer}>
             <View style={styles.completeInfoBox}>
@@ -574,6 +638,18 @@ export default function OrderDetailScreen() {
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Integrate CustomAlert at the bottom level */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   );
 }
@@ -857,7 +933,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
-  // NEW STYLES FOR ACTION SECTION
   actionContainer: {
     padding: 16,
     backgroundColor: "#fff",

@@ -10,16 +10,23 @@ import {
   Animated,
   Dimensions,
   Platform
-} from 'react-native'
-import React, { useState, useRef, useEffect } from 'react'
-import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
-import FacialSkinCamera from '@/components/FacialSkinCamera'
-import OtherAreaCamera from '@/components/OtherAreaCamera'
-import { useAuth } from '@/hooks/useAuth'
-import skinAnalysisService from '@/services/skinAnalysisService'
-import { useThemeColor } from '@/contexts/ThemeColorContext'
+} from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+
+// Components
+import FacialSkinCamera from '@/components/FacialSkinCamera';
+import OtherAreaCamera from '@/components/OtherAreaCamera';
+import CustomAlert from '@/components/CustomAlert';
+
+// Hooks & Context
+import { useAuth } from '@/hooks/useAuth';
+import { useThemeColor } from '@/contexts/ThemeColorContext';
+
+// Services
+import skinAnalysisService from '@/services/skinAnalysisService';
 
 // Get screen dimensions for responsive layout
 const { width } = Dimensions.get('window');
@@ -28,9 +35,19 @@ type ScreenState = 'options' | 'diseaseOptions' | 'camera';
 type DetectionType = 'facialDisease' | 'otherDisease';
 
 export default function AnalyzeScreen() {
+  // State
   const [screenState, setScreenState] = useState<ScreenState>('options');
   const [detectionType, setDetectionType] = useState<DetectionType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error' as 'error' | 'success' | 'warning' | 'info',
+  });
+
   const { user } = useAuth();
   const { primaryColor } = useThemeColor();
   const router = useRouter();
@@ -41,7 +58,7 @@ export default function AnalyzeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Reset values
+    // Reset animation values
     fadeAnim.setValue(0);
     slideAnim.setValue(30);
 
@@ -60,6 +77,17 @@ export default function AnalyzeScreen() {
       }),
     ]).start();
   }, [screenState]);
+
+  // --- Handlers ---
+
+  /**
+   * Handles closing the alert and ensures all loading states are reset
+   * to re-enable the camera capture button.
+   */
+  const handleAlertDismiss = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+    setIsAnalyzing(false); // Force loading to stop to enable buttons
+  };
 
   const handleDiseaseDetection = () => {
     setScreenState('diseaseOptions');
@@ -86,7 +114,12 @@ export default function AnalyzeScreen() {
 
   const handleCapture = async (imageUri: string) => {
     if (!user?.userId) {
-      Alert.alert(t('analyze.authRequired'), t('analyze.loginToUse'));
+      setAlertConfig({
+        visible: true,
+        title: t('productDetail.authRequired'),
+        message: t('profile.loginAgain'),
+        type: 'warning'
+      });
       setScreenState('options');
       setDetectionType(null);
       return;
@@ -97,12 +130,14 @@ export default function AnalyzeScreen() {
     try {
       // Disease Detection with Note
       const note = detectionType === 'facialDisease' ? 'facial' : 'other';
+      
+      // Call Service
       const result = await skinAnalysisService.detectDisease(user.userId, imageUri, note);
 
-      // Reset State
+      // Success - turn off loading and navigate
+      setIsAnalyzing(false);
       setScreenState('options');
       setDetectionType(null);
-      setIsAnalyzing(false);
 
       // Navigate to Results
       router.push({
@@ -114,17 +149,31 @@ export default function AnalyzeScreen() {
 
     } catch (error: any) {
       console.error('❌ Analysis error:', error);
-      Alert.alert(
-        t('analyze.analysisFailed'),
-        error.message || t('analyze.failedAnalyze'),
-        [
-          { text: t('analyze.ok'), onPress: () => {
-            setScreenState('options');
-            setDetectionType(null);
-          }}
-        ]
-      );
+      
+      // CRITICAL: Stop loading immediately so the Overlay disappears 
+      // and the Camera component receives the resolved promise
       setIsAnalyzing(false);
+      
+      const errorMessage = error.message || String(error);
+
+      // Specific handling for "No face detected"
+      if (errorMessage.includes('No face detected')) {
+        setAlertConfig({
+          visible: true,
+          title: t('analyze.analysisFailed'),
+          message: "No face detected. Please ensure your face is well-lit and centered in the frame.", 
+          type: 'warning'
+        });
+        // We do NOT change screenState here, so user stays on camera to retry
+      } else {
+        // Generic Error
+        setAlertConfig({
+          visible: true,
+          title: t('analyze.analysisFailed'),
+          message: errorMessage || t('analyze.errorDesc'),
+          type: 'error'
+        });
+      }
     }
   };
 
@@ -143,29 +192,34 @@ export default function AnalyzeScreen() {
 
   // --- RENDER: Camera Screen ---
   if (screenState === 'camera') {
-    if (detectionType === 'facialDisease') {
-      return (
-        <>
+    return (
+      <>
+        {detectionType === 'facialDisease' ? (
           <FacialSkinCamera
             onCapture={handleCapture}
             onClose={handleBack}
             initialFacing="front"
             title={t('analyze.positionFaceDisease')}
           />
-          {isAnalyzing && <LoadingOverlay />}
-        </>
-      );
-    }
-
-    // Back camera for "Other" areas
-    return (
-      <>
-        <OtherAreaCamera
-          onCapture={handleCapture}
-          onClose={handleBack}
-          title={t('analyze.holdCameraClose')}
-        />
+        ) : (
+          <OtherAreaCamera
+            onCapture={handleCapture}
+            onClose={handleBack}
+            title={t('analyze.holdCameraClose')}
+          />
+        )}
+        
         {isAnalyzing && <LoadingOverlay />}
+        
+        {/* Custom Alert Overlay for Camera Errors */}
+        <CustomAlert 
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onConfirm={handleAlertDismiss} // Using the robust dismiss handler
+          confirmText={t('common.cancel')} 
+        />
       </>
     );
   }
@@ -192,7 +246,6 @@ export default function AnalyzeScreen() {
             ]}
           >
             <Text style={styles.headerSuperTitle}>{t('analyze.aiSkinAnalysis').toUpperCase()}</Text>
-            {/* <Text style={styles.headerTitle}>{t('analyze.chooseAnalysisType')}</Text> */}
           </Animated.View>
 
           {/* Main Cards */}
@@ -257,6 +310,16 @@ export default function AnalyzeScreen() {
             </View>
           </Animated.View>
         </ScrollView>
+
+        {/* Custom Alert in Main View */}
+        <CustomAlert 
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onConfirm={handleAlertDismiss}
+          confirmText={t('analyze.ok')}
+        />
       </View>
     );
   }
@@ -326,6 +389,16 @@ export default function AnalyzeScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      {/* Custom Alert in Disease Options View */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={handleAlertDismiss}
+        confirmText={t('analyze.ok')}
+      />
     </View>
   );
 }
