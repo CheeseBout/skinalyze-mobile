@@ -486,6 +486,7 @@
     }
   },
   "orders": {
+    "shipping": "Shipping",
     "title": "My Orders",
     "loading": "Loading orders...",
     "error": "Failed to load orders",
