@@ -141,6 +141,18 @@ export default function StackLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="CreateReturnRequestScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="MyReturnRequestsScreen"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

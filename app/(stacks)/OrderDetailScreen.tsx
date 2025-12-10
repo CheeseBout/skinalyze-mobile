@@ -571,6 +571,47 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
+        {/* RETURN REQUEST BUTTON - Only when Order AND ShippingLog are DELIVERED */}
+        {order.status === "DELIVERED" &&
+          order.shippingLogs?.some((log) => log.status === "DELIVERED") && (
+            <View style={styles.returnRequestContainer}>
+              <TouchableOpacity
+                style={styles.returnRequestButton}
+                onPress={() => {
+                  const deliveredLog = order.shippingLogs?.find(
+                    (log) => log.status === "DELIVERED"
+                  );
+                  if (deliveredLog) {
+                    router.push({
+                      pathname: "/(stacks)/CreateReturnRequestScreen",
+                      params: {
+                        orderId: order.orderId,
+                        shippingLogId: deliveredLog.shippingLogId,
+                      },
+                    });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="return-down-back" size={20} color="#FF6B6B" />
+                <Text style={styles.returnRequestButtonText}>
+                  {t("returnRequest.requestReturn")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.viewReturnRequestsButton}
+                onPress={() => router.push("/(stacks)/MyReturnRequestsScreen")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="list-outline" size={20} color="#666" />
+                <Text style={styles.viewReturnRequestsButtonText}>
+                  {t("returnRequest.myRequests")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -860,6 +901,7 @@ const styles = StyleSheet.create({
   // NEW STYLES FOR ACTION SECTION
   actionContainer: {
     padding: 16,
+    marginBottom: 12,
     backgroundColor: "#fff",
     marginTop: 12,
     borderTopWidth: 1,
@@ -898,5 +940,42 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  returnRequestContainer: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    gap: 12,
+  },
+  returnRequestButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FF6B6B",
+    backgroundColor: "#FFF5F5",
+  },
+  returnRequestButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FF6B6B",
+  },
+  viewReturnRequestsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#F5F5F5",
+  },
+  viewReturnRequestsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
   },
 });

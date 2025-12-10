@@ -1,7 +1,11 @@
 {
   "common": {
     "notAvailable": "N/A",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "unauthorized": "Unauthorized. Please login again."
   },
   "profile": {
     "ok": "OK",
@@ -899,6 +903,50 @@
     "internalNote": "This order is being delivered by our internal team",
     "ghnMethod": "Express Delivery (GHN)",
     "internalMethod": "Internal Delivery"
+  },
+  "returnRequest": {
+    "title": "Return Request",
+    "myRequests": "My Return Requests",
+    "loading": "Loading...",
+    "empty": "No return requests",
+    "emptyDesc": "Your return requests will appear here",
+    "selectReason": "Select Return Reason",
+    "description": "Detailed Description",
+    "descriptionPlaceholder": "Please describe the issue with your order...",
+    "evidencePhotos": "Evidence Photos (Optional)",
+    "evidencePhotosDesc": "Upload up to 5 photos showing the issue",
+    "addPhoto": "Add Photo",
+    "submit": "Submit Request",
+    "orderId": "Order ID:",
+    "reason": "Reason:",
+    "cancel": "Cancel Request",
+    "cancelTitle": "Cancel Request",
+    "cancelConfirm": "Are you sure you want to cancel this return request?",
+    "cancelSuccess": "Return request cancelled successfully",
+    "cancelError": "Failed to cancel return request",
+    "success": "Success",
+    "error": "Error",
+    "requestCreated": "Return request submitted successfully",
+    "createError": "Failed to create return request",
+    "selectReasonError": "Please select a return reason",
+    "provideDetailsError": "Please provide detailed description",
+    "requestReturn": "Request Return",
+    "reasons": {
+      "damaged": "Damaged Product",
+      "wrong_item": "Wrong Item",
+      "defective": "Defective/Faulty",
+      "not_as_described": "Not As Described",
+      "change_mind": "Changed Mind",
+      "other": "Other Reason"
+    },
+    "status": {
+      "pending": "Pending Review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
   },
   "withdrawalRequests": {
     "title": "Withdrawal History",
