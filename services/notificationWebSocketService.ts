@@ -45,8 +45,9 @@ class NotificationWebSocketService {
   };
 
   // Thay đổi URL này theo backend của bạn
-  // private readonly SOCKET_URL = "https://api.nhatlonh.id.vn";
-  private readonly SOCKET_URL = process.env.EXPO_PUBLIC_BASE_API_URL || "https://api.nhatlonh.id.vn/api/v1";
+  // Use EXPO_BASE_URL (without /api/v1) for Socket.IO connection
+  private readonly SOCKET_URL =
+    process.env.EXPO_BASE_URL || "https://api.nhatlonh.id.vn";
   // private readonly SOCKET_URL = 'http://localhost:3000'; // iOS simulator
   // private readonly SOCKET_URL = 'https://api.skinalyze.com'; // Production
 
