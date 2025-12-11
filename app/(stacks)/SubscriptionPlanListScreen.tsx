@@ -6,13 +6,15 @@ import {
   FlatList,
   TextInput,
   Pressable,
-  Alert,
   Image,
 } from "react-native";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import CustomAlert from "@/components/CustomAlert";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
 
 import dermatologistService from "@/services/dermatologistService";
 import { Dermatologist } from "@/types/dermatologist.type";
@@ -23,43 +25,28 @@ import {
   SubscriptionPlanSortBy,
 } from "@/types/subscription-plan.type";
 
-const PlanCard = React.memo(
-  ({ plan, onPress }: { plan: SubscriptionPlan; onPress: () => void }) => (
-    <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.planName}>{plan.planName}</Text>
-        <Text style={styles.planPrice}>
-          {Number(plan.basePrice).toLocaleString("vi-VN")} VND
-        </Text>
-      </View>
-      <Text style={styles.planDescription} numberOfLines={2}>
-        {plan.planDescription || "No description provided."}
-      </Text>
-      <View style={styles.cardDetails}>
-        <View style={styles.detailItem}>
-          <Ionicons name="calendar-outline" size={16} color="#007bff" />
-          <Text style={styles.detailText}>{plan.totalSessions} Sessions</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="time-outline" size={16} color="#007bff" />
-          <Text style={styles.detailText}>{plan.durationInDays} Days</Text>
-        </View>
-      </View>
-    </Pressable>
-  )
-);
-
 export default function SubscriptionPlanListScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
+  const { primaryColor } = useThemeColor();
   const { dermatologistId } = useLocalSearchParams<{
     dermatologistId: string;
     doctorName?: string;
   }>();
 
+  const locale = i18n.language === "vi" ? "vi-VN" : "en-US";
+  const softPrimary = hexToRgba(primaryColor, 0.12);
+
   const [doctor, setDoctor] = useState<Dermatologist | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingHeader, setIsLoadingHeader] = useState(true);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<
+    "success" | "error" | "warning" | "info"
+  >("warning");
 
   const defaultFilters: FindSubscriptionPlansDto = {
     dermatologistId: dermatologistId,
@@ -91,7 +78,10 @@ export default function SubscriptionPlanListScreen() {
         setDoctor(doctorData);
         setPlans(plansData);
       } catch (error) {
-        Alert.alert("Error", "Failed to load page data.");
+        setAlertTitle(t("common.error"));
+        setAlertMessage(t("subscriptionPlanList.errors.pageLoad"));
+        setAlertType("error");
+        setAlertVisible(true);
       } finally {
         setIsLoading(false);
         setIsLoadingHeader(false);
@@ -126,7 +116,10 @@ export default function SubscriptionPlanListScreen() {
         const data = await subscriptionPlanService.findPlans(cleanFilters);
         setPlans(data);
       } catch (error) {
-        Alert.alert("Error", "Failed to load subscription plans.");
+        setAlertTitle(t("common.error"));
+        setAlertMessage(t("subscriptionPlanList.errors.planLoad"));
+        setAlertType("error");
+        setAlertVisible(true);
       } finally {
         setIsLoading(false);
       }
@@ -172,12 +165,53 @@ export default function SubscriptionPlanListScreen() {
     handleFilterChange("sortOrder", newOrder);
   };
 
+  const PlanCard = React.memo(
+    ({ plan, onPress }: { plan: SubscriptionPlan; onPress: () => void }) => (
+      <Pressable style={styles.card} onPress={onPress}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.planName}>{plan.planName}</Text>
+          <Text style={[styles.planPrice, { color: primaryColor }]}>
+            {Number(plan.basePrice).toLocaleString(locale)} VND
+          </Text>
+        </View>
+        <Text style={styles.planDescription} numberOfLines={2}>
+          {plan.planDescription || t("subscriptionPlanList.card.noDescription")}
+        </Text>
+        <View style={styles.cardDetails}>
+          <View style={styles.detailItem}>
+            <Ionicons name="calendar-outline" size={16} color={primaryColor} />
+            <Text style={styles.detailText}>
+              {t("subscriptionPlanList.card.sessions", {
+                count: plan.totalSessions,
+              })}
+            </Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Ionicons name="time-outline" size={16} color={primaryColor} />
+            <Text style={styles.detailText}>
+              {t("subscriptionPlanList.card.days", {
+                count: plan.durationInDays,
+              })}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    )
+  );
+
   return (
     <View style={styles.container}>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onConfirm={() => setAlertVisible(false)}
+      />
       {/* Dermatologist Information  */}
       {isLoadingHeader ? (
         <View style={styles.doctorHeaderPlaceholder}>
-          <ActivityIndicator />
+          <ActivityIndicator color={primaryColor} />
         </View>
       ) : (
         doctor && (
@@ -193,7 +227,9 @@ export default function SubscriptionPlanListScreen() {
             />
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>{doctor.user?.fullName}</Text>
-              <Text style={styles.doctorSpec}>Dermatology Specialist</Text>
+              <Text style={styles.doctorSpec}>
+                {t("subscriptionPlanList.header.specialist")}
+              </Text>
             </View>
           </View>
         )
@@ -218,21 +254,21 @@ export default function SubscriptionPlanListScreen() {
           <View style={styles.filterContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by plan name (auto-applies)..."
+              placeholder={t("subscriptionPlanList.filters.search")}
               value={inputFilters.search}
               onChangeText={(text) => handleFilterChange("search", text)}
             />
             <View style={styles.priceRow}>
               <TextInput
                 style={styles.priceInput}
-                placeholder="Min Price"
+                placeholder={t("subscriptionPlanList.filters.minPrice")}
                 value={String(inputFilters.minPrice || "")}
                 onChangeText={(text) => handleFilterChange("minPrice", text)}
                 keyboardType="numeric"
               />
               <TextInput
                 style={styles.priceInput}
-                placeholder="Max Price"
+                placeholder={t("subscriptionPlanList.filters.maxPrice")}
                 value={String(inputFilters.maxPrice || "")}
                 onChangeText={(text) => handleFilterChange("maxPrice", text)}
                 keyboardType="numeric"
@@ -249,22 +285,25 @@ export default function SubscriptionPlanListScreen() {
                 style={styles.picker}
               >
                 <Picker.Item
-                  label="Sort by Price"
+                  label={t("subscriptionPlanList.filters.sortByPrice")}
                   value={SubscriptionPlanSortBy.BASE_PRICE}
                 />
                 <Picker.Item
-                  label="Sort by Name"
+                  label={t("subscriptionPlanList.filters.sortByName")}
                   value={SubscriptionPlanSortBy.PLAN_NAME}
                 />
                 <Picker.Item
-                  label="Sort by Sessions"
+                  label={t("subscriptionPlanList.filters.sortBySessions")}
                   value={SubscriptionPlanSortBy.TOTAL_SESSIONS}
                 />
               </Picker>
 
               {/*ASC/DESC */}
               <Pressable
-                style={styles.sortOrderButton}
+                style={[
+                  styles.sortOrderButton,
+                  { backgroundColor: softPrimary },
+                ]}
                 onPress={toggleSortOrder}
               >
                 <MaterialCommunityIcons
@@ -274,25 +313,34 @@ export default function SubscriptionPlanListScreen() {
                       : "arrow-down-thin"
                   }
                   size={24}
-                  color="#007bff"
+                  color={primaryColor}
                 />
               </Pressable>
             </View>
 
-            <Pressable style={styles.applyButton} onPress={handleApplyFilters}>
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            <Pressable
+              style={[styles.applyButton, { backgroundColor: primaryColor }]}
+              onPress={handleApplyFilters}
+            >
+              <Text style={styles.applyButtonText}>
+                {t("subscriptionPlanList.filters.apply")}
+              </Text>
             </Pressable>
           </View>
         }
         ListFooterComponent={
           isLoading ? (
-            <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
+            <ActivityIndicator
+              size="large"
+              color={primaryColor}
+              style={{ marginVertical: 20 }}
+            />
           ) : null
         }
         ListEmptyComponent={
           !isLoading ? (
             <Text style={styles.emptyText}>
-              No plans found matching your criteria.
+              {t("subscriptionPlanList.list.empty")}
             </Text>
           ) : null
         }

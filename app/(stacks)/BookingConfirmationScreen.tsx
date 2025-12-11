@@ -1,80 +1,118 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Pressable,
-  Image,
-} from "react-native";
 import React, {
-  useState,
-  useMemo,
-  useContext,
   useCallback,
+  useContext,
+  useMemo,
   useRef,
+  useState,
 } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import AppointmentPurposeCard from "@/components/AppointmentPurposeCard";
-
-import { Dermatologist } from "@/types/dermatologist.type";
-import { Customer } from "@/types/customer.type";
-import { CustomerSubscription } from "@/types/customerSubscription.type";
+import CustomAlert from "@/components/CustomAlert";
+import { AuthContext } from "@/contexts/AuthContext";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
+import appointmentService from "@/services/appointmentService";
+import customerService from "@/services/customerService";
+import customerSubscriptionService from "@/services/customerSubscriptionService";
+import dermatologistService from "@/services/dermatologistService";
+import skinAnalysisService from "@/services/skinAnalysisService";
+import treatmentRoutineService from "@/services/treatmentRoutineService";
+import userService from "@/services/userService";
 import {
   AppointmentType,
   CreateAppointmentDto,
 } from "@/types/appointment.type";
+import { Customer } from "@/types/customer.type";
+import { CustomerSubscription } from "@/types/customerSubscription.type";
+import { Dermatologist } from "@/types/dermatologist.type";
 import { SkinAnalysis } from "@/types/skin-analysis.type";
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
 
-import dermatologistService from "@/services/dermatologistService";
-import customerService from "@/services/customerService";
-import customerSubscriptionService from "@/services/customerSubscriptionService";
-import appointmentService from "@/services/appointmentService";
-import skinAnalysisService from "@/services/skinAnalysisService";
-import treatmentRoutineService from "@/services/treatmentRoutineService";
+const fallbackLocale = "en-US";
 
-import { AuthContext } from "@/contexts/AuthContext";
-import userService from "@/services/userService";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
-
-const formatTime = (isoDate: string) => {
-  if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleTimeString("en-US", {
+const formatTime = (isoDate: string | undefined, locale: string) => {
+  if (!isoDate) return "";
+  return new Date(isoDate).toLocaleTimeString(locale || fallbackLocale, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
 };
-const formatDate = (isoDate: string) => {
-  if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleDateString("en-GB", {
+
+const formatDate = (isoDate: string | undefined, locale: string) => {
+  if (!isoDate) return "";
+  return new Date(isoDate).toLocaleDateString(locale || fallbackLocale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
 };
-const formatGender = (isMale: boolean | undefined) => {
-  if (isMale === undefined || isMale === null) return "N/A";
-  return isMale ? "Male" : "Female";
-};
 
 export default function BookingConfirmationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    dermatologistId: string;
-    startTime: string;
-    endTime: string;
-    price: string;
-    slotId: string;
+    dermatologistId?: string | string[];
+    startTime?: string | string[];
+    endTime?: string | string[];
+    price?: string | string[];
+    slotId?: string | string[];
   }>();
+
+  const dermatologistId = Array.isArray(params.dermatologistId)
+    ? params.dermatologistId[0]
+    : params.dermatologistId;
+  const startTime = Array.isArray(params.startTime)
+    ? params.startTime[0]
+    : params.startTime;
+  const endTime = Array.isArray(params.endTime)
+    ? params.endTime[0]
+    : params.endTime;
+  const rawPrice = Array.isArray(params.price) ? params.price[0] : params.price;
+
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "bookingConfirmation",
+  });
 
   const { user, isLoading: isAuthLoading } = useContext(AuthContext);
   const { primaryColor } = useThemeColor();
+
+  const subtleBackground = useMemo(
+    () => hexToRgba(primaryColor, 0.05),
+    [primaryColor]
+  );
+  const cardBorder = useMemo(
+    () => hexToRgba(primaryColor, 0.12),
+    [primaryColor]
+  );
+  const optionTint = useMemo(
+    () => hexToRgba(primaryColor, 0.12),
+    [primaryColor]
+  );
+  const optionDescActive = useMemo(
+    () => hexToRgba(primaryColor, 0.8),
+    [primaryColor]
+  );
+  const iconInactiveColor = useMemo(
+    () => hexToRgba(primaryColor, 0.6),
+    [primaryColor]
+  );
+  const confirmDisabledColor = useMemo(
+    () => hexToRgba(primaryColor, 0.4),
+    [primaryColor]
+  );
+
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [doctor, setDoctor] = useState<Dermatologist | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -98,22 +136,20 @@ export default function BookingConfirmationScreen() {
   );
   const [note, setNote] = useState<string>("");
   const previousAnalysisIdsRef = useRef<string[]>([]);
+  const [alertState, setAlertState] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "error" as "success" | "error" | "warning" | "info",
+  });
 
-  const optionTint = useMemo(
-    () => hexToRgba(primaryColor, 0.12),
-    [primaryColor]
-  );
-  const optionDescActive = useMemo(
-    () => hexToRgba(primaryColor, 0.8),
-    [primaryColor]
-  );
-  const iconInactiveColor = useMemo(
-    () => hexToRgba(primaryColor, 0.6),
-    [primaryColor]
-  );
-  const confirmDisabledColor = useMemo(
-    () => hexToRgba(primaryColor, 0.4),
-    [primaryColor]
+  const formatGender = useCallback(
+    (isMale: boolean | undefined | null) => {
+      if (isMale === undefined || isMale === null)
+        return t("labels.notAvailable");
+      return isMale ? t("labels.genderMale") : t("labels.genderFemale");
+    },
+    [t]
   );
 
   const updateSelectedRoutine = useCallback(
@@ -157,13 +193,18 @@ export default function BookingConfirmationScreen() {
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (!params.dermatologistId) {
+    if (!dermatologistId) {
       return;
     }
 
     if (!user?.userId) {
       if (!isAuthLoading) {
-        Alert.alert("Authentication Error", "Please log in again.");
+        setAlertState({
+          visible: true,
+          title: t("errors.title"),
+          message: t("errors.auth"),
+          type: "error",
+        });
       }
       setIsLoadingData(false);
       return;
@@ -173,10 +214,8 @@ export default function BookingConfirmationScreen() {
       setIsLoadingData(true);
 
       const [doctorData, subsData, walletData] = await Promise.all([
-        dermatologistService.getDermatologistById(params.dermatologistId),
-        customerSubscriptionService.getMyActiveSubscriptions(
-          params.dermatologistId
-        ),
+        dermatologistService.getDermatologistById(dermatologistId),
+        customerSubscriptionService.getMyActiveSubscriptions(dermatologistId),
         userService.getBalance(),
       ]);
 
@@ -194,7 +233,7 @@ export default function BookingConfirmationScreen() {
           skinAnalysisService.getUserAnalyses(customerData.customerId),
           treatmentRoutineService.getCustomerRoutines(
             customerData.customerId,
-            params.dermatologistId
+            dermatologistId
           ),
         ]);
 
@@ -206,44 +245,38 @@ export default function BookingConfirmationScreen() {
       }
 
       setSelectedOptionId((prev) => {
-        const priceNumber = Number(params.price || 0);
+        const priceNumber = Number(rawPrice || 0);
 
         const isExistingSubscription = prev
           ? subsData.some((subscription) => subscription.id === prev)
           : false;
 
-        if (prev === "PAY_NOW") {
-          if (priceNumber > 0) {
-            return prev;
-          }
-        } else if (prev === "WALLET") {
-          return prev;
-        } else if (prev && isExistingSubscription) {
-          return prev;
-        }
+        if (prev === "PAY_NOW" && priceNumber > 0) return prev;
+        if (prev === "WALLET") return prev;
+        if (prev && isExistingSubscription) return prev;
 
-        if (priceNumber > 0) {
-          return "PAY_NOW";
-        }
-
-        if (subsData.length > 0) {
-          return subsData[0].id;
-        }
-
-        return priceNumber > 0 ? prev : null;
+        if (priceNumber > 0) return "PAY_NOW";
+        if (subsData.length > 0) return subsData[0].id;
+        return "WALLET";
       });
     } catch (error: any) {
-      console.log("Failed to load booking details.");
+      setAlertState({
+        visible: true,
+        title: t("errors.title"),
+        message: t("errors.load"),
+        type: "error",
+      });
     } finally {
       setIsLoadingData(false);
     }
   }, [
-    params.dermatologistId,
-    params.price,
-    user?.userId,
+    dermatologistId,
     isAuthLoading,
+    rawPrice,
+    t,
     updateSelectedAnalysis,
     updateSelectedRoutine,
+    user?.userId,
   ]);
 
   useFocusEffect(
@@ -253,50 +286,60 @@ export default function BookingConfirmationScreen() {
   );
 
   const slotDetails = useMemo(() => {
-    const price = Number(params.price || 0);
+    const price = Number(rawPrice || 0);
+    const locale = i18n.language || fallbackLocale;
+
+    const formattedStart = formatTime(startTime, locale);
+    const formattedEnd = formatTime(endTime, locale);
+
     return {
-      date: formatDate(params.startTime),
-      time: `${formatTime(params.startTime)} - ${formatTime(params.endTime)}`,
-      price: price,
-      priceDisplay: price > 0 ? `${price.toLocaleString()} VND` : "Free",
+      date: formatDate(startTime, locale) || t("labels.notAvailable"),
+      time:
+        formattedStart && formattedEnd
+          ? `${formattedStart} - ${formattedEnd}`
+          : t("labels.notAvailable"),
+      price,
+      priceDisplay:
+        price > 0
+          ? t("labels.price", { value: price.toLocaleString(locale) })
+          : t("labels.free"),
     };
-  }, [params]);
+  }, [endTime, i18n.language, rawPrice, startTime, t]);
 
   const handleConfirm = async () => {
-    if (!selectedOptionId || !params.dermatologistId) return;
+    if (!selectedOptionId || !dermatologistId) return;
     if (!selectedAnalysisId) {
-      Alert.alert(
-        "Missing Information",
-        "Please select a skin analysis result to review."
-      );
+      setAlertState({
+        visible: true,
+        title: t("errors.title"),
+        message: t("errors.missingAnalysis"),
+        type: "warning",
+      });
       return;
     }
 
-    // For Follow-up, routine is required
     if (appointmentType === AppointmentType.FOLLOW_UP && !selectedRoutineId) {
-      Alert.alert(
-        "Missing Information",
-        "Please select a treatment routine to follow-up."
-      );
+      setAlertState({
+        visible: true,
+        title: t("errors.title"),
+        message: t("errors.missingRoutine"),
+        type: "warning",
+      });
       return;
     }
 
     setIsConfirming(true);
 
     const baseDto: CreateAppointmentDto = {
-      dermatologistId: params.dermatologistId,
-      startTime: params.startTime,
-      endTime: params.endTime,
-      appointmentType: appointmentType,
-
-      // Analysis required for all appointment types
+      dermatologistId,
+      startTime: startTime || "",
+      endTime: endTime || "",
+      appointmentType,
       analysisId: selectedAnalysisId || undefined,
-
       trackingRoutineId:
         appointmentType === AppointmentType.FOLLOW_UP
           ? selectedRoutineId || undefined
-          : undefined, // (Only send when Follow-up)
-
+          : undefined,
       note: note || undefined,
     };
 
@@ -316,7 +359,12 @@ export default function BookingConfirmationScreen() {
         });
       } else if (selectedOptionId === "WALLET") {
         if (walletBalance < slotDetails.price) {
-          Alert.alert("Insufficient Balance", "Please top up your wallet.");
+          setAlertState({
+            visible: true,
+            title: t("errors.title"),
+            message: t("errors.insufficientBalance"),
+            type: "warning",
+          });
           setIsConfirming(false);
           return;
         }
@@ -329,7 +377,6 @@ export default function BookingConfirmationScreen() {
           params: { appointmentId: appointment.appointmentId },
         });
       } else {
-        // Subscription payment
         const appointment =
           await appointmentService.createSubscriptionAppointment({
             ...baseDto,
@@ -341,7 +388,12 @@ export default function BookingConfirmationScreen() {
         });
       }
     } catch (error: any) {
-      Alert.alert("Booking Failed", error.message || "An error occurred.");
+      setAlertState({
+        visible: true,
+        title: t("errors.bookingFailed"),
+        message: error?.message || t("errors.generic"),
+        type: "error",
+      });
       setIsConfirming(false);
     }
   };
@@ -413,6 +465,143 @@ export default function BookingConfirmationScreen() {
     );
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: subtleBackground,
+        },
+        center: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        card: {
+          backgroundColor: "#fff",
+          borderRadius: 12,
+          marginHorizontal: 16,
+          marginTop: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: cardBorder,
+          elevation: 3,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 5,
+        },
+        cardTitle: {
+          fontSize: 18,
+          fontWeight: "bold",
+          marginBottom: 12,
+          color: "#1e1e1e",
+        },
+        doctorHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 10,
+        },
+        doctorAvatar: {
+          width: 50,
+          height: 50,
+          borderRadius: 25,
+          backgroundColor: "#e0e0e0",
+        },
+        doctorInfo: {
+          marginLeft: 12,
+          flex: 1,
+        },
+        doctorName: {
+          fontSize: 16,
+          fontWeight: "bold",
+          color: "#222",
+        },
+        doctorSpec: {
+          fontSize: 14,
+          color: "#666",
+        },
+        row: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        },
+        label: {
+          fontSize: 15,
+          color: "#666",
+        },
+        value: {
+          fontSize: 15,
+          fontWeight: "bold",
+          maxWidth: "60%",
+          textAlign: "right",
+          color: "#1e1e1e",
+        },
+        divider: {
+          height: 1,
+          backgroundColor: "#eee",
+          marginVertical: 12,
+        },
+        option: {
+          backgroundColor: "#f5f5f5",
+          borderWidth: 1,
+          borderColor: "#ccc",
+          borderRadius: 8,
+          padding: 12,
+          marginBottom: 10,
+        },
+        optionText: {
+          fontSize: 16,
+          fontWeight: "bold",
+          color: "#333",
+        },
+        optionDesc: {
+          fontSize: 14,
+          color: "#666",
+        },
+        infoText: {
+          fontSize: 15,
+          color: "#666",
+          textAlign: "center",
+        },
+        footer: {
+          padding: 16,
+          backgroundColor: "#fff",
+          borderTopWidth: 1,
+          borderColor: cardBorder,
+        },
+        confirmButton: {
+          padding: 14,
+          borderRadius: 8,
+          alignItems: "center",
+        },
+        confirmButtonDisabled: {
+          opacity: 0.9,
+        },
+        confirmButtonText: {
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: "bold",
+        },
+        optionDisabled: {
+          opacity: 0.5,
+          backgroundColor: "#eee",
+          borderColor: "#ddd",
+        },
+        textDisabled: {
+          color: "#999",
+        },
+        errorText: {
+          fontSize: 14,
+          color: "#d9534f",
+          textAlign: "center",
+          marginTop: 8,
+          fontStyle: "italic",
+        },
+      }),
+    [cardBorder, subtleBackground]
+  );
+
   if (isLoadingData || isAuthLoading) {
     return <ActivityIndicator style={styles.center} size="large" />;
   }
@@ -420,10 +609,9 @@ export default function BookingConfirmationScreen() {
   return (
     <View style={styles.container}>
       <ScrollView>
-        {/* Derma Card */}
         {doctor && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Consultant</Text>
+            <Text style={styles.cardTitle}>{t("labels.consultant")}</Text>
             <View style={styles.doctorHeader}>
               <Image
                 style={styles.doctorAvatar}
@@ -436,32 +624,33 @@ export default function BookingConfirmationScreen() {
               <View style={styles.doctorInfo}>
                 <Text style={styles.doctorName}>{doctor.user?.fullName}</Text>
                 <Text style={styles.doctorSpec}>
-                  {doctor.specialization?.join(", ") || "Dermatologist"}
+                  {doctor.specialization?.join(", ") ||
+                    t("labels.dermatologist")}
                 </Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* Appointment Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Appointment Details</Text>
+          <Text style={styles.cardTitle}>{t("labels.appointmentDetails")}</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Date:</Text>
+            <Text style={styles.label}>{t("labels.date")}</Text>
             <Text style={styles.value}>{slotDetails.date}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Time:</Text>
+            <Text style={styles.label}>{t("labels.time")}</Text>
             <Text style={styles.value}>{slotDetails.time}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>{t("labels.priceLabel")}</Text>
+            <Text style={styles.value}>{slotDetails.priceDisplay}</Text>
           </View>
         </View>
 
-        {/* Patient Information Card */}
         {user && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Patient Information</Text>
-
-            {/* Personal information from Context 'user' */}
+            <Text style={styles.cardTitle}>{t("labels.patientInfo")}</Text>
             <View style={styles.doctorHeader}>
               <Image
                 style={styles.doctorAvatar}
@@ -478,34 +667,30 @@ export default function BookingConfirmationScreen() {
             </View>
 
             <View style={styles.row}>
-              <Text style={styles.label}>Phone:</Text>
+              <Text style={styles.label}>{t("labels.phone")}</Text>
               <Text style={styles.value}>{user.phone}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Date of Birth:</Text>
-              <Text style={styles.value}>{formatDate(user.dob)}</Text>
+              <Text style={styles.label}>{t("labels.dob")}</Text>
+              <Text style={styles.value}>
+                {formatDate(user.dob, i18n.language || fallbackLocale) ||
+                  t("labels.notAvailable")}
+              </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Gender:</Text>
+              <Text style={styles.label}>{t("labels.gender")}</Text>
               <Text style={styles.value}>{formatGender(user.gender)}</Text>
             </View>
 
             <View style={styles.divider} />
 
-            {/* Customer Medical Information */}
             {customer ? (
               <>
                 <View style={styles.row}>
-                  <Text style={styles.label}>Allergies:</Text>
-                  <Text style={styles.value}>
-                    {customer.allergicTo?.join(", ") || "None provided"}
-                  </Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Medical History:</Text>
+                  <Text style={styles.label}>{t("labels.medicalHistory")}</Text>
                   <Text style={styles.value}>
                     {customer.pastDermatologicalHistory?.join(", ") ||
-                      "None provided"}
+                      t("labels.noneProvided")}
                   </Text>
                 </View>
               </>
@@ -528,56 +713,55 @@ export default function BookingConfirmationScreen() {
           setNote={setNote}
         />
 
-        {/* Payment Option Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Payment Option</Text>
+          <Text style={styles.cardTitle}>{t("labels.paymentOption")}</Text>
 
-          {/* 1. Option: Banking */}
           {slotDetails.price > 0 &&
             renderOption(
               "PAY_NOW",
-              "Bank Transfer (VietQR)",
+              t("labels.bankTransfer"),
               slotDetails.priceDisplay,
               false,
               <MaterialCommunityIcons name="bank-transfer" size={24} />
             )}
 
-          {/* 2. Option: Wallet */}
           {slotDetails.price >= 0 &&
             renderOption(
               "WALLET",
-              "Skinalyze Wallet",
-              `Balance: ${walletBalance.toLocaleString("vi-VN")} VND`,
-              walletBalance < slotDetails.price, // (Disabled nếu không đủ tiền)
+              t("labels.wallet"),
+              t("labels.walletBalance", {
+                amount: walletBalance.toLocaleString(
+                  i18n.language || fallbackLocale
+                ),
+              }),
+              walletBalance < slotDetails.price,
               <MaterialCommunityIcons name="wallet" size={24} />
             )}
-
-          {/* 3. Option: Subscription */}
 
           {slotDetails.price > 0 &&
             subscriptions.map((sub) =>
               renderOption(
                 sub.id,
-                (sub.subscriptionPlan as any)?.planName || "My Subscription",
-                `${sub.sessionsRemaining} sessions remaining`
+                (sub.subscriptionPlan as any)?.planName ||
+                  t("labels.subscription"),
+                t("labels.sessionsRemaining", { count: sub.sessionsRemaining })
               )
             )}
 
-          {/* Notify insufficient wallet balance */}
           {selectedOptionId === "WALLET" &&
             walletBalance < slotDetails.price && (
-              <Text style={styles.errorText}>Insufficient wallet balance.</Text>
+              <Text style={styles.errorText}>
+                {t("labels.insufficientWallet")}
+              </Text>
             )}
 
           {subscriptions.length === 0 && slotDetails.price === 0 && (
-            <Text style={styles.infoText}>This is a free consultation.</Text>
+            <Text style={styles.infoText}>{t("labels.freeConsultation")}</Text>
           )}
         </View>
       </ScrollView>
 
-      {/* Confirm Button */}
       <View style={styles.footer}>
-        {/** highlight primary color for confirmation */}
         <Pressable
           style={[
             styles.confirmButton,
@@ -597,140 +781,20 @@ export default function BookingConfirmationScreen() {
           ) : (
             <Text style={styles.confirmButtonText}>
               {selectedOptionId === "PAY_NOW"
-                ? "Proceed to Payment"
-                : "Confirm Booking"}
+                ? t("labels.proceedPayment")
+                : t("labels.confirmBooking")}
             </Text>
           )}
         </Pressable>
       </View>
+
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        onConfirm={() => setAlertState((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5ff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  doctorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  doctorAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#e0e0e0",
-  },
-  doctorInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  doctorName: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  doctorSpec: {
-    fontSize: 14,
-    color: "#666",
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 15,
-    color: "#666",
-  },
-  value: {
-    fontSize: 15,
-    fontWeight: "bold",
-    maxWidth: "60%",
-    textAlign: "right",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 12,
-  },
-  option: {
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  optionDesc: {
-    fontSize: 14,
-    color: "#666",
-  },
-  infoText: {
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-  },
-  footer: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  confirmButton: {
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  confirmButtonDisabled: {
-    opacity: 0.8,
-  },
-  confirmButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  optionDisabled: {
-    opacity: 0.5,
-    backgroundColor: "#eee",
-    borderColor: "#ddd",
-  },
-  textDisabled: {
-    color: "#999",
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#d9534f",
-    textAlign: "center",
-    marginTop: 8,
-    fontStyle: "italic",
-  },
-});

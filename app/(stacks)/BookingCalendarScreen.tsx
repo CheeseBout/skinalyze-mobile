@@ -1,11 +1,8 @@
-// File: app/(stacks)/BookingCalendarScreen.tsx
-
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Pressable,
   Image,
@@ -17,6 +14,9 @@ import { Calendar, DateData } from "react-native-calendars";
 import dermatologistService from "@/services/dermatologistService";
 import { AvailabilitySlot } from "@/types/availability-slot.type";
 import { Dermatologist } from "@/types/dermatologist.type";
+import CustomAlert from "@/components/CustomAlert";
+import { useTranslation } from "react-i18next";
+import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
 
 const MAX_BOOKING_WINDOW_DAYS = 30;
 
@@ -41,6 +41,13 @@ export default function BookingCalendarScreen() {
   const { dermatologistId } = useLocalSearchParams<{
     dermatologistId: string;
   }>();
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "bookingCalendar",
+  });
+  const { primaryColor } = useThemeColor();
+  const subtleBackground = hexToRgba(primaryColor, 0.05);
+  const borderColor = hexToRgba(primaryColor, 0.18);
+  const disabledColor = hexToRgba(primaryColor, 0.35);
 
   const [doctor, setDoctor] = useState<Dermatologist | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -53,6 +60,12 @@ export default function BookingCalendarScreen() {
     null
   );
   const maxDate = useMemo(() => getDaysOut(), []);
+  const [alertState, setAlertState] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "error" as "success" | "error" | "warning" | "info",
+  });
 
   // Categorize slots into morning and afternoon
   const { morningSlots, afternoonSlots } = useMemo(() => {
@@ -73,7 +86,12 @@ export default function BookingCalendarScreen() {
   useEffect(() => {
     const fetchDoctorInfo = async () => {
       if (!dermatologistId) {
-        Alert.alert("Error", "Doctor ID is missing.");
+        setAlertState({
+          visible: true,
+          title: t("errors.title"),
+          message: t("errors.missingId"),
+          type: "error",
+        });
         return;
       }
       try {
@@ -82,7 +100,12 @@ export default function BookingCalendarScreen() {
         );
         setDoctor(doctorData);
       } catch (err) {
-        Alert.alert("Error", "Could not load doctor information.");
+        setAlertState({
+          visible: true,
+          title: t("errors.title"),
+          message: t("errors.loadDoctor"),
+          type: "error",
+        });
       }
     };
     fetchDoctorInfo();
@@ -108,7 +131,10 @@ export default function BookingCalendarScreen() {
         const month = String(dateObj.getMonth() + 1).padStart(2, "0");
         const day = String(dateObj.getDate()).padStart(2, "0");
         const localDateString = `${year}-${month}-${day}`;
-        newMarkedDates[localDateString] = { marked: true, dotColor: "orange" };
+        newMarkedDates[localDateString] = {
+          marked: true,
+          dotColor: primaryColor,
+        };
       });
 
       setMarkedDates((prev) => {
@@ -117,7 +143,7 @@ export default function BookingCalendarScreen() {
           updated[selectedDate] = {
             ...updated[selectedDate],
             selected: true,
-            selectedColor: "#007bff",
+            selectedColor: primaryColor,
           };
         }
         return updated;
@@ -142,7 +168,12 @@ export default function BookingCalendarScreen() {
       );
       setSlots(daySlots);
     } catch (error: any) {
-      Alert.alert("Error", "Failed to load slots for this day.");
+      setAlertState({
+        visible: true,
+        title: t("errors.title"),
+        message: t("errors.loadSlots"),
+        type: "error",
+      });
     } finally {
       setIsLoadingSlots(false);
     }
@@ -199,7 +230,7 @@ export default function BookingCalendarScreen() {
         newMarks[dateStr] = {
           ...newMarks[dateStr],
           selected: true,
-          selectedColor: "#007bff",
+          selectedColor: primaryColor,
         };
       }
       return newMarks;
@@ -225,7 +256,7 @@ export default function BookingCalendarScreen() {
 
   // Format time helper
   const formatTime = (isoDate: string) => {
-    return new Date(isoDate).toLocaleTimeString("en-US", {
+    return new Date(isoDate).toLocaleTimeString(i18n.language, {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
@@ -254,6 +285,137 @@ export default function BookingCalendarScreen() {
     </Pressable>
   );
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: subtleBackground,
+        },
+        doctorHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 16,
+          backgroundColor: "#fff",
+          marginHorizontal: 16,
+          marginTop: 16,
+          borderRadius: 12,
+          elevation: 3,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 5,
+        },
+        doctorAvatar: {
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: "#e0e0e0",
+        },
+        doctorInfo: {
+          marginLeft: 12,
+          flex: 1,
+        },
+        doctorName: {
+          fontSize: 18,
+          fontWeight: "bold",
+          color: "#333",
+        },
+        doctorSpec: {
+          fontSize: 14,
+          color: "#666",
+          marginTop: 2,
+        },
+        calendarContainer: {
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          marginHorizontal: 16,
+          marginTop: 12,
+          padding: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 3,
+        },
+        slotsContainer: {
+          padding: 16,
+          paddingTop: 20,
+        },
+        sectionTitle: {
+          fontSize: 18,
+          fontWeight: "bold",
+          marginBottom: 12,
+          color: "#1e1e1e",
+        },
+        infoText: {
+          textAlign: "center",
+          color: "#666",
+          marginTop: 16,
+          fontSize: 15,
+        },
+        slotsGrid: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "flex-start",
+        },
+        slotChip: {
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          backgroundColor: "#fff",
+          borderWidth: 1,
+          borderColor: borderColor,
+          borderRadius: 8,
+          margin: 6,
+        },
+        slotChipSelected: {
+          backgroundColor: primaryColor,
+          borderColor: primaryColor,
+        },
+        slotText: {
+          color: "#333",
+          fontWeight: "bold",
+        },
+        slotTextSelected: {
+          color: "#fff",
+          fontWeight: "bold",
+        },
+        footer: {
+          padding: 16,
+          backgroundColor: "#fff",
+          borderTopWidth: 1,
+          borderColor: "#e0e0e0",
+        },
+        confirmButton: {
+          backgroundColor: primaryColor,
+          padding: 14,
+          borderRadius: 8,
+          alignItems: "center",
+        },
+        confirmButtonDisabled: {
+          backgroundColor: disabledColor,
+        },
+        confirmButtonText: {
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: "bold",
+        },
+        timeOfDayContainer: {
+          marginBottom: 20,
+        },
+        timeOfDayTitle: {
+          fontSize: 16,
+          fontWeight: "600",
+          color: "#444",
+          marginBottom: 8,
+          borderBottomWidth: 1,
+          borderBottomColor: borderColor,
+          paddingBottom: 6,
+        },
+      }),
+    [borderColor, disabledColor, primaryColor, subtleBackground]
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView>
@@ -271,7 +433,7 @@ export default function BookingCalendarScreen() {
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>{doctor.user?.fullName}</Text>
               <Text style={styles.doctorSpec}>
-                {doctor.specialization?.join(", ") || "Dermatologist"}
+                {doctor.specialization?.join(", ") || t("labels.dermatologist")}
               </Text>
             </View>
           </View>
@@ -296,17 +458,17 @@ export default function BookingCalendarScreen() {
 
         {/* 2. TIME SLOTS */}
         <View style={styles.slotsContainer}>
-          <Text style={styles.sectionTitle}>Available Slots</Text>
+          <Text style={styles.sectionTitle}>{t("labels.availableSlots")}</Text>
           {isLoadingSlots && (
             <ActivityIndicator style={{ marginTop: 16 }} size="large" />
           )}
 
           {!isLoadingSlots && slots.length === 0 && selectedDate && (
-            <Text style={styles.infoText}>No slots found for this day.</Text>
+            <Text style={styles.infoText}>{t("labels.noSlotsForDay")}</Text>
           )}
 
           {!isLoadingSlots && slots.length === 0 && !selectedDate && (
-            <Text style={styles.infoText}>Please select an available day.</Text>
+            <Text style={styles.infoText}>{t("labels.noSlotsSelected")}</Text>
           )}
 
           {/* Render morning and afternoon slots separately */}
@@ -315,7 +477,9 @@ export default function BookingCalendarScreen() {
               {/* Morning */}
               {morningSlots.length > 0 && (
                 <View key="morning-section" style={styles.timeOfDayContainer}>
-                  <Text style={styles.timeOfDayTitle}>Morning</Text>
+                  <Text style={styles.timeOfDayTitle}>
+                    {t("labels.morning")}
+                  </Text>
                   <View style={styles.slotsGrid}>
                     {morningSlots.map(renderSlotChip)}
                   </View>
@@ -325,7 +489,9 @@ export default function BookingCalendarScreen() {
               {/* Afternoon */}
               {afternoonSlots.length > 0 && (
                 <View key="afternoon-section" style={styles.timeOfDayContainer}>
-                  <Text style={styles.timeOfDayTitle}>Afternoon</Text>
+                  <Text style={styles.timeOfDayTitle}>
+                    {t("labels.afternoon")}
+                  </Text>
                   <View style={styles.slotsGrid}>
                     {afternoonSlots.map(renderSlotChip)}
                   </View>
@@ -346,137 +512,16 @@ export default function BookingCalendarScreen() {
           disabled={!selectedSlot}
           onPress={handleConfirmBooking}
         >
-          <Text style={styles.confirmButtonText}>Booking this slot</Text>
+          <Text style={styles.confirmButtonText}>{t("labels.bookSlot")}</Text>
         </Pressable>
       </View>
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        onConfirm={() => setAlertState((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5ff",
-  },
-  doctorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-  },
-  doctorAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#e0e0e0",
-  },
-  doctorInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  doctorName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  doctorSpec: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  calendarContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  slotsContainer: {
-    padding: 16,
-    paddingTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  infoText: {
-    textAlign: "center",
-    color: "#666",
-    marginTop: 16,
-    fontSize: 15,
-  },
-  slotsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-  },
-  slotChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    margin: 6,
-  },
-  slotChipSelected: {
-    backgroundColor: "#007bff",
-    borderColor: "#007bff",
-  },
-  slotText: {
-    color: "#333",
-    fontWeight: "bold",
-  },
-  slotTextSelected: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  footer: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  confirmButton: {
-    backgroundColor: "#007bff",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  confirmButtonDisabled: {
-    backgroundColor: "#a0a0a0",
-  },
-  confirmButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  // Style for time of day sections (morning/afternoon)
-  timeOfDayContainer: {
-    marginBottom: 20,
-  },
-  timeOfDayTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#444",
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 6,
-  },
-});

@@ -14,6 +14,7 @@ import React, { useState, useContext, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useTranslation } from "react-i18next";
 
 import skinAnalysisService from "@/services/skinAnalysisService";
 import { AuthContext } from "@/contexts/AuthContext";
@@ -24,6 +25,7 @@ import { useThemeColor, hexToRgba } from "@/hooks/useThemeColor";
 export default function ManualSkinAnalysisScreen() {
   const router = useRouter();
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation("translation", { keyPrefix: "manualAnalysis" });
 
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptoms, setSymptoms] = useState("");
@@ -56,8 +58,8 @@ export default function ManualSkinAnalysisScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       showAlert({
-        title: "Permission Denied",
-        message: "We need access to your photos to upload skin images.",
+        title: t("alerts.permissionDenied.title"),
+        message: t("alerts.permissionDenied.message"),
         type: "warning",
       });
       return;
@@ -78,8 +80,8 @@ export default function ManualSkinAnalysisScreen() {
       }
     } catch (error) {
       showAlert({
-        title: "Error",
-        message: "Failed to pick images.",
+        title: t("alerts.pickError.title"),
+        message: t("alerts.pickError.message"),
         type: "error",
       });
     }
@@ -92,16 +94,16 @@ export default function ManualSkinAnalysisScreen() {
   const handleSubmit = async () => {
     if (!chiefComplaint.trim()) {
       showAlert({
-        title: "Missing Information",
-        message: "Please enter your main concern (Chief Complaint).",
+        title: t("alerts.missing.title"),
+        message: t("alerts.missing.mainConcern"),
         type: "warning",
       });
       return;
     }
     if (!symptoms.trim()) {
       showAlert({
-        title: "Missing Information",
-        message: "Please describe your symptoms.",
+        title: t("alerts.missing.title"),
+        message: t("alerts.missing.symptoms"),
         type: "warning",
       });
       return;
@@ -121,18 +123,17 @@ export default function ManualSkinAnalysisScreen() {
 
       // B3: Thành công -> Quay lại
       showAlert({
-        title: "Success",
-        message: "Your skin profile has been created!",
+        title: t("alerts.success.title"),
+        message: t("alerts.success.message"),
         type: "success",
-        confirmText: "Continue Booking",
+        confirmText: t("alerts.success.confirm"),
         onConfirm: () => router.back(),
       });
     } catch (error: any) {
       console.error(error);
       showAlert({
-        title: "Submission Failed",
-        message:
-          error?.message || "Could not save your profile. Please try again.",
+        title: t("alerts.submitFailed.title"),
+        message: error?.message || t("alerts.submitFailed.message"),
         type: "error",
       });
     } finally {
@@ -160,31 +161,29 @@ export default function ManualSkinAnalysisScreen() {
             >
               <Ionicons name="chevron-back" size={22} color={primaryColor} />
               <Text style={[styles.backButtonText, { color: primaryColor }]}>
-                Back
+                {t("actions.back")}
               </Text>
             </Pressable>
           </View>
           {/* Header Section */}
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>Self-Report Condition</Text>
-            <Text style={styles.subtitle}>
-              Please describe your skin condition details. The doctor will
-              review this before your consultation.
-            </Text>
+            <Text style={styles.title}>{t("title")}</Text>
+            <Text style={styles.subtitle}>{t("subtitle")}</Text>
           </View>
 
           {/* Card 1: Condition Details */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Condition Details</Text>
+            <Text style={styles.cardTitle}>{t("condition.cardTitle")}</Text>
 
             {/* Chief Complaint */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Main Concern <Text style={styles.required}>*</Text>
+                {t("condition.mainConcern")}
+                <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Acne breakouts on forehead"
+                placeholder={t("condition.mainConcernPlaceholder")}
                 placeholderTextColor="#999"
                 value={chiefComplaint}
                 onChangeText={setChiefComplaint}
@@ -194,11 +193,12 @@ export default function ManualSkinAnalysisScreen() {
             {/* Symptoms */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Symptoms <Text style={styles.required}>*</Text>
+                {t("condition.symptoms")}
+                <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="e.g. Redness, itching, started 3 days ago..."
+                placeholder={t("condition.symptomsPlaceholder")}
                 placeholderTextColor="#999"
                 value={symptoms}
                 onChangeText={setSymptoms}
@@ -209,10 +209,10 @@ export default function ManualSkinAnalysisScreen() {
 
             {/* Notes */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Additional Notes (Optional)</Text>
+              <Text style={styles.label}>{t("condition.notes")}</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Any allergies, current products using..."
+                placeholder={t("condition.notesPlaceholder")}
                 placeholderTextColor="#999"
                 value={notes}
                 onChangeText={setNotes}
@@ -225,12 +225,12 @@ export default function ManualSkinAnalysisScreen() {
           {/*  Photos */}
           <View style={styles.card}>
             <View style={styles.imageHeaderRow}>
-              <Text style={styles.cardTitle}>Photos</Text>
-              <Text style={styles.imageCount}>{imageUris.length}/5</Text>
+              <Text style={styles.cardTitle}>{t("photos.title")}</Text>
+              <Text style={styles.imageCount}>
+                {t("photos.count", { current: imageUris.length, total: 5 })}
+              </Text>
             </View>
-            <Text style={styles.helperText}>
-              Upload close-up photos of the affected area.
-            </Text>
+            <Text style={styles.helperText}>{t("photos.helper")}</Text>
 
             {/* List of Images */}
             <ScrollView
@@ -252,7 +252,7 @@ export default function ManualSkinAnalysisScreen() {
                 >
                   <Ionicons name="camera" size={32} color={primaryColor} />
                   <Text style={[styles.addImageText, { color: primaryColor }]}>
-                    Add Photo
+                    {t("photos.addButton")}
                   </Text>
                 </Pressable>
               )}
@@ -291,7 +291,7 @@ export default function ManualSkinAnalysisScreen() {
             {isSubmitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitButtonText}>Submit Profile</Text>
+              <Text style={styles.submitButtonText}>{t("actions.submit")}</Text>
             )}
           </Pressable>
         </View>

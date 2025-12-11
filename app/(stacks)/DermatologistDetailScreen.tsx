@@ -20,6 +20,7 @@ import dermatologistService, {
 import ReviewDermaInfor from "@/components/ReviewDermaInfor";
 import { Dermatologist } from "@/types/dermatologist.type";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 
@@ -32,11 +33,14 @@ export default function DermatologistDetailScreen() {
   const [specializationsLoading, setSpecializationsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { primaryColor } = useThemeColor();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
 
   const { dermatologistId } = useLocalSearchParams<{
     dermatologistId: string;
   }>();
+
+  const locale = i18n.language === "vi" ? "vi-VN" : "en-US";
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -45,7 +49,7 @@ export default function DermatologistDetailScreen() {
 
   useEffect(() => {
     if (!dermatologistId) {
-      setError("No Dermatologist ID provided.");
+      setError(t("dermatologistDetail.errors.noId"));
       setIsLoading(false);
       return;
     }
@@ -64,9 +68,9 @@ export default function DermatologistDetailScreen() {
         fetchSpecializations();
       } catch (err: any) {
         const errorMessage =
-          err.message || "Error fetching dermatologist details";
+          err?.message || t("dermatologistDetail.errors.fetch");
         setError(errorMessage);
-        Alert.alert("Error", errorMessage);
+        Alert.alert(t("common.error"), errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -146,7 +150,9 @@ export default function DermatologistDetailScreen() {
           >
             <ActivityIndicator size="large" color={primaryColor} />
           </View>
-          <Text style={styles.loadingText}>Loading Details...</Text>
+          <Text style={styles.loadingText}>
+            {t("dermatologistDetail.loading")}
+          </Text>
         </View>
       </View>
     );
@@ -179,9 +185,11 @@ export default function DermatologistDetailScreen() {
           <View style={styles.errorIcon}>
             <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
           </View>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorTitle}>
+            {t("dermatologistDetail.errors.general")}
+          </Text>
           <Text style={styles.errorText}>
-            {error || "Dermatologist not found"}
+            {error || t("dermatologistDetail.errors.notFound")}
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: primaryColor }]}
@@ -189,16 +197,20 @@ export default function DermatologistDetailScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Go Back</Text>
+            <Text style={styles.retryButtonText}>
+              {t("dermatologistDetail.goBack")}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const fullName = dermatologist.user?.fullName || "Doctor";
+  const fullName =
+    dermatologist.user?.fullName || t("dermatologistDetail.fallbacks.doctor");
   const specialties =
-    dermatologist.specialization?.join(", ") || "Dermatology Specialist";
+    dermatologist.specialization?.join(", ") ||
+    t("dermatologistDetail.fallbacks.specialist");
   const avatarUrl = dermatologist.user?.photoUrl;
   const price = dermatologist.defaultSlotPrice;
   const yearsExp =
@@ -289,7 +301,9 @@ export default function DermatologistDetailScreen() {
             <View style={styles.experienceChip}>
               <Ionicons name="briefcase" size={16} color={primaryColor} />
               <Text style={[styles.experienceText, { color: primaryColor }]}>
-                {yearsExp} {yearsExp === 1 ? "year" : "years"} of experience
+                {t("dermatologistDetail.header.experience", {
+                  count: yearsExp,
+                })}
               </Text>
             </View>
           </View>
@@ -310,7 +324,9 @@ export default function DermatologistDetailScreen() {
               <Ionicons name="star" size={24} color="#2196F3" />
             </View>
             <Text style={styles.statValue}>4.8</Text>
-            <Text style={styles.statLabel}>Rating</Text>
+            <Text style={styles.statLabel}>
+              {t("dermatologistDetail.header.rating")}
+            </Text>
           </View>
 
           <View style={styles.statBox}>
@@ -318,7 +334,9 @@ export default function DermatologistDetailScreen() {
               <Ionicons name="people" size={24} color="#22C55E" />
             </View>
             <Text style={styles.statValue}>500+</Text>
-            <Text style={styles.statLabel}>Patients</Text>
+            <Text style={styles.statLabel}>
+              {t("dermatologistDetail.header.patients")}
+            </Text>
           </View>
 
           <View style={styles.statBox}>
@@ -331,7 +349,9 @@ export default function DermatologistDetailScreen() {
               <Ionicons name="calendar" size={24} color={primaryColor} />
             </View>
             <Text style={styles.statValue}>{yearsExp}</Text>
-            <Text style={styles.statLabel}>Years Exp</Text>
+            <Text style={styles.statLabel}>
+              {t("dermatologistDetail.header.yearsExpShort")}
+            </Text>
           </View>
         </Animated.View>
 
@@ -358,7 +378,9 @@ export default function DermatologistDetailScreen() {
                 color={primaryColor}
               />
             </View>
-            <Text style={styles.cardTitle}>About</Text>
+            <Text style={styles.cardTitle}>
+              {t("dermatologistDetail.sections.about")}
+            </Text>
           </View>
           <Text style={styles.bioText}>{dermatologist.bio}</Text>
         </Animated.View>
@@ -379,7 +401,9 @@ export default function DermatologistDetailScreen() {
             >
               <Ionicons name="location" size={20} color="#F59E0B" />
             </View>
-            <Text style={styles.cardTitle}>Clinic Location</Text>
+            <Text style={styles.cardTitle}>
+              {t("dermatologistDetail.sections.clinicLocation")}
+            </Text>
           </View>
           <View style={styles.locationContainer}>
             <Ionicons name="navigate" size={18} color="#666" />
@@ -406,7 +430,7 @@ export default function DermatologistDetailScreen() {
               <Ionicons name="medal" size={20} color="#E91E63" />
             </View>
             <Text style={styles.cardTitle}>
-              Specializations & Certifications
+              {t("dermatologistDetail.sections.specializations")}
             </Text>
           </View>
 
@@ -414,7 +438,7 @@ export default function DermatologistDetailScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={primaryColor} />
               <Text style={styles.certificationsLoadingText}>
-                Loading certifications...
+                {t("dermatologistDetail.sections.certificationsLoading")}
               </Text>
             </View>
           ) : specializations.length > 0 ? (
@@ -481,21 +505,24 @@ export default function DermatologistDetailScreen() {
                       <View style={styles.infoRow}>
                         <Ionicons name="calendar" size={14} color="#666" />
                         <Text style={styles.infoText}>
-                          Issued:{" "}
-                          {new Date(spec.issueDate).toLocaleDateString(
-                            "en-US",
-                            { month: "short", year: "numeric" }
-                          )}
+                          {t("dermatologistDetail.labels.issued")}{" "}
+                          {new Date(spec.issueDate).toLocaleDateString(locale, {
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </Text>
                       </View>
                       {spec.expiryDate && (
                         <View style={styles.infoRow}>
                           <Ionicons name="time" size={14} color="#666" />
                           <Text style={styles.infoText}>
-                            Expires:{" "}
+                            {t("dermatologistDetail.labels.expires")}{" "}
                             {new Date(spec.expiryDate).toLocaleDateString(
-                              "en-US",
-                              { month: "short", year: "numeric" }
+                              locale,
+                              {
+                                month: "short",
+                                year: "numeric",
+                              }
                             )}
                           </Text>
                         </View>
@@ -508,7 +535,9 @@ export default function DermatologistDetailScreen() {
           ) : (
             <View style={styles.emptySpecializations}>
               <Ionicons name="medal-outline" size={40} color="#CCC" />
-              <Text style={styles.emptyText}>No certifications added yet</Text>
+              <Text style={styles.emptyText}>
+                {t("dermatologistDetail.sections.noCertifications")}
+              </Text>
             </View>
           )}
         </Animated.View>
@@ -536,11 +565,17 @@ export default function DermatologistDetailScreen() {
         >
           <View style={styles.pricingHeader}>
             <View>
-              <Text style={styles.pricingLabel}>Consultation Fee</Text>
-              <Text style={[styles.pricingValue, { color: primaryColor }]}>
-                {price ? `${price.toLocaleString()} VND` : "Contact for price"}
+              <Text style={styles.pricingLabel}>
+                {t("dermatologistDetail.pricing.label")}
               </Text>
-              <Text style={styles.pricingSubtext}>per session</Text>
+              <Text style={[styles.pricingValue, { color: primaryColor }]}>
+                {price
+                  ? `${price.toLocaleString()} VND`
+                  : t("dermatologistDetail.pricing.contact")}
+              </Text>
+              <Text style={styles.pricingSubtext}>
+                {t("dermatologistDetail.pricing.perSession")}
+              </Text>
             </View>
             <View
               style={[
@@ -584,10 +619,10 @@ export default function DermatologistDetailScreen() {
             <Ionicons name="albums" size={22} color={primaryColor} />
             <View style={styles.actionButtonContent}>
               <Text style={[styles.actionButtonTitle, { color: primaryColor }]}>
-                Subscription Plans
+                {t("dermatologistDetail.actions.subscriptionPlans")}
               </Text>
               <Text style={styles.actionButtonSubtitle}>
-                View consultation packages
+                {t("dermatologistDetail.actions.viewPackages")}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={primaryColor} />
@@ -613,10 +648,10 @@ export default function DermatologistDetailScreen() {
             <Ionicons name="calendar" size={22} color="#FFFFFF" />
             <View style={styles.actionButtonContent}>
               <Text style={styles.actionButtonTitlePrimary}>
-                Book Appointment
+                {t("dermatologistDetail.actions.bookAppointment")}
               </Text>
               <Text style={styles.actionButtonSubtitlePrimary}>
-                View available time slots
+                {t("dermatologistDetail.actions.viewTimeSlots")}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />

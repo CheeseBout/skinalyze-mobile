@@ -9,15 +9,18 @@ import {
   FlatList,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 import { AppointmentType } from "@/types/appointment.type";
 import { SkinAnalysis } from "@/types/skin-analysis.type";
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
 import { router } from "expo-router";
 
-const formatDate = (isoDate: string) => {
+const fallbackLocale = "en-US";
+
+const formatDate = (isoDate: string, locale: string) => {
   if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleDateString("en-GB", {
+  return new Date(isoDate).toLocaleDateString(locale || fallbackLocale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -52,6 +55,14 @@ export default function AppointmentPurposeCard({
   note,
   setNote,
 }: Props) {
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "bookingConfirmation.purposeCard",
+  });
+  const locale = useMemo(
+    () => i18n.language || fallbackLocale,
+    [i18n.language]
+  );
+
   const [isAnalysisModalVisible, setIsAnalysisModalVisible] = useState(false);
   const [isRoutineModalVisible, setIsRoutineModalVisible] = useState(false);
 
@@ -85,9 +96,9 @@ export default function AppointmentPurposeCard({
       item.chiefComplaint ||
       item.aiDetectedDisease ||
       item.aiDetectedCondition ||
-      "Skin Analysis";
-    const meta = `${formatDate(item.createdAt)} · ${
-      isManual ? "Self reported" : "AI assessment"
+      t("fallbackAnalysis");
+    const meta = `${formatDate(item.createdAt, locale)} · ${
+      isManual ? t("selfReported") : t("aiAssessment")
     }`;
 
     return (
@@ -119,7 +130,7 @@ export default function AppointmentPurposeCard({
             ]}
           >
             <Text style={styles.analysisBadgeText}>
-              {isManual ? "Manual" : "AI"}
+              {isManual ? t("manualTag") : t("aiTag")}
             </Text>
           </View>
         </View>
@@ -154,10 +165,10 @@ export default function AppointmentPurposeCard({
           />
           <View style={styles.modalItemTextBlock}>
             <Text style={styles.modalItemTitle} numberOfLines={1}>
-              {item.routineName || "Treatment Routine"}
+              {item.routineName || t("fallbackRoutine")}
             </Text>
             <Text style={styles.modalItemMeta} numberOfLines={1}>
-              {formatDate(item.createdAt)}
+              {formatDate(item.createdAt, locale)}
             </Text>
           </View>
         </View>
@@ -175,7 +186,7 @@ export default function AppointmentPurposeCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Appointment Purpose</Text>
+      <Text style={styles.cardTitle}>{t("title")}</Text>
 
       {/* 1. Chọn Type (NEW_PROBLEM / FOLLOW_UP) */}
       <View style={styles.segmentedControl}>
@@ -194,7 +205,7 @@ export default function AppointmentPurposeCard({
                 : styles.segmentText
             }
           >
-            New Problem
+            {t("newProblem")}
           </Text>
         </Pressable>
         <Pressable
@@ -212,20 +223,20 @@ export default function AppointmentPurposeCard({
                 : styles.segmentText
             }
           >
-            Follow-up
+            {t("followUp")}
           </Text>
         </Pressable>
       </View>
 
       {/* === Analysis picker (always shown) === */}
       <View style={styles.pickerContainer}>
-        <Text style={styles.label}>Analysis to review:</Text>
+        <Text style={styles.label}>{t("analysisLabel")}</Text>
         <Pressable
           style={styles.createAnalysisLink}
           onPress={() => router.push("/(stacks)/ManualSkinAnalysisScreen")}
         >
           <Text style={styles.createAnalysisText}>
-            + Create new manual entry
+            {t("createManualEntry")}
           </Text>
         </Pressable>
         {analyses.length === 0 ? (
@@ -235,9 +246,7 @@ export default function AppointmentPurposeCard({
               size={22}
               color="#9e9e9e"
             />
-            <Text style={styles.analysisEmptyText}>
-              No previous analysis found
-            </Text>
+            <Text style={styles.analysisEmptyText}>{t("noAnalysis")}</Text>
           </View>
         ) : (
           <View style={styles.analysisContainer}>
@@ -245,7 +254,7 @@ export default function AppointmentPurposeCard({
               style={styles.analysisPreview}
               onPress={() => setIsAnalysisModalVisible(true)}
             >
-              {selectedAnalysis && (
+              {selectedAnalysis ? (
                 <>
                   <View style={styles.analysisRow}>
                     <MaterialCommunityIcons
@@ -267,13 +276,13 @@ export default function AppointmentPurposeCard({
                         {selectedAnalysis.chiefComplaint ||
                           selectedAnalysis.aiDetectedDisease ||
                           selectedAnalysis.aiDetectedCondition ||
-                          "Skin Analysis"}
+                          t("fallbackAnalysis")}
                       </Text>
                       <Text style={styles.analysisMeta} numberOfLines={1}>
-                        {`${formatDate(selectedAnalysis.createdAt)} · ${
+                        {`${formatDate(selectedAnalysis.createdAt, locale)} · ${
                           selectedAnalysis.source === "MANUAL"
-                            ? "Self reported"
-                            : "AI assessment"
+                            ? t("selfReported")
+                            : t("aiAssessment")
                         }`}
                       </Text>
                     </View>
@@ -286,13 +295,15 @@ export default function AppointmentPurposeCard({
                       ]}
                     >
                       <Text style={styles.analysisBadgeText}>
-                        {selectedAnalysis.source === "MANUAL" ? "Manual" : "AI"}
+                        {selectedAnalysis.source === "MANUAL"
+                          ? t("manualTag")
+                          : t("aiTag")}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.previewFooter}>
                     <Text style={styles.previewHint}>
-                      Tap to choose another analysis
+                      {t("chooseAnotherAnalysis")}
                     </Text>
                     <MaterialCommunityIcons
                       name="menu-down"
@@ -301,7 +312,7 @@ export default function AppointmentPurposeCard({
                     />
                   </View>
                 </>
-              )}
+              ) : null}
             </Pressable>
             {!selectedAnalysis && (
               <Pressable
@@ -313,7 +324,9 @@ export default function AppointmentPurposeCard({
                   size={20}
                   color="#007bff"
                 />
-                <Text style={styles.modalTriggerText}>Choose analysis</Text>
+                <Text style={styles.modalTriggerText}>
+                  {t("chooseAnalysis")}
+                </Text>
               </Pressable>
             )}
           </View>
@@ -323,7 +336,7 @@ export default function AppointmentPurposeCard({
       {/* === Routine picker if FOLLOW_UP === */}
       {appointmentType === AppointmentType.FOLLOW_UP && (
         <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Routine to follow-up:</Text>
+          <Text style={styles.label}>{t("routineLabel")}</Text>
           {routines.length === 0 ? (
             <View style={styles.analysisEmptyState}>
               <MaterialCommunityIcons
@@ -331,9 +344,7 @@ export default function AppointmentPurposeCard({
                 size={20}
                 color="#9e9e9e"
               />
-              <Text style={styles.analysisEmptyText}>
-                No previous routine found
-              </Text>
+              <Text style={styles.analysisEmptyText}>{t("noRoutine")}</Text>
             </View>
           ) : (
             <Pressable
@@ -347,7 +358,7 @@ export default function AppointmentPurposeCard({
               />
               <Text style={styles.modalTriggerText}>
                 {routines.find((r) => r.routineId === selectedRoutineId)
-                  ?.routineName || "Choose routine"}
+                  ?.routineName || t("chooseRoutine")}
               </Text>
               <MaterialCommunityIcons
                 name="menu-down"
@@ -361,10 +372,10 @@ export default function AppointmentPurposeCard({
 
       {/* 3. Add Note  */}
       <View style={styles.noteContainer}>
-        <Text style={styles.label}>Note (Optional):</Text>
+        <Text style={styles.label}>{t("noteLabel")}</Text>
         <TextInput
           style={styles.textInput}
-          placeholder="Enter a brief note for the doctor..."
+          placeholder={t("notePlaceholder")}
           value={note}
           onChangeText={setNote}
           multiline
@@ -377,7 +388,7 @@ export default function AppointmentPurposeCard({
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Analysis</Text>
+            <Text style={styles.modalTitle}>{t("selectAnalysisTitle")}</Text>
             <Pressable onPress={() => setIsAnalysisModalVisible(false)}>
               <MaterialCommunityIcons name="close" size={24} color="#444" />
             </Pressable>
@@ -401,7 +412,7 @@ export default function AppointmentPurposeCard({
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Routine</Text>
+            <Text style={styles.modalTitle}>{t("selectRoutineTitle")}</Text>
             <Pressable onPress={() => setIsRoutineModalVisible(false)}>
               <MaterialCommunityIcons name="close" size={24} color="#444" />
             </Pressable>

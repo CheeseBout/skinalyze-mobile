@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, View, Text, StyleSheet, Pressable } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -17,13 +18,16 @@ export default function CustomAlert({
   visible,
   title,
   message,
-  confirmText = "OK",
+  confirmText,
   cancelText,
   onConfirm,
   onCancel,
   type = "warning",
 }: Props) {
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation();
+  const confirmLabel = confirmText || t("common.ok");
+  const cancelLabel = cancelText || t("common.cancel");
   const getConfig = () => {
     switch (type) {
       case "success":
@@ -63,7 +67,7 @@ export default function CustomAlert({
                 style={[styles.button, styles.buttonCancel]}
                 onPress={onCancel}
               >
-                <Text style={styles.textStyleCancel}>{cancelText}</Text>
+                <Text style={styles.textStyleCancel}>{cancelLabel}</Text>
               </Pressable>
             )}
 
@@ -75,7 +79,7 @@ export default function CustomAlert({
               ]}
               onPress={onConfirm}
             >
-              <Text style={styles.textStyleConfirm}>{confirmText}</Text>
+              <Text style={styles.textStyleConfirm}>{confirmLabel}</Text>
             </Pressable>
           </View>
         </View>

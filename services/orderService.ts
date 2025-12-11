@@ -37,7 +37,6 @@ export interface Customer {
   customerId: string;
   user: User;
   aiUsageAmount: number;
-  allergicTo: string[];
   pastDermatologicalHistory: string[];
   purchaseHistory: string[];
   createdAt: string;

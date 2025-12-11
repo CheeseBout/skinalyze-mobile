@@ -1,7 +1,9 @@
 {
   "common": {
     "notAvailable": "N/A",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "ok": "OK",
+    "error": "Error"
   },
   "profile": {
     "title": "My Profile",
@@ -893,5 +895,287 @@
     "internalNote": "This order is being delivered by our internal team",
     "ghnMethod": "Express Delivery (GHN)",
     "internalMethod": "Internal Delivery"
+  },
+  "dermatologistDetail": {
+    "loading": "Loading details...",
+    "errors": {
+      "general": "Something went wrong",
+      "notFound": "Dermatologist not found",
+      "noId": "No dermatologist ID provided.",
+      "fetch": "Error fetching dermatologist details"
+    },
+    "goBack": "Go Back",
+    "fallbacks": {
+      "doctor": "Doctor",
+      "specialist": "Dermatology Specialist"
+    },
+    "header": {
+      "rating": "Rating",
+      "patients": "Patients",
+      "yearsExpShort": "Years Exp",
+      "experience": "{{count}} year of experience",
+      "experience_plural": "{{count}} years of experience"
+    },
+    "sections": {
+      "about": "About",
+      "clinicLocation": "Clinic Location",
+      "specializations": "Specializations & Certifications",
+      "certificationsLoading": "Loading certifications...",
+      "noCertifications": "No certifications added yet"
+    },
+    "labels": {
+      "issued": "Issued:",
+      "expires": "Expires:"
+    },
+    "pricing": {
+      "label": "Consultation Fee",
+      "contact": "Contact for price",
+      "perSession": "per session"
+    },
+    "actions": {
+      "subscriptionPlans": "Subscription Plans",
+      "viewPackages": "View consultation packages",
+      "bookAppointment": "Book Appointment",
+      "viewTimeSlots": "View available time slots"
+    }
+  },
+  "subscriptionPlanList": {
+    "errors": {
+      "pageLoad": "Failed to load page data.",
+      "planLoad": "Failed to load subscription plans."
+    },
+    "header": {
+      "specialist": "Dermatology Specialist"
+    },
+    "filters": {
+      "search": "Search by plan name (auto-applies)...",
+      "minPrice": "Min Price",
+      "maxPrice": "Max Price",
+      "sortByPrice": "Sort by Price",
+      "sortByName": "Sort by Name",
+      "sortBySessions": "Sort by Sessions",
+      "apply": "Apply Filters"
+    },
+    "list": {
+      "empty": "No plans found matching your criteria."
+    },
+    "card": {
+      "noDescription": "No description provided.",
+      "sessions": "{{count}} session",
+      "sessions_plural": "{{count}} sessions",
+      "days": "{{count}} day",
+      "days_plural": "{{count}} days"
+    }
+  },
+  "schedule": {
+    "loading": "Loading your schedule...",
+    "eventsTitle": "Events for {{date}}",
+    "noEvents": "No events scheduled for this day",
+    "book": "Book a Consultation",
+    "status": {
+      "completed": "Completed",
+      "scheduled": "Scheduled",
+      "inProgress": "In progress",
+      "cancelled": "Cancelled",
+      "noShow": "No-show",
+      "settled": "Settled",
+      "default": "Upcoming"
+    }
+  },
+  "bookingCalendar": {
+    "errors": {
+      "title": "Error",
+      "missingId": "Doctor ID is missing.",
+      "loadDoctor": "Could not load doctor information.",
+      "loadSlots": "Failed to load slots for this day."
+    },
+    "labels": {
+      "dermatologist": "Dermatologist",
+      "availableSlots": "Available Slots",
+      "noSlotsForDay": "No slots found for this day.",
+      "noSlotsSelected": "Please select an available day.",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "bookSlot": "Book this slot"
+    }
+  },
+  "bookingConfirmation": {
+    "errors": {
+      "title": "Error",
+      "auth": "Please sign in to continue.",
+      "load": "Could not load booking details.",
+      "missingAnalysis": "Please select an analysis to review.",
+      "missingRoutine": "Please select a routine for your follow-up.",
+      "insufficientBalance": "Insufficient wallet balance.",
+      "bookingFailed": "Booking failed",
+      "generic": "Something went wrong. Please try again."
+    },
+    "labels": {
+      "notAvailable": "N/A",
+      "genderMale": "Male",
+      "genderFemale": "Female",
+      "consultant": "Consultant",
+      "dermatologist": "Dermatologist",
+      "appointmentDetails": "Appointment Details",
+      "date": "Date",
+      "time": "Time",
+      "patientInfo": "Patient Information",
+      "phone": "Phone",
+      "dob": "Date of Birth",
+      "gender": "Gender",
+      "allergies": "Allergies",
+      "medicalHistory": "Medical History",
+      "noneProvided": "None provided",
+      "paymentOption": "Payment Option",
+      "bankTransfer": "Bank Transfer",
+      "wallet": "Wallet",
+      "walletBalance": "Wallet balance: {{amount}}",
+      "price": "{{value}} VND",
+      "priceLabel": "Price",
+      "free": "Free",
+      "subscription": "Subscription",
+      "sessionsRemaining": "{{count}} session remaining",
+      "sessionsRemaining_plural": "{{count}} sessions remaining",
+      "insufficientWallet": "Your wallet balance is not enough for this booking.",
+      "freeConsultation": "This consultation is free. Confirm to book your slot.",
+      "proceedPayment": "Proceed to Payment",
+      "confirmBooking": "Confirm Booking"
+    },
+    "purposeCard": {
+      "title": "Appointment Purpose",
+      "newProblem": "New Problem",
+      "followUp": "Follow-up",
+      "analysisLabel": "Analysis to review:",
+      "createManualEntry": "+ Create new manual entry",
+      "noAnalysis": "No previous analysis found",
+      "fallbackAnalysis": "Skin Analysis",
+      "selfReported": "Self reported",
+      "aiAssessment": "AI assessment",
+      "manualTag": "Manual",
+      "aiTag": "AI",
+      "chooseAnotherAnalysis": "Tap to choose another analysis",
+      "chooseAnalysis": "Choose analysis",
+      "routineLabel": "Routine to follow-up:",
+      "noRoutine": "No previous routine found",
+      "fallbackRoutine": "Treatment Routine",
+      "chooseRoutine": "Choose routine",
+      "noteLabel": "Note (Optional):",
+      "notePlaceholder": "Enter a brief note for the doctor...",
+      "selectAnalysisTitle": "Select Analysis",
+      "selectRoutineTitle": "Select Routine"
+    }
+  },
+  "manualAnalysis": {
+    "title": "Self-Report Condition",
+    "subtitle": "Describe your skin condition so the doctor can review before the consultation.",
+    "condition": {
+      "cardTitle": "Condition Details",
+      "mainConcern": "Main Concern",
+      "mainConcernPlaceholder": "e.g. Acne breakouts on forehead",
+      "symptoms": "Symptoms",
+      "symptomsPlaceholder": "e.g. Redness, itching, started 3 days ago...",
+      "notes": "Additional Notes (Optional)",
+      "notesPlaceholder": "Any allergies, current products using..."
+    },
+    "photos": {
+      "title": "Photos",
+      "helper": "Upload close-up photos of the affected area.",
+      "addButton": "Add Photo",
+      "count": "{{current}}/ {{total}}"
+    },
+    "actions": {
+      "back": "Back",
+      "submit": "Submit Profile"
+    },
+    "alerts": {
+      "permissionDenied": {
+        "title": "Permission Denied",
+        "message": "We need access to your photos to upload skin images."
+      },
+      "pickError": {
+        "title": "Error",
+        "message": "Failed to pick images."
+      },
+      "missing": {
+        "title": "Missing Information",
+        "mainConcern": "Please enter your main concern (Chief Complaint).",
+        "symptoms": "Please describe your symptoms."
+      },
+      "success": {
+        "title": "Success",
+        "message": "Your skin profile has been created!",
+        "confirm": "Continue Booking"
+      },
+      "submitFailed": {
+        "title": "Submission Failed",
+        "message": "Could not save your profile. Please try again."
+      }
+    }
+  },
+  "paymentScreen": {
+    "title": "Bank Transfer Payment",
+    "partialRefund": {
+      "title": "Insufficient Payment",
+      "message": "The order required {{required}} VND but we received {{received}} VND.\n\nDon't worry! {{received}} VND has been refunded to your Wallet.",
+      "bookAgain": "Book Again",
+      "checkWallet": "Check Wallet Balance"
+    },
+    "expired": {
+      "title": "Payment Expired",
+      "message": "This payment session has expired. Please go back and try to book again.",
+      "goBack": "Go Back"
+    },
+    "waiting": {
+      "instructions": "Scan the QR code to complete the payment"
+    },
+    "qr": {
+      "notAvailable": "QR Code not available",
+      "shareDialogTitle": "Share Payment QR Code"
+    },
+    "actions": {
+      "download": "Download",
+      "downloading": "Downloading...",
+      "share": "Share"
+    },
+    "timer": {
+      "label": "Time Left"
+    },
+    "infoCard": {
+      "title": "Bank Transfer Details",
+      "amount": "Amount",
+      "bank": "Bank",
+      "accountName": "Account Name",
+      "accountNumber": "Account Number",
+      "required": "REQUIRED Transfer Content:",
+      "transferContent": "Transfer Content",
+      "note": "Please use the exact code above as the transfer content."
+    },
+    "status": {
+      "checking": "Checking payment status...",
+      "waiting": "Waiting for payment confirmation..."
+    },
+    "alerts": {
+      "paymentFailedTitle": "Payment Failed",
+      "paymentFailedMessage": "The payment was {{status}}.",
+      "copyTitle": "Copied!",
+      "copyMessage": "{{label}} has been copied to your clipboard.",
+      "copyErrorTitle": "Copy Error",
+      "copyErrorMessage": "Clipboard is not available.",
+      "qrErrorTitle": "Error",
+      "qrErrorMissing": "QR code is not available for download",
+      "permissionTitle": "Permission Required",
+      "permissionMessage": "Please grant access to save the QR code to your gallery",
+      "successTitle": "Success",
+      "successMessage": "QR code has been saved to your gallery",
+      "downloadError": "Failed to download QR code: {{message}}",
+      "shareErrorTitle": "Share Error",
+      "shareErrorMessage": "Failed to share QR code.",
+      "leaveTitle": "Leave Payment Page?",
+      "leaveMessage": "If you leave now, your reservation will be CANCELLED to free up the slot for others.",
+      "confirmCancel": "Leave & Cancel",
+      "cancelling": "Cancelling...",
+      "stay": "Stay",
+      "cancellingOverlay": "Cancelling Reservation..."
+    }
   }
 }

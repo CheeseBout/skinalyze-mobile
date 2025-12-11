@@ -42,7 +42,6 @@ interface CustomerData {
   customerId: string;
   user: User;
   aiUsageAmount: number;
-  allergicTo: string[];
   pastDermatologicalHistory: string[];
   purchaseHistory: any[];
   createdAt: string;

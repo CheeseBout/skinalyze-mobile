@@ -5,9 +5,9 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Pressable,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -24,6 +24,7 @@ import paymentService, {
 import appointmentService from "@/services/appointmentService";
 import CustomAlert from "@/components/CustomAlert";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 const POLLING_INTERVAL_MS = 5000;
 
@@ -48,6 +49,27 @@ export default function PaymentScreen() {
   const params = useLocalSearchParams();
 
   const { primaryColor } = useThemeColor();
+  const { t } = useTranslation("translation", { keyPrefix: "paymentScreen" });
+
+  const [generalAlert, setGeneralAlert] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info" as "success" | "error" | "warning" | "info",
+    confirmText: undefined as string | undefined,
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info" = "info",
+    confirmText?: string
+  ) => {
+    setGeneralAlert({ visible: true, title, message, type, confirmText });
+  };
+
+  const closeAlert = () =>
+    setGeneralAlert((prev) => ({ ...prev, visible: false }));
 
   // ---  Parse Data ---
   const bankingInfo: BankingInfo = useMemo(() => {
@@ -167,9 +189,11 @@ export default function PaymentScreen() {
             setScreenStatus("PARTIAL_REFUND");
           } else {
             setScreenStatus(status === "EXPIRED" ? "EXPIRED" : "FAILED");
-            Alert.alert(
-              "Payment Failed",
-              `The payment was ${result.status.toLowerCase()}.`
+            showAlert(
+              t("alerts.paymentFailedTitle"),
+              t("alerts.paymentFailedMessage", {
+                status: result.status.toLowerCase(),
+              })
             );
           }
         }
@@ -230,9 +254,17 @@ export default function PaymentScreen() {
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await Clipboard.setStringAsync(text);
-      Alert.alert("Copied!", `${label} has been copied to your clipboard.`);
+      showAlert(
+        t("alerts.copyTitle"),
+        t("alerts.copyMessage", { label }),
+        "success"
+      );
     } catch (error) {
-      Alert.alert("Copy Error", "Clipboard is not available.");
+      showAlert(
+        t("alerts.copyErrorTitle"),
+        t("alerts.copyErrorMessage"),
+        "error"
+      );
     }
   };
 
@@ -245,7 +277,8 @@ export default function PaymentScreen() {
 
     if (!qrUrl) {
       console.log("[downloadQRCode] No QR code URL found");
-      Alert.alert("Error", "QR code is not available for download");
+      showAlert(t("alerts.qrErrorTitle"), t("alerts.qrErrorMissing"), "error");
+      setIsDownloading(false);
       return;
     }
 
@@ -255,10 +288,12 @@ export default function PaymentScreen() {
       // 1. Request permissions
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "Please grant access to save the QR code to your gallery"
+        showAlert(
+          t("alerts.permissionTitle"),
+          t("alerts.permissionMessage"),
+          "warning"
         );
+        setIsDownloading(false);
         return;
       }
 
@@ -295,10 +330,18 @@ export default function PaymentScreen() {
         console.log("Album creation warning:", e);
       }
 
-      Alert.alert("Success", "QR code has been saved to your gallery");
+      showAlert(
+        t("alerts.successTitle"),
+        t("alerts.successMessage"),
+        "success"
+      );
     } catch (error: any) {
       console.error("[downloadQRCode] Error:", error);
-      Alert.alert("Error", `Failed to download QR code: ${error.message}`);
+      showAlert(
+        t("alerts.qrErrorTitle"),
+        t("alerts.downloadError", { message: error.message }),
+        "error"
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -310,12 +353,16 @@ export default function PaymentScreen() {
       if (fileUri) {
         await Sharing.shareAsync(fileUri, {
           mimeType: "image/png",
-          dialogTitle: "Share Payment QR Code",
+          dialogTitle: t("qr.shareDialogTitle"),
         });
       }
     } catch (error) {
       console.error("Error sharing QR code:", error);
-      Alert.alert("Share Error", "Failed to share QR code.");
+      showAlert(
+        t("alerts.shareErrorTitle"),
+        t("alerts.shareErrorMessage"),
+        "error"
+      );
     }
   };
 
@@ -345,7 +392,7 @@ export default function PaymentScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bank Transfer Payment</Text>
+        <Text style={styles.headerTitle}>{t("title")}</Text>
         <View style={styles.headerBackButton} />
       </View>
 
@@ -362,29 +409,23 @@ export default function PaymentScreen() {
                 />
               </View>
 
-              <Text style={styles.warningTitle}>Insufficient Payment</Text>
+              <Text style={styles.warningTitle}>
+                {t("partialRefund.title")}
+              </Text>
               <Text style={styles.warningText}>
-                The order required
-                <Text style={styles.boldText}>
-                  {Number(bankingInfo.amount).toLocaleString("vi-VN")} VND
-                </Text>
-                but we received
-                <Text style={styles.boldText}>
-                  {paidAmount.toLocaleString("vi-VN")} VND
-                </Text>
-                .{"\n\n"}
-                Don't worry!
-                <Text style={styles.boldText}>
-                  {paidAmount.toLocaleString("vi-VN")} VND
-                </Text>
-                has been refunded to your Wallet.
+                {t("partialRefund.message", {
+                  required: Number(bankingInfo.amount).toLocaleString("vi-VN"),
+                  received: paidAmount.toLocaleString("vi-VN"),
+                })}
               </Text>
 
               <Pressable
                 style={[styles.button, styles.primaryButton]}
                 onPress={() => router.back()}
               >
-                <Text style={styles.buttonTextPrimary}>Book Again</Text>
+                <Text style={styles.buttonTextPrimary}>
+                  {t("partialRefund.bookAgain")}
+                </Text>
               </Pressable>
 
               <Pressable
@@ -392,7 +433,7 @@ export default function PaymentScreen() {
                 onPress={() => router.push("/(stacks)/ProfileScreen")}
               >
                 <Text style={styles.buttonTextSecondary}>
-                  Check Wallet Balance
+                  {t("partialRefund.checkWallet")}
                 </Text>
               </Pressable>
             </View>
@@ -407,13 +448,10 @@ export default function PaymentScreen() {
               size={80}
               color="#757575"
             />
-            <Text style={styles.title}>Payment Expired</Text>
-            <Text style={styles.instructions}>
-              This payment session has expired. Please go back and try to book
-              again.
-            </Text>
+            <Text style={styles.title}>{t("expired.title")}</Text>
+            <Text style={styles.instructions}>{t("expired.message")}</Text>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <Text style={styles.backButtonText}>Go Back</Text>
+              <Text style={styles.backButtonText}>{t("expired.goBack")}</Text>
             </Pressable>
           </View>
         )}
@@ -421,9 +459,7 @@ export default function PaymentScreen() {
         {/* CASE: WAITING */}
         {screenStatus === "WAITING" && (
           <>
-            <Text style={styles.instructions}>
-              Scan the QR code to complete the payment
-            </Text>
+            <Text style={styles.instructions}>{t("waiting.instructions")}</Text>
 
             {/* QR Code Logic  */}
             <View style={styles.qrContainer}>
@@ -456,7 +492,9 @@ export default function PaymentScreen() {
                         />
                       )}
                       <Text style={styles.qrActionButtonText}>
-                        {isDownloading ? "Downloading..." : "Download"}
+                        {isDownloading
+                          ? t("actions.downloading")
+                          : t("actions.download")}
                       </Text>
                     </Pressable>
 
@@ -475,7 +513,7 @@ export default function PaymentScreen() {
                           { color: primaryColor },
                         ]}
                       >
-                        Share
+                        {t("actions.share")}
                       </Text>
                     </Pressable>
                   </View>
@@ -484,7 +522,7 @@ export default function PaymentScreen() {
                 <View style={styles.qrPlaceholder}>
                   <Ionicons name="qr-code-outline" size={80} color="#CCC" />
                   <Text style={styles.qrPlaceholderText}>
-                    QR Code not available
+                    {t("qr.notAvailable")}
                   </Text>
                 </View>
               )}
@@ -492,30 +530,34 @@ export default function PaymentScreen() {
 
             <View style={styles.timerBox}>
               <Text style={styles.timerText}>{timeLeft || "..."}</Text>
-              <Text style={styles.timerLabel}>Time Left</Text>
+              <Text style={styles.timerLabel}>{t("timer.label")}</Text>
             </View>
 
             <View style={styles.infoCard}>
-              <Text style={styles.cardTitle}>Bank Transfer Details</Text>
+              <Text style={styles.cardTitle}>{t("infoCard.title")}</Text>
 
               <View style={styles.row}>
-                <Text style={styles.label}>Amount:</Text>
+                <Text style={styles.label}>{`${t("infoCard.amount")}:`}</Text>
                 <Text style={styles.valueAmount}>
                   {Number(bankingInfo.amount || 0).toLocaleString("vi-VN")} VND
                 </Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.row}>
-                <Text style={styles.label}>Bank:</Text>
+                <Text style={styles.label}>{`${t("infoCard.bank")}:`}</Text>
                 <Text style={styles.value}>{bankingInfo.bankName}</Text>
               </View>
               <View style={styles.row}>
-                <Text style={styles.label}>Account Name:</Text>
+                <Text style={styles.label}>
+                  {`${t("infoCard.accountName")}:`}
+                </Text>
                 <Text style={styles.value}>{bankingInfo.accountName}</Text>
               </View>
 
               <View style={styles.row}>
-                <Text style={styles.label}>Account Number:</Text>
+                <Text style={styles.label}>
+                  {`${t("infoCard.accountNumber")}:`}
+                </Text>
                 <View style={styles.copyableValueContainer}>
                   <Text style={styles.value} selectable>
                     {bankingInfo.accountNumber}
@@ -524,7 +566,7 @@ export default function PaymentScreen() {
                     onPress={() =>
                       copyToClipboard(
                         bankingInfo.accountNumber,
-                        "Account Number"
+                        t("infoCard.accountNumber")
                       )
                     }
                     style={styles.copyButton}
@@ -540,16 +582,14 @@ export default function PaymentScreen() {
 
               <View style={styles.divider} />
 
-              <Text style={styles.contentLabel}>
-                REQUIRED Transfer Content:
-              </Text>
+              <Text style={styles.contentLabel}>{t("infoCard.required")}</Text>
               <View style={styles.contentBox}>
                 <Text style={styles.valueCode} selectable>
                   {paymentCode}
                 </Text>
                 <Pressable
                   onPress={() =>
-                    copyToClipboard(paymentCode, "Transfer Content")
+                    copyToClipboard(paymentCode, t("infoCard.transferContent"))
                   }
                 >
                   <MaterialCommunityIcons
@@ -560,17 +600,13 @@ export default function PaymentScreen() {
                 </Pressable>
               </View>
 
-              <Text style={styles.note}>
-                Please use the exact code above as the transfer content.
-              </Text>
+              <Text style={styles.note}>{t("infoCard.note")}</Text>
             </View>
 
             <View style={styles.statusContainer}>
               {isChecking && <ActivityIndicator size="small" />}
               <Text style={styles.statusText}>
-                {isChecking
-                  ? "Checking payment status..."
-                  : "Waiting for payment confirmation..."}
+                {isChecking ? t("status.checking") : t("status.waiting")}
               </Text>
             </View>
           </>
@@ -579,18 +615,31 @@ export default function PaymentScreen() {
 
       <CustomAlert
         visible={isAlertVisible}
-        title="Leave Payment Page?"
-        message="If you leave now, your reservation will be CANCELLED to free up the slot for others."
-        confirmText={isCancelling ? "Cancelling..." : "Leave & Cancel"}
-        cancelText="Stay"
+        title={t("alerts.leaveTitle")}
+        message={t("alerts.leaveMessage")}
+        confirmText={
+          isCancelling ? t("alerts.cancelling") : t("alerts.confirmCancel")
+        }
+        cancelText={t("alerts.stay")}
         onConfirm={handleAlertConfirm}
         onCancel={handleAlertCancel}
+      />
+
+      <CustomAlert
+        visible={generalAlert.visible}
+        title={generalAlert.title}
+        message={generalAlert.message}
+        confirmText={generalAlert.confirmText}
+        onConfirm={closeAlert}
+        type={generalAlert.type}
       />
 
       {isCancelling && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.loadingText}>Cancelling Reservation...</Text>
+          <Text style={styles.loadingText}>
+            {t("alerts.cancellingOverlay")}
+          </Text>
         </View>
       )}
     </View>

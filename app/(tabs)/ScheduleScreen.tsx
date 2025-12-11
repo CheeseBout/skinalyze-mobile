@@ -11,6 +11,7 @@ import { Calendar } from "react-native-calendars";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
+import { useTranslation } from "react-i18next";
 
 import appointmentService from "@/services/appointmentService";
 import customerService from "@/services/customerService";
@@ -40,9 +41,9 @@ interface MarkedDates {
   };
 }
 
-const formatTime = (isoDate: string) => {
+const formatTime = (isoDate: string, locale: string) => {
   if (!isoDate) return "N/A";
-  return new Date(isoDate).toLocaleTimeString("en-US", {
+  return new Date(isoDate).toLocaleTimeString(locale || "en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -88,12 +89,24 @@ const getEventColor = (status: AppointmentStatus | string) => {
   }
 };
 
-const getEventBadgeText = (status: AppointmentStatus | string) => {
+const getEventBadgeText = (
+  status: AppointmentStatus | string,
+  t: (key: string, options?: Record<string, any>) => string
+) => {
+  const map: Record<string, string> = {
+    COMPLETED: t("schedule.status.completed"),
+    SCHEDULED: t("schedule.status.scheduled"),
+    IN_PROGRESS: t("schedule.status.inProgress"),
+    CANCELLED: t("schedule.status.cancelled"),
+    NO_SHOW: t("schedule.status.noShow"),
+    SETTLED: t("schedule.status.settled"),
+  };
+
   if (isSettledStatus(status) || status === AppointmentStatus.COMPLETED) {
-    return "Completed";
+    return map.COMPLETED;
   }
-  // (Xóa 'AppointmentStatus.' và thay '_' bằng ' ')
-  return (status as string).replace("APPOINTMENT_", "").replace(/_/g, " ");
+
+  return map[status as string] || t("schedule.status.default");
 };
 
 export default function ScheduleScreen() {
@@ -102,7 +115,9 @@ export default function ScheduleScreen() {
   );
   const router = useRouter();
   const { primaryColor } = useThemeColor();
+  const { t, i18n } = useTranslation();
   const { user } = useContext(AuthContext);
+  const locale = i18n.language === "vi" ? "vi-VN" : "en-US";
 
   const [isLoading, setIsLoading] = useState(true);
   const [apiAppointments, setApiAppointments] = useState<
@@ -166,7 +181,7 @@ export default function ScheduleScreen() {
         id: app.appointmentId,
         appointmentId: app.appointmentId,
         title: `Dr. ${app?.dermatologist?.user?.fullName}`,
-        time: formatTime(app.startTime),
+        time: formatTime(app.startTime, locale),
         status: app.appointmentStatus,
         description: app.appointmentType.replace("_", " "),
       };
@@ -209,7 +224,7 @@ export default function ScheduleScreen() {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={styles.loadingText}>Loading your schedule...</Text>
+        <Text style={styles.loadingText}>{t("schedule.loading")}</Text>
       </View>
     );
   }
@@ -231,21 +246,20 @@ export default function ScheduleScreen() {
         {/* Events List */}
         <View style={styles.eventsContainer}>
           <Text style={styles.eventsTitle}>
-            Events for{" "}
-            {new Date(selectedDate).toLocaleDateString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
+            {t("schedule.eventsTitle", {
+              date: new Date(selectedDate).toLocaleDateString(locale, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }),
             })}
           </Text>
 
           {selectedEvents.length === 0 ? (
             <View style={styles.noEventsContainer}>
               <Ionicons name="calendar-outline" size={48} color="#ccc" />
-              <Text style={styles.noEventsText}>
-                No events scheduled for this day
-              </Text>
+              <Text style={styles.noEventsText}>{t("schedule.noEvents")}</Text>
             </View>
           ) : (
             selectedEvents.map((event) => (
@@ -291,7 +305,7 @@ export default function ScheduleScreen() {
                   ]}
                 >
                   <Text style={styles.eventBadgeText}>
-                    {getEventBadgeText(event.status)}
+                    {getEventBadgeText(event.status, t)}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -306,7 +320,7 @@ export default function ScheduleScreen() {
           onPress={() => handleNavigation("/(stacks)/DermatologistListScreen")}
         >
           <Ionicons name="add-circle" size={24} color="#fff" />
-          <Text style={styles.addButtonText}>Book a Consultation</Text>
+          <Text style={styles.addButtonText}>{t("schedule.book")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

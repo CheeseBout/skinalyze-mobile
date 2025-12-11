@@ -1,7 +1,9 @@
 {
   "common": {
     "notAvailable": "Không khả dụng",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "ok": "OK",
+    "error": "Lỗi"
   },
   "profile": {
     "title": "Hồ Sơ Của Tôi",
@@ -803,5 +805,287 @@
     "internalNote": "Đơn hàng đang được giao bởi đội ngũ nội bộ",
     "ghnMethod": "Giao Hàng Nhanh (GHN)",
     "internalMethod": "Giao nội bộ"
+  },
+  "dermatologistDetail": {
+    "loading": "Đang tải chi tiết...",
+    "errors": {
+      "general": "Đã xảy ra lỗi",
+      "notFound": "Không tìm thấy bác sĩ da liễu",
+      "noId": "Không có mã bác sĩ da liễu.",
+      "fetch": "Lỗi tải thông tin bác sĩ"
+    },
+    "goBack": "Quay lại",
+    "fallbacks": {
+      "doctor": "Bác sĩ",
+      "specialist": "Chuyên gia da liễu"
+    },
+    "header": {
+      "rating": "Đánh giá",
+      "patients": "Bệnh nhân",
+      "yearsExpShort": "Số năm KN",
+      "experience": "{{count}} năm kinh nghiệm",
+      "experience_plural": "{{count}} năm kinh nghiệm"
+    },
+    "sections": {
+      "about": "Giới thiệu",
+      "clinicLocation": "Phòng khám",
+      "specializations": "Chuyên môn & Chứng chỉ",
+      "certificationsLoading": "Đang tải chứng chỉ...",
+      "noCertifications": "Chưa có chứng chỉ"
+    },
+    "labels": {
+      "issued": "Cấp ngày:",
+      "expires": "Hết hạn:"
+    },
+    "pricing": {
+      "label": "Phí tư vấn",
+      "contact": "Liên hệ để biết giá",
+      "perSession": "mỗi buổi"
+    },
+    "actions": {
+      "subscriptionPlans": "Gói đăng ký",
+      "viewPackages": "Xem gói tư vấn",
+      "bookAppointment": "Đặt lịch khám",
+      "viewTimeSlots": "Xem lịch trống"
+    }
+  },
+  "subscriptionPlanList": {
+    "errors": {
+      "pageLoad": "Không thể tải dữ liệu trang.",
+      "planLoad": "Không thể tải gói đăng ký."
+    },
+    "header": {
+      "specialist": "Chuyên gia da liễu"
+    },
+    "filters": {
+      "search": "Tìm theo tên gói (tự áp dụng)...",
+      "minPrice": "Giá tối thiểu",
+      "maxPrice": "Giá tối đa",
+      "sortByPrice": "Sắp xếp theo giá",
+      "sortByName": "Sắp xếp theo tên",
+      "sortBySessions": "Sắp xếp theo số buổi",
+      "apply": "Áp dụng bộ lọc"
+    },
+    "list": {
+      "empty": "Không tìm thấy gói phù hợp."
+    },
+    "card": {
+      "noDescription": "Không có mô tả.",
+      "sessions": "{{count}} buổi",
+      "sessions_plural": "{{count}} buổi",
+      "days": "{{count}} ngày",
+      "days_plural": "{{count}} ngày"
+    }
+  },
+  "schedule": {
+    "loading": "Đang tải lịch của bạn...",
+    "eventsTitle": "Sự kiện ngày {{date}}",
+    "noEvents": "Không có lịch hẹn trong ngày này",
+    "book": "Đặt lịch tư vấn",
+    "status": {
+      "completed": "Hoàn thành",
+      "scheduled": "Đã lên lịch",
+      "inProgress": "Đang diễn ra",
+      "cancelled": "Đã hủy",
+      "noShow": "Vắng mặt",
+      "settled": "Đã quyết toán",
+      "default": "Sắp diễn ra"
+    }
+  },
+  "bookingCalendar": {
+    "errors": {
+      "title": "Lỗi",
+      "missingId": "Thiếu mã bác sĩ.",
+      "loadDoctor": "Không thể tải thông tin bác sĩ.",
+      "loadSlots": "Không thể tải khung giờ cho ngày này."
+    },
+    "labels": {
+      "dermatologist": "Bác sĩ da liễu",
+      "availableSlots": "Khung giờ khám",
+      "noSlotsForDay": "Không có khung giờ cho ngày này.",
+      "noSlotsSelected": "Vui lòng chọn một ngày có sẵn.",
+      "morning": "Buổi sáng",
+      "afternoon": "Buổi chiều",
+      "bookSlot": "Đặt khung giờ này"
+    }
+  },
+  "bookingConfirmation": {
+    "errors": {
+      "title": "Lỗi",
+      "auth": "Vui lòng đăng nhập để tiếp tục.",
+      "load": "Không thể tải thông tin đặt lịch.",
+      "missingAnalysis": "Vui lòng chọn phân tích da để bác sĩ xem.",
+      "missingRoutine": "Vui lòng chọn liệu trình cần tái khám.",
+      "insufficientBalance": "Số dư ví không đủ.",
+      "bookingFailed": "Đặt lịch thất bại",
+      "generic": "Đã xảy ra lỗi, vui lòng thử lại."
+    },
+    "labels": {
+      "notAvailable": "Không có",
+      "genderMale": "Nam",
+      "genderFemale": "Nữ",
+      "consultant": "Bác sĩ tư vấn",
+      "dermatologist": "Bác sĩ Da liễu",
+      "appointmentDetails": "Chi tiết lịch hẹn",
+      "date": "Ngày",
+      "time": "Giờ",
+      "patientInfo": "Thông tin bệnh nhân",
+      "phone": "Số điện thoại",
+      "dob": "Ngày sinh",
+      "gender": "Giới tính",
+      "allergies": "Dị ứng",
+      "medicalHistory": "Tiền sử da liễu",
+      "noneProvided": "Chưa cung cấp",
+      "paymentOption": "Hình thức thanh toán",
+      "bankTransfer": "Chuyển khoản",
+      "wallet": "Ví Skinalyze",
+      "walletBalance": "Số dư ví: {{amount}}",
+      "price": "{{value}} VND",
+      "priceLabel": "Giá",
+      "free": "Miễn phí",
+      "subscription": "Gói dịch vụ",
+      "sessionsRemaining": "Còn {{count}} buổi",
+      "sessionsRemaining_plural": "Còn {{count}} buổi",
+      "insufficientWallet": "Số dư ví không đủ cho lần đặt này.",
+      "freeConsultation": "Lịch tư vấn miễn phí. Xác nhận để đặt lịch.",
+      "proceedPayment": "Tiếp tục thanh toán",
+      "confirmBooking": "Xác nhận đặt lịch"
+    },
+    "purposeCard": {
+      "title": "Mục đích buổi hẹn",
+      "newProblem": "Vấn đề mới",
+      "followUp": "Tái khám",
+      "analysisLabel": "Chọn phân tích để bác sĩ xem:",
+      "createManualEntry": "+ Thêm ghi nhận thủ công",
+      "noAnalysis": "Chưa có phân tích trước đó",
+      "fallbackAnalysis": "Phân tích da",
+      "selfReported": "Tự khai",
+      "aiAssessment": "Đánh giá AI",
+      "manualTag": "Thủ công",
+      "aiTag": "AI",
+      "chooseAnotherAnalysis": "Chạm để chọn phân tích khác",
+      "chooseAnalysis": "Chọn phân tích",
+      "routineLabel": "Phác đồ điều trị:",
+      "noRoutine": "Chưa có liệu trình trước đó",
+      "fallbackRoutine": "Liệu trình điều trị",
+      "chooseRoutine": "Chọn liệu trình",
+      "noteLabel": "Ghi chú (tùy chọn):",
+      "notePlaceholder": "Nhập ghi chú ngắn cho bác sĩ...",
+      "selectAnalysisTitle": "Chọn phân tích",
+      "selectRoutineTitle": "Chọn liệu trình"
+    }
+  },
+  "manualAnalysis": {
+    "title": "Tự khai tình trạng da",
+    "subtitle": "Mô tả tình trạng da để bác sĩ xem trước buổi tư vấn.",
+    "condition": {
+      "cardTitle": "Chi tiết tình trạng",
+      "mainConcern": "Vấn đề chính",
+      "mainConcernPlaceholder": "Ví dụ: Mụn nổi trên trán",
+      "symptoms": "Triệu chứng",
+      "symptomsPlaceholder": "Ví dụ: Đỏ, ngứa, bắt đầu 3 ngày trước...",
+      "notes": "Ghi chú thêm (tuỳ chọn)",
+      "notesPlaceholder": "Dị ứng, sản phẩm đang dùng..."
+    },
+    "photos": {
+      "title": "Hình ảnh",
+      "helper": "Tải ảnh cận cảnh vùng da bị ảnh hưởng.",
+      "addButton": "Thêm ảnh",
+      "count": "{{current}}/{{total}}"
+    },
+    "actions": {
+      "back": "Quay lại",
+      "submit": "Gửi hồ sơ"
+    },
+    "alerts": {
+      "permissionDenied": {
+        "title": "Thiếu quyền",
+        "message": "Cần quyền truy cập ảnh để tải lên hình ảnh da."
+      },
+      "pickError": {
+        "title": "Lỗi",
+        "message": "Không thể chọn ảnh."
+      },
+      "missing": {
+        "title": "Thiếu thông tin",
+        "mainConcern": "Vui lòng nhập vấn đề chính (Chief Complaint).",
+        "symptoms": "Vui lòng mô tả triệu chứng."
+      },
+      "success": {
+        "title": "Thành công",
+        "message": "Hồ sơ da đã được tạo!",
+        "confirm": "Tiếp tục đặt lịch"
+      },
+      "submitFailed": {
+        "title": "Gửi thất bại",
+        "message": "Không thể lưu hồ sơ, vui lòng thử lại."
+      }
+    }
+  },
+  "paymentScreen": {
+    "title": "Thanh toán chuyển khoản",
+    "partialRefund": {
+      "title": "Thanh toán chưa đủ",
+      "message": "Đơn hàng cần {{required}} VND nhưng chúng tôi nhận được {{received}} VND.\n\nĐừng lo! {{received}} VND đã được hoàn vào Ví của bạn.",
+      "bookAgain": "Đặt lại",
+      "checkWallet": "Kiểm tra số dư ví"
+    },
+    "expired": {
+      "title": "Phiên thanh toán hết hạn",
+      "message": "Phiên thanh toán đã hết hạn. Vui lòng quay lại và đặt lại.",
+      "goBack": "Quay lại"
+    },
+    "waiting": {
+      "instructions": "Quét mã QR để hoàn tất thanh toán"
+    },
+    "qr": {
+      "notAvailable": "Không có mã QR",
+      "shareDialogTitle": "Chia sẻ mã QR thanh toán"
+    },
+    "actions": {
+      "download": "Tải về",
+      "downloading": "Đang tải...",
+      "share": "Chia sẻ"
+    },
+    "timer": {
+      "label": "Thời gian còn lại"
+    },
+    "infoCard": {
+      "title": "Chi tiết chuyển khoản",
+      "amount": "Số tiền",
+      "bank": "Ngân hàng",
+      "accountName": "Tên tài khoản",
+      "accountNumber": "Số tài khoản",
+      "required": "Nội dung chuyển khoản BẮT BUỘC:",
+      "transferContent": "Nội dung chuyển khoản",
+      "note": "Vui lòng sử dụng chính xác mã trên làm nội dung chuyển khoản."
+    },
+    "status": {
+      "checking": "Đang kiểm tra trạng thái thanh toán...",
+      "waiting": "Đang chờ xác nhận thanh toán..."
+    },
+    "alerts": {
+      "paymentFailedTitle": "Thanh toán thất bại",
+      "paymentFailedMessage": "Thanh toán ở trạng thái {{status}}.",
+      "copyTitle": "Đã sao chép!",
+      "copyMessage": "{{label}} đã được sao chép.",
+      "copyErrorTitle": "Lỗi sao chép",
+      "copyErrorMessage": "Không thể sử dụng bộ nhớ tạm.",
+      "qrErrorTitle": "Lỗi",
+      "qrErrorMissing": "Không có mã QR để tải",
+      "permissionTitle": "Cần quyền truy cập",
+      "permissionMessage": "Vui lòng cấp quyền lưu mã QR vào thư viện",
+      "successTitle": "Thành công",
+      "successMessage": "Mã QR đã được lưu vào thư viện của bạn",
+      "downloadError": "Tải mã QR thất bại: {{message}}",
+      "shareErrorTitle": "Lỗi chia sẻ",
+      "shareErrorMessage": "Không thể chia sẻ mã QR.",
+      "leaveTitle": "Rời trang thanh toán?",
+      "leaveMessage": "Nếu rời đi bây giờ, lịch giữ chỗ sẽ bị HỦY để nhường suất cho người khác.",
+      "confirmCancel": "Rời & hủy",
+      "cancelling": "Đang hủy...",
+      "stay": "Ở lại",
+      "cancellingOverlay": "Đang hủy giữ chỗ..."
+    }
   }
 }
