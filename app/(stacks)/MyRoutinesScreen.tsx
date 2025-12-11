@@ -48,13 +48,13 @@ const statusMeta: Record<RoutineStatus, { color: string; icon: string }> = {
 
 const defaultStatusMeta = { color: "#64748B", icon: "help-circle" };
 
-const formatDate = (isoDate: string) => {
+const formatDate = (isoDate: string, fallback: string) => {
   if (!isoDate) {
-    return "N/A";
+    return fallback;
   }
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) {
-    return "N/A";
+    return fallback;
   }
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -69,6 +69,7 @@ export default function MyRoutinesScreen() {
   const { t } = useTranslation();
   const { primaryColor } = useThemeColor();
   const { isAuthenticated, user } = useAuth();
+  const notAvailableLabel = t("common.notAvailable");
 
   const [allRoutines, setAllRoutines] = useState<TreatmentRoutine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,7 +263,9 @@ export default function MyRoutinesScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="time-outline" size={16} color="#64748B" />
             <Text style={styles.infoLabel}>{t("routines.cards.created")}</Text>
-            <Text style={styles.infoValue}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.infoValue}>
+              {formatDate(item.createdAt, notAvailableLabel)}
+            </Text>
           </View>
         </View>
         <View style={styles.cardFooter}>

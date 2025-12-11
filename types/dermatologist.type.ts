@@ -12,4 +12,6 @@ export interface Dermatologist {
   defaultSlotPrice: number;
   createdAt: string;
   updatedAt: string;
+  averageRating?: number;
+  totalReviews?: number;
 }

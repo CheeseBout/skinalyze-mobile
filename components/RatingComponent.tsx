@@ -7,6 +7,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 type RatingComponentProps = {
   value: number;
@@ -32,6 +33,7 @@ function RatingComponent({
   style,
   accessibilityLabel,
 }: RatingComponentProps) {
+  const { t } = useTranslation("translation", { keyPrefix: "ratingComponent" });
   const stars = useMemo(() => {
     return Array.from({ length: max }, (_, index) => index + 1);
   }, [max]);
@@ -39,7 +41,7 @@ function RatingComponent({
   const isInteractive = Boolean(onChange) && !readOnly;
   const readOnlyLabel = accessibilityLabel
     ? `${accessibilityLabel} ${value}/${max}`
-    : `Rating ${value}/${max}`;
+    : t("readOnlyLabel", { value, max });
 
   return (
     <View
@@ -74,7 +76,7 @@ function RatingComponent({
             accessibilityLabel={
               accessibilityLabel
                 ? `${accessibilityLabel} ${starValue}`
-                : `Rate ${starValue}`
+                : t("actionLabel", { value: starValue })
             }
           >
             <MaterialCommunityIcons

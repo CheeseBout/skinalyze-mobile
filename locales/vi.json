@@ -435,6 +435,34 @@
     },
     "viewDetails": "Xem chi tiết"
   },
+  "treatmentRoutineDetail": {
+    "back": "Quay Lại",
+    "created": "Tạo vào: {{date}}",
+    "subtitle": "Làm theo hướng dẫn bên dưới để đạt kết quả tốt nhất.",
+    "notFound": "Không tìm thấy phác đồ.",
+    "loadFailed": "Không thể tải chi tiết phác đồ.",
+    "noId": "Không có mã phác đồ.",
+    "retry": "Quay lại",
+    "emptyDetails": "Không có chi tiết cho phác đồ này.",
+    "emptyProducts": "Không có sản phẩm cho bước này.",
+    "dose": "Liều dùng: {{value}}",
+    "externalLinkMissing": "Không có liên kết mua cho sản phẩm này.",
+    "externalLinkError": "Không thể mở liên kết này.",
+    "infoTitle": "Thông báo",
+    "errorTitle": "Lỗi",
+    "sections": {
+      "morning": "Buổi sáng",
+      "noon": "Buổi trưa",
+      "evening": "Buổi tối",
+      "oral": "Thuốc uống",
+      "other": "Khác/Bổ sung"
+    },
+    "statuses": {
+      "ACTIVE": "Đang hoạt động",
+      "COMPLETED": "Hoàn thành",
+      "CANCELLED": "Đã hủy"
+    }
+  },
   "cart": {
     "loading": "Đang tải giỏ hàng...",
     "loginRequired": "Vui lòng đăng nhập để xem giỏ hàng",
@@ -504,7 +532,7 @@
     "orderSummary": "Tóm tắt đơn hàng",
     "items": "Sản phẩm",
     "subtotal": "Tạm tính",
-    "shipping": "Vận chuyển",
+    "shippingLabel": "Vận chuyển",
     "shippingFee": "Phí giao hàng",
     "shippingMethod": "Phương thức giao hàng",
     "free": "Miễn phí",
@@ -647,25 +675,6 @@
     "normal-skin": "Da Thường",
     "price-low": "Giá: Thấp",
     "price-high": "Giá: Cao"
-  },
-  "home": {
-    "goodMorning": "Chào Buổi Sáng",
-    "goodAfternoon": "Chào Buổi Chiều",
-    "goodEvening": "Chào Buổi Tối",
-    "guest": "Khách",
-    "analyze": "Phân Tích",
-    "scanSkin": "Quét Da Của Bạn",
-    "orders": "Đơn Hàng",
-    "trackOrders": "Theo Dõi Đơn Hàng",
-    "hotDeals": "Ưu Đãi",
-    "seeAll": "Xem Tất Cả",
-    "categories": "Danh Mục",
-    "allProducts": "Tất Cả Sản Phẩm",
-    "loadingCategories": "Đang tải danh mục...",
-    "loadingProducts": "Đang tải sản phẩm...",
-    "loadingMoreProducts": "Đang tải thêm sản phẩm...",
-    "oops": "Ối!",
-    "tryAgain": "Thử Lại"
   },
   "productDetail": {
     "loading": "Đang tải sản phẩm...",
@@ -813,6 +822,41 @@
     "internalNote": "Đơn hàng đang được giao bởi đội ngũ nội bộ",
     "ghnMethod": "Giao Hàng Nhanh (GHN)",
     "internalMethod": "Giao nội bộ"
+  },
+  "dermatologistList": {
+    "title": "Bác sĩ da liễu",
+    "loading": "Đang tải danh sách bác sĩ...",
+    "experienceLabel": "{{years}} năm",
+    "priceLabel": "{{price}} VND/buổi",
+    "alert": {
+      "title": "Lỗi"
+    },
+    "errors": {
+      "title": "Đã xảy ra lỗi",
+      "fetch": "Lỗi tải danh sách bác sĩ da liễu"
+    },
+    "actions": {
+      "retry": "Thử lại",
+      "refresh": "Làm mới"
+    },
+    "stats": {
+      "availableLabel": "Sẵn sàng",
+      "verifiedValue": "Đã xác minh",
+      "verifiedLabel": "Chuyên gia"
+    },
+    "empty": {
+      "title": "Không tìm thấy bác sĩ da liễu",
+      "subtitle": "Hiện chưa có bác sĩ da liễu nào."
+    },
+    "fallbacks": {
+      "dermatologist": "Bác sĩ da liễu",
+      "specialist": "Chuyên gia da liễu",
+      "clinic": "Phòng khám"
+    },
+    "rating": {
+      "withCount": "{{rating}} ★ ({{count}})",
+      "noRatings": "Chưa có đánh giá"
+    }
   },
   "dermatologistDetail": {
     "loading": "Đang tải chi tiết...",
@@ -1095,6 +1139,103 @@
       "stay": "Ở lại",
       "cancellingOverlay": "Đang hủy giữ chỗ..."
     }
+  },
+  "paymentSuccess": {
+    "titles": {
+      "booking": "Đặt lịch thành công!",
+      "order": "Thanh toán thành công!",
+      "subscription": "Gói đăng ký đã kích hoạt!",
+      "other": "Thanh toán thành công!"
+    },
+    "messages": {
+      "booking": "Lịch hẹn của bạn đã được đặt thành công.",
+      "order": "Đơn hàng của bạn đã được thanh toán thành công.",
+      "subscription": "Gói đăng ký của bạn đã được kích hoạt. Hãy tận hưởng quyền lợi!",
+      "other": "Thanh toán của bạn đã được xử lý thành công."
+    },
+    "labels": {
+      "amountPaid": "Số tiền đã trả:",
+      "method": "Phương thức:",
+      "reference": "Mã tham chiếu:",
+      "totalPaid": "Tổng thanh toán:"
+    },
+    "buttons": {
+      "schedule": "Lịch hẹn của tôi",
+      "shopping": "Tiếp tục mua sắm",
+      "home": "Về Trang chủ"
+    },
+    "errors": {
+      "bookingMissing": "Thanh toán lịch hẹn thành công nhưng không tải được chi tiết. Vui lòng kiểm tra mục \"Lịch hẹn của tôi\".",
+      "orderMissing": "Thanh toán đơn hàng thành công nhưng không tải được chi tiết. Vui lòng kiểm tra đơn hàng của bạn."
+    },
+    "subscriptionCard": {
+      "title": "Chi tiết gói đăng ký",
+      "summary": "Tóm tắt",
+      "planName": "Tên gói:",
+      "fallbackPlan": "Gói đăng ký",
+      "duration": "Thời gian:",
+      "durationValue": "{{count}} ngày",
+      "durationValue_plural": "{{count}} ngày",
+      "totalSessions": "Tổng số buổi:",
+      "payment": "Thanh toán",
+      "walletBalance": "Số dư ví"
+    },
+    "genericCard": {
+      "title": "Thanh toán thành công",
+      "details": "Chi tiết"
+    },
+    "bookingCard": {
+      "title": "Chi tiết lịch hẹn",
+      "consultant": "Bác sĩ tư vấn",
+      "patient": "Bệnh nhân",
+      "when": "Thời gian",
+      "payment": "Thanh toán",
+      "name": "Họ tên:",
+      "email": "Email:",
+      "date": "Ngày:",
+      "time": "Giờ:",
+      "type": "Loại:",
+      "fallbackDoctor": "Bác sĩ da liễu",
+      "fallbackPatient": "Bệnh nhân"
+    },
+    "orderCard": {
+      "title": "Chi tiết đơn hàng",
+      "orderInfo": "Thông tin đơn hàng",
+      "orderId": "Mã đơn hàng:",
+      "status": "Trạng thái:",
+      "items": "Sản phẩm đã mua",
+      "payment": "Thanh toán",
+      "totalPaid": "Tổng thanh toán:"
+    },
+    "appointmentType": {
+      "newProblem": "Vấn đề mới",
+      "followUp": "Tái khám",
+      "default": "Lịch hẹn"
+    },
+    "paymentMethods": {
+      "wallet": "Ví",
+      "banking": "Chuyển khoản",
+      "cash": "Tiền mặt",
+      "subscription": "Gói đăng ký",
+      "na": "Không có"
+    }
+  },
+  "ratingComponent": {
+    "readOnlyLabel": "Đánh giá {{value}}/{{max}}",
+    "actionLabel": "Chọn {{value}} sao"
+  },
+  "reviewDerm": {
+    "title": "Đánh giá của bệnh nhân",
+    "subtitleWithData": "{{average}}★ · {{total}} đánh giá",
+    "subtitleEmpty": "Chưa có đánh giá",
+    "filters": {
+      "all": "Tất cả",
+      "star": "{{value}}"
+    },
+    "empty": "Không có đánh giá phù hợp.",
+    "error": "Tải đánh giá thất bại.",
+    "showMore": "Xem thêm",
+    "anonymous": "Khách ẩn danh"
   },
   "returnRequest": {
     "title": "Yêu cầu trả hàng",

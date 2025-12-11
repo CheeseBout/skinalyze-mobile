@@ -220,7 +220,13 @@ export default function BookingConfirmationScreen() {
       ]);
 
       setDoctor(doctorData);
-      setSubscriptions(subsData);
+      const now = new Date();
+      const validSubs = subsData.filter((sub) => {
+        const end = sub.endDate ? new Date(sub.endDate) : null;
+        const hasValidEnd = end && !Number.isNaN(end.getTime()) && end >= now;
+        return sub.isActive && hasValidEnd && sub.sessionsRemaining !== 0;
+      });
+      setSubscriptions(validSubs);
       setWalletBalance(walletData.balance);
 
       const customerData = await customerService.getCustomerProfile(
@@ -248,7 +254,7 @@ export default function BookingConfirmationScreen() {
         const priceNumber = Number(rawPrice || 0);
 
         const isExistingSubscription = prev
-          ? subsData.some((subscription) => subscription.id === prev)
+          ? validSubs.some((subscription) => subscription.id === prev)
           : false;
 
         if (prev === "PAY_NOW" && priceNumber > 0) return prev;
@@ -256,7 +262,7 @@ export default function BookingConfirmationScreen() {
         if (prev && isExistingSubscription) return prev;
 
         if (priceNumber > 0) return "PAY_NOW";
-        if (subsData.length > 0) return subsData[0].id;
+        if (validSubs.length > 0) return validSubs[0].id;
         return "WALLET";
       });
     } catch (error: any) {

@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Text,
   View,
@@ -6,24 +7,23 @@ import {
   Pressable,
   ScrollView,
   Linking,
-  Alert,
-  SafeAreaView,
   StatusBar,
-  Image, 
+  Image,
 } from "react-native";
-import React, { useState, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import treatmentRoutineService from "@/services/treatmentRoutineService";
 import productService from "@/services/productService";
 
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
 import { RoutineDetail, RoutineProductItem } from "@/types/routine-detail.type";
+import CustomAlert from "@/components/CustomAlert";
 
-
-const formatDate = (isoDate: string) => {
-  if (!isoDate) return "N/A";
+const formatDate = (isoDate: string, fallback: string) => {
+  if (!isoDate) return fallback;
   return new Date(isoDate).toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short", // Changed to Short Month (e.g., 28 Oct 2025)
@@ -39,12 +39,12 @@ const STEP_ORDER: Record<string, number> = {
   other: 5,
 };
 
-// Map Icon and Colors (Labels translated to English)
-const getStepConfig = (type?: string) => {
+// Map icon and colors (labels injected via i18n)
+const getStepConfig = (type?: string, labels?: Record<string, string>) => {
   switch (type) {
     case "morning":
       return {
-        label: "Morning Routine",
+        label: labels?.morning || "Morning Routine",
         iconName: "weather-sunny",
         iconLib: MaterialCommunityIcons,
         color: "#fff7ed",
@@ -52,7 +52,7 @@ const getStepConfig = (type?: string) => {
       };
     case "noon":
       return {
-        label: "Noon Routine",
+        label: labels?.noon || "Noon Routine",
         iconName: "sun",
         iconLib: Feather,
         color: "#f0f9ff",
@@ -60,7 +60,7 @@ const getStepConfig = (type?: string) => {
       };
     case "evening":
       return {
-        label: "Evening Routine",
+        label: labels?.evening || "Evening Routine",
         iconName: "weather-night",
         iconLib: MaterialCommunityIcons,
         color: "#eef2ff",
@@ -68,7 +68,7 @@ const getStepConfig = (type?: string) => {
       };
     case "oral":
       return {
-        label: "Oral Medication",
+        label: labels?.oral || "Oral Medication",
         iconName: "pill",
         iconLib: MaterialCommunityIcons,
         color: "#fef2f2",
@@ -76,8 +76,8 @@ const getStepConfig = (type?: string) => {
       };
     default:
       return {
-        label: "Other / Extra",
-        iconName: "sparkles",
+        label: labels?.other || "Other / Extra",
+        iconName: "star-four-points-outline",
         iconLib: MaterialCommunityIcons,
         color: "#f5f3ff",
         iconColor: "#8b5cf6",
@@ -85,8 +85,24 @@ const getStepConfig = (type?: string) => {
   }
 };
 
+type AlertType = "success" | "error" | "warning" | "info";
+type ProductRowLabels = {
+  formatDose: (value: string) => string;
+  externalLinkMissing: string;
+  externalLinkError: string;
+  infoTitle: string;
+  errorTitle: string;
+};
 
-const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
+const ProductItemRow = ({
+  item,
+  onShowAlert,
+  labels,
+}: {
+  item: RoutineProductItem;
+  onShowAlert: (title: string, message: string, type?: AlertType) => void;
+  labels: ProductRowLabels;
+}) => {
   const router = useRouter();
   const [productImage, setProductImage] = useState<string | null>(null);
 
@@ -125,10 +141,10 @@ const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
         if (supported) {
           await Linking.openURL(item.externalLink);
         } else {
-          Alert.alert("Error", "Cannot open this link.");
+          onShowAlert(labels.errorTitle, labels.externalLinkError, "error");
         }
       } else {
-        Alert.alert("Info", "No purchase link available for this product.");
+        onShowAlert(labels.infoTitle, labels.externalLinkMissing, "info");
       }
     } else {
       if (item.productId) {
@@ -156,7 +172,7 @@ const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
         ]}
       >
         {productImage ? (
-          // IF we have an image from API -> Show 
+          // IF we have an image from API -> Show
           <Image
             source={{ uri: productImage }}
             style={styles.productImage}
@@ -185,7 +201,9 @@ const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
         <View style={styles.metaRow}>
           {item.usage && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>Dose: {item.usage}</Text>
+              <Text style={styles.badgeText}>
+                {labels.formatDose(item.usage)}
+              </Text>
             </View>
           )}
           {item.frequency && (
@@ -203,8 +221,20 @@ const ProductItemRow = ({ item }: { item: RoutineProductItem }) => {
 };
 
 // Component: Routine Section (Morning/Noon...)
-const RoutineSection = ({ data }: { data: RoutineDetail }) => {
-  const config = getStepConfig(data.stepType);
+const RoutineSection = ({
+  data,
+  labels,
+  onShowAlert,
+}: {
+  data: RoutineDetail;
+  labels: {
+    emptyProducts: string;
+    sectionLabels: Record<string, string>;
+    productRow: ProductRowLabels;
+  };
+  onShowAlert: (title: string, message: string, type?: AlertType) => void;
+}) => {
+  const config = getStepConfig(data.stepType, labels.sectionLabels);
 
   // Logic: Use description as Title if 'other', else use default label
   const title =
@@ -238,12 +268,12 @@ const RoutineSection = ({ data }: { data: RoutineDetail }) => {
           <ProductItemRow
             key={product.routineDetailProductId || index}
             item={product}
+            labels={labels.productRow}
+            onShowAlert={onShowAlert}
           />
         ))}
         {(!data.products || data.products.length === 0) && (
-          <Text style={styles.emptyProductsText}>
-            No products assigned for this step.
-          </Text>
+          <Text style={styles.emptyProductsText}>{labels.emptyProducts}</Text>
         )}
       </View>
     </View>
@@ -255,15 +285,34 @@ const RoutineSection = ({ data }: { data: RoutineDetail }) => {
 export default function TreatmentRoutineDetailScreen() {
   const router = useRouter();
   const { routineId } = useLocalSearchParams<{ routineId: string }>();
+  const { t } = useTranslation();
+
+  const translate = (key: string, options?: Record<string, any>) =>
+    t(`treatmentRoutineDetail.${key}`, options);
 
   const [routine, setRoutine] = useState<TreatmentRoutine | null>(null);
   const [details, setDetails] = useState<RoutineDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: AlertType;
+  }>({ visible: false, title: "", message: "", type: "info" });
+
+  const closeAlert = () =>
+    setAlertState((prev) => ({ ...prev, visible: false }));
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: AlertType = "info"
+  ) => setAlertState({ visible: true, title, message, type });
 
   useEffect(() => {
     if (!routineId) {
-      setError("No Routine ID provided.");
+      setErrorKey("noId");
       setIsLoading(false);
       return;
     }
@@ -277,9 +326,10 @@ export default function TreatmentRoutineDetailScreen() {
         ]);
         setRoutine(routineData);
         setDetails(detailsData);
+        setErrorKey(null);
       } catch (err) {
         console.error("Failed to load routine details:", err);
-        setError("Failed to load routine details.");
+        setErrorKey("loadFailed");
       } finally {
         setIsLoading(false);
       }
@@ -287,6 +337,28 @@ export default function TreatmentRoutineDetailScreen() {
 
     fetchData();
   }, [routineId]);
+
+  const sectionLabels = useMemo(
+    () => ({
+      morning: translate("sections.morning"),
+      noon: translate("sections.noon"),
+      evening: translate("sections.evening"),
+      oral: translate("sections.oral"),
+      other: translate("sections.other"),
+    }),
+    [t]
+  );
+
+  const productRowLabels = useMemo(
+    () => ({
+      formatDose: (value: string) => translate("dose", { value }),
+      externalLinkMissing: translate("externalLinkMissing"),
+      externalLinkError: translate("externalLinkError"),
+      infoTitle: translate("infoTitle"),
+      errorTitle: translate("errorTitle"),
+    }),
+    [t]
+  );
 
   const processedDetails = useMemo(() => {
     if (!details) return [];
@@ -300,6 +372,10 @@ export default function TreatmentRoutineDetailScreen() {
       });
   }, [details]);
 
+  const statusLabel = translate(`statuses.${routine?.status}`, {
+    defaultValue: routine?.status,
+  });
+
   // --- Render ---
   if (isLoading) {
     return (
@@ -307,7 +383,7 @@ export default function TreatmentRoutineDetailScreen() {
     );
   }
 
-  if (error || !routine) {
+  if (errorKey || !routine) {
     return (
       <View style={styles.center}>
         <MaterialCommunityIcons
@@ -315,9 +391,11 @@ export default function TreatmentRoutineDetailScreen() {
           size={48}
           color="#d9534f"
         />
-        <Text style={styles.errorText}>{error || "Routine not found."}</Text>
+        <Text style={styles.errorText}>
+          {translate(errorKey ?? "notFound")}
+        </Text>
         <Pressable style={styles.retryButton} onPress={() => router.back()}>
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>{translate("retry")}</Text>
         </Pressable>
       </View>
     );
@@ -330,7 +408,7 @@ export default function TreatmentRoutineDetailScreen() {
         {/* Back Button */}
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#007bff" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{translate("back")}</Text>
         </Pressable>
 
         {/* Routine Header Info */}
@@ -340,7 +418,9 @@ export default function TreatmentRoutineDetailScreen() {
             <View style={styles.metaTag}>
               <Feather name="calendar" size={12} color="#64748b" />
               <Text style={styles.metaText}>
-                Created: {formatDate(routine.createdAt)}
+                {translate("created", {
+                  date: formatDate(routine.createdAt, t("common.notAvailable")),
+                })}
               </Text>
             </View>
             <View style={[styles.metaTag, { backgroundColor: "#dcfce7" }]}>
@@ -350,19 +430,26 @@ export default function TreatmentRoutineDetailScreen() {
                   { color: "#166534", fontWeight: "bold" },
                 ]}
               >
-                {routine.status}
+                {statusLabel}
               </Text>
             </View>
           </View>
-          <Text style={styles.subTitle}>
-            Follow the instructions below for best results.
-          </Text>
+          <Text style={styles.subTitle}>{translate("subtitle")}</Text>
         </View>
 
         {/* Routine Sections List */}
         {processedDetails.length > 0 ? (
           processedDetails.map((item) => (
-            <RoutineSection key={item.routineDetailId} data={item} />
+            <RoutineSection
+              key={item.routineDetailId}
+              data={item}
+              labels={{
+                emptyProducts: translate("emptyProducts"),
+                sectionLabels,
+                productRow: productRowLabels,
+              }}
+              onShowAlert={showAlert}
+            />
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -372,11 +459,20 @@ export default function TreatmentRoutineDetailScreen() {
               color="#cbd5e1"
             />
             <Text style={styles.emptyStateText}>
-              No details found for this routine.
+              {translate("emptyDetails")}
             </Text>
           </View>
         )}
       </ScrollView>
+
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        onConfirm={closeAlert}
+        onCancel={closeAlert}
+        type={alertState.type}
+      />
     </SafeAreaView>
   );
 }

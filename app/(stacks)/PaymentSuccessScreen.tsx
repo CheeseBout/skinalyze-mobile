@@ -12,6 +12,7 @@ import {
 import React, { useState, useEffect, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 // Services & Types
 import appointmentService from "@/services/appointmentService";
@@ -44,13 +45,6 @@ const formatDate = (isoDate: string) => {
     year: "numeric",
   });
 };
-// (Helper for appointment type - kept for bookings)
-const formatAppointmentType = (type: string) => {
-  if (type === "NEW_PROBLEM") return "New Problem";
-  if (type === "FOLLOW_UP") return "Follow-up";
-  return "Appointment";
-};
-
 const formatCurrency = (amount?: number | null) => {
   if (amount === undefined || amount === null || Number.isNaN(amount)) {
     return "--";
@@ -63,19 +57,14 @@ const normalizeNumberParam = (value?: string) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
-
-const formatPaymentMethodLabel = (method?: string | null) => {
-  if (!method) return "Subscription";
-  const normalized = method.toLowerCase();
-  if (normalized === "wallet") return "Wallet";
-  if (normalized === "banking") return "Bank Transfer";
-  if (normalized === "cash") return "Cash";
-  return method.toUpperCase();
-};
 // --- End Helpers ---
 
 export default function PaymentSuccessScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { t: tPayment } = useTranslation("translation", {
+    keyPrefix: "paymentSuccess",
+  });
   const { primaryColor, isDarkMode } = useThemeColor();
   const tintedPrimary = useMemo(
     () => hexToRgba(primaryColor, 0.1),
@@ -270,6 +259,41 @@ export default function PaymentSuccessScreen() {
     router.replace({ pathname: "/(tabs)/HomeScreen" });
   };
 
+  const formatPaymentMethodLabel = (method?: string | null) => {
+    if (!method) return tPayment("paymentMethods.subscription");
+    const normalized = method.toLowerCase();
+    if (normalized === "wallet") return tPayment("paymentMethods.wallet");
+    if (normalized === "banking") return tPayment("paymentMethods.banking");
+    if (normalized === "cash") return tPayment("paymentMethods.cash");
+    return method.toUpperCase();
+  };
+
+  const formatAppointmentType = (type?: string | null) => {
+    const normalized = type?.toLowerCase();
+    if (normalized === "new_problem")
+      return tPayment("appointmentType.newProblem");
+    if (normalized === "follow_up") return tPayment("appointmentType.followUp");
+    return tPayment("appointmentType.default");
+  };
+
+  const formatTimeLocalized = (isoDate: string) => {
+    if (!isoDate) return t("common.notAvailable");
+    return new Date(isoDate).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
+  const formatDateLocalized = (isoDate: string) => {
+    if (!isoDate) return t("common.notAvailable");
+    return new Date(isoDate).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
   // Updated renderContent with themed styling and subscription support
   const renderContent = () => {
     if (isLoading) {
@@ -319,19 +343,13 @@ export default function PaymentSuccessScreen() {
 
     if (paymentType === PaymentType.BOOKING && !appointment) {
       return (
-        <Text style={errorTextStyle}>
-          Your booking payment was successful, but we couldn't load the details.
-          Please check "My Schedule".
-        </Text>
+        <Text style={errorTextStyle}>{tPayment("errors.bookingMissing")}</Text>
       );
     }
 
     if (paymentType === PaymentType.ORDER && !order) {
       return (
-        <Text style={errorTextStyle}>
-          Your purchase payment was successful, but we couldn't load the
-          details. Please check your orders.
-        </Text>
+        <Text style={errorTextStyle}>{tPayment("errors.orderMissing")}</Text>
       );
     }
 
@@ -347,47 +365,64 @@ export default function PaymentSuccessScreen() {
 
       return (
         <View style={infoCardAccentStyle}>
-          <Text style={cardTitleStyle}>Subscription Details</Text>
+          <Text style={cardTitleStyle}>
+            {tPayment("subscriptionCard.title")}
+          </Text>
 
-          <Text style={sectionTitleStyle}>Summary</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("subscriptionCard.summary")}
+          </Text>
 
           <View style={styles.row}>
-            <Text style={labelStyle}>Plan Name:</Text>
+            <Text style={labelStyle}>
+              {tPayment("subscriptionCard.planName")}
+            </Text>
             <Text style={[valueStyle, styles.valuePlain]}>
-              {subscriptionInfo.planName || "Subscription Plan"}
+              {subscriptionInfo.planName ||
+                tPayment("subscriptionCard.fallbackPlan")}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Duration:</Text>
+            <Text style={labelStyle}>
+              {tPayment("subscriptionCard.duration")}
+            </Text>
             <Text style={[valueStyle, styles.valuePlain]}>
               {subscriptionInfo.durationInDays !== undefined
-                ? `${subscriptionInfo.durationInDays} days`
-                : "--"}
+                ? tPayment("subscriptionCard.durationValue", {
+                    count: subscriptionInfo.durationInDays,
+                  })
+                : t("common.notAvailable")}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Total Sessions:</Text>
+            <Text style={labelStyle}>
+              {tPayment("subscriptionCard.totalSessions")}
+            </Text>
             <Text style={[valueStyle, styles.valuePlain]}>
               {subscriptionInfo.totalSessions !== undefined
                 ? subscriptionInfo.totalSessions
-                : "--"}
+                : t("common.notAvailable")}
             </Text>
           </View>
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>Payment</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("subscriptionCard.payment")}
+          </Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={labelStyle}>{tPayment("labels.amountPaid")}</Text>
             <Text style={valueAmountStyle}>{amountDisplay}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Method:</Text>
-            <Text style={[valueStyle, styles.valuePlain]}>{methodLabel}</Text>
+            <Text style={labelStyle}>{tPayment("labels.method")}</Text>
+            <Text style={[valueStyle, styles.valuePlain]}>
+              {methodLabel || tPayment("paymentMethods.na")}
+            </Text>
           </View>
           {paymentCode ? (
             <View style={styles.row}>
-              <Text style={labelStyle}>Reference:</Text>
+              <Text style={labelStyle}>{tPayment("labels.reference")}</Text>
               <Text style={[valueStyle, styles.valuePlain]}>{paymentCode}</Text>
             </View>
           ) : null}
@@ -398,25 +433,27 @@ export default function PaymentSuccessScreen() {
     if (paymentType === "other") {
       return (
         <View style={infoCardAccentStyle}>
-          <Text style={cardTitleStyle}>Payment Successful</Text>
-          <Text style={sectionTitleStyle}>Details</Text>
+          <Text style={cardTitleStyle}>{tPayment("genericCard.title")}</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("genericCard.details")}
+          </Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={labelStyle}>{tPayment("labels.amountPaid")}</Text>
             <Text style={valueAmountStyle}>
               {formatCurrency(paymentData?.amount)}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Method:</Text>
+            <Text style={labelStyle}>{tPayment("labels.method")}</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
               {paymentData?.paymentMethod
                 ? formatPaymentMethodLabel(paymentData.paymentMethod)
-                : "N/A"}
+                : tPayment("paymentMethods.na")}
             </Text>
           </View>
           {paymentCode ? (
             <View style={styles.row}>
-              <Text style={labelStyle}>Reference:</Text>
+              <Text style={labelStyle}>{tPayment("labels.reference")}</Text>
               <Text style={[valueStyle, styles.valuePlain]}>{paymentCode}</Text>
             </View>
           ) : null}
@@ -432,9 +469,11 @@ export default function PaymentSuccessScreen() {
 
       return (
         <View style={infoCardBaseStyle}>
-          <Text style={cardTitleStyle}>Appointment Details</Text>
+          <Text style={cardTitleStyle}>{tPayment("bookingCard.title")}</Text>
 
-          <Text style={sectionTitleStyle}>Consultant</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("bookingCard.consultant")}
+          </Text>
           <View style={styles.doctorHeader}>
             <Image
               style={styles.doctorAvatar}
@@ -451,22 +490,26 @@ export default function PaymentSuccessScreen() {
                   { color: isDarkMode ? "#f5f5f5" : "#1a1a1a" },
                 ]}
               >
-                {appointment.dermatologist?.user?.fullName || "Dermatologist"}
+                {appointment.dermatologist?.user?.fullName ||
+                  tPayment("bookingCard.fallbackDoctor")}
               </Text>
             </View>
           </View>
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>Patient</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("bookingCard.patient")}
+          </Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Name:</Text>
+            <Text style={labelStyle}>{tPayment("bookingCard.name")}</Text>
             <Text style={valueStyle}>
-              {appointment.customer?.user?.fullName || "Patient"}
+              {appointment.customer?.user?.fullName ||
+                tPayment("bookingCard.fallbackPatient")}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Email:</Text>
+            <Text style={labelStyle}>{tPayment("bookingCard.email")}</Text>
             <Text style={emailValueStyle}>
               {appointment.customer?.user?.email}
             </Text>
@@ -474,21 +517,23 @@ export default function PaymentSuccessScreen() {
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>When</Text>
+          <Text style={sectionTitleStyle}>{tPayment("bookingCard.when")}</Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Date:</Text>
-            <Text style={valueStyle}>{formatDate(appointment.startTime)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={labelStyle}>Time:</Text>
+            <Text style={labelStyle}>{tPayment("bookingCard.date")}</Text>
             <Text style={valueStyle}>
-              {`${formatTime(appointment.startTime)} - ${formatTime(
-                appointment.endTime
-              )}`}
+              {formatDateLocalized(appointment.startTime)}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Type:</Text>
+            <Text style={labelStyle}>{tPayment("bookingCard.time")}</Text>
+            <Text style={valueStyle}>
+              {`${formatTimeLocalized(
+                appointment.startTime
+              )} - ${formatTimeLocalized(appointment.endTime)}`}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={labelStyle}>{tPayment("bookingCard.type")}</Text>
             <Text style={valueStyle}>
               {formatAppointmentType(appointment.appointmentType)}
             </Text>
@@ -496,9 +541,11 @@ export default function PaymentSuccessScreen() {
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>Payment</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("bookingCard.payment")}
+          </Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Amount Paid:</Text>
+            <Text style={labelStyle}>{tPayment("labels.amountPaid")}</Text>
             <Text style={valueAmountStyle}>
               {formatCurrency(
                 Number(appointment.payment?.amount || appointment.price)
@@ -506,7 +553,7 @@ export default function PaymentSuccessScreen() {
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Method:</Text>
+            <Text style={labelStyle}>{tPayment("labels.method")}</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
               {formatPaymentMethodLabel(
                 appointment.payment?.paymentMethod ?? undefined
@@ -520,21 +567,23 @@ export default function PaymentSuccessScreen() {
     if (paymentType === PaymentType.ORDER && order) {
       return (
         <View style={infoCardBaseStyle}>
-          <Text style={cardTitleStyle}>Purchase Details</Text>
+          <Text style={cardTitleStyle}>{tPayment("orderCard.title")}</Text>
 
-          <Text style={sectionTitleStyle}>Order Information</Text>
+          <Text style={sectionTitleStyle}>
+            {tPayment("orderCard.orderInfo")}
+          </Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Order ID:</Text>
+            <Text style={labelStyle}>{tPayment("orderCard.orderId")}</Text>
             <Text style={[valueStyle, styles.valuePlain]}>{order.orderId}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Status:</Text>
+            <Text style={labelStyle}>{tPayment("orderCard.status")}</Text>
             <Text style={[valueStyle, styles.valuePlain]}>{order.status}</Text>
           </View>
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>Items Purchased</Text>
+          <Text style={sectionTitleStyle}>{tPayment("orderCard.items")}</Text>
           {order.orderItems?.map((item, index) => (
             <View key={index} style={styles.row}>
               <Text style={labelStyle}>
@@ -548,9 +597,9 @@ export default function PaymentSuccessScreen() {
 
           <View style={dividerStyle} />
 
-          <Text style={sectionTitleStyle}>Payment</Text>
+          <Text style={sectionTitleStyle}>{tPayment("orderCard.payment")}</Text>
           <View style={styles.row}>
-            <Text style={labelStyle}>Total Paid:</Text>
+            <Text style={labelStyle}>{tPayment("labels.totalPaid")}</Text>
             <Text style={valueAmountStyle}>
               {formatCurrency(
                 orderService.calculateOrderTotal(order.orderItems)
@@ -558,13 +607,13 @@ export default function PaymentSuccessScreen() {
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={labelStyle}>Method:</Text>
+            <Text style={labelStyle}>{tPayment("labels.method")}</Text>
             <Text style={[valueStyle, styles.valuePlain]}>
               {order.payment?.paymentMethod
                 ? formatPaymentMethodLabel(order.payment.paymentMethod)
                 : paymentData?.paymentMethod
                 ? formatPaymentMethodLabel(paymentData.paymentMethod)
-                : "Bank Transfer"}
+                : tPayment("paymentMethods.banking")}
             </Text>
           </View>
         </View>
@@ -594,21 +643,21 @@ export default function PaymentSuccessScreen() {
         {/* Dynamic Title and Instructions */}
         <Text style={[styles.title, { color: "#28a745" }]}>
           {paymentType === PaymentType.BOOKING
-            ? "Booking Confirmed!"
+            ? tPayment("titles.booking")
             : paymentType === PaymentType.ORDER
-            ? "Purchase Successful!"
+            ? tPayment("titles.order")
             : paymentType === PaymentType.SUBSCRIPTION
-            ? "Subscription Activated!"
-            : "Payment Successful!"}
+            ? tPayment("titles.subscription")
+            : tPayment("titles.other")}
         </Text>
         <Text style={[styles.instructions, { color: secondaryTextColor }]}>
           {paymentType === PaymentType.BOOKING
-            ? "Your appointment has been successfully booked."
+            ? tPayment("messages.booking")
             : paymentType === PaymentType.ORDER
-            ? "Your purchase has been completed successfully."
+            ? tPayment("messages.order")
             : paymentType === PaymentType.SUBSCRIPTION
-            ? "Your subscription plan is active. Enjoy your benefits!"
-            : "Your payment has been processed successfully."}
+            ? tPayment("messages.subscription")
+            : tPayment("messages.other")}
         </Text>
 
         {/* Dynamic Content */}
@@ -631,10 +680,10 @@ export default function PaymentSuccessScreen() {
         >
           <Text style={styles.scheduleButtonText}>
             {paymentType === PaymentType.BOOKING
-              ? "Go to My Schedule"
+              ? tPayment("buttons.schedule")
               : paymentType === PaymentType.ORDER
-              ? "Continue Shopping"
-              : "Back to Home"}
+              ? tPayment("buttons.shopping")
+              : tPayment("buttons.home")}
           </Text>
         </Pressable>
       </View>

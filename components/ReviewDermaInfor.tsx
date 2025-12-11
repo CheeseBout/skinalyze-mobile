@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import RatingComponent from "@/components/RatingComponent";
 import ratingService from "@/services/ratingService";
 import { DermatologistRating } from "@/types/rating.type";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_LIMIT = 5;
 
@@ -21,19 +22,20 @@ type ReviewDermaInforProps = {
   primaryColor: string;
 };
 
-const ratingFilters: Array<{ label: string; value?: number }> = [
-  { label: "All" },
-  { label: "5", value: 5 },
-  { label: "4", value: 4 },
-  { label: "3", value: 3 },
-  { label: "2", value: 2 },
-  { label: "1", value: 1 },
+const ratingFilters: Array<{ value?: number }> = [
+  { value: undefined },
+  { value: 5 },
+  { value: 4 },
+  { value: 3 },
+  { value: 2 },
+  { value: 1 },
 ];
 
 const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
   dermatologistId,
   primaryColor,
 }) => {
+  const { t } = useTranslation("translation", { keyPrefix: "reviewDerm" });
   const [ratings, setRatings] = useState<DermatologistRating[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -73,7 +75,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
           append ? [...prev, ...response.items] : response.items
         );
       } catch (err: any) {
-        setError(err?.message || "Failed to load reviews.");
+        setError(err?.message || t("error"));
         setHasMore(false);
         if (!append) {
           setRatings([]);
@@ -82,7 +84,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
         append ? setIsLoadingMore(false) : setIsLoading(false);
       }
     },
-    [dermatologistId, ratingFilter]
+    [dermatologistId, ratingFilter, t]
   );
 
   useEffect(() => {
@@ -108,7 +110,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
 
   const renderReview = (rating: DermatologistRating) => {
     const avatarUrl = rating.customer?.user?.photoUrl || null;
-    const fullName = rating.customer?.user?.fullName || "Anonymous patient";
+    const fullName = rating.customer?.user?.fullName || t("anonymous");
     const createdAt = rating.createdAt
       ? new Date(rating.createdAt).toLocaleDateString()
       : "";
@@ -145,11 +147,11 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Patient Reviews</Text>
+        <Text style={styles.title}>{t("title")}</Text>
         <Text style={styles.subtitle}>
           {total > 0
-            ? `${averageRating}★ · ${total} reviews`
-            : "No reviews yet"}
+            ? t("subtitleWithData", { average: averageRating, total })
+            : t("subtitleEmpty")}
         </Text>
       </View>
 
@@ -161,9 +163,12 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
       >
         {ratingFilters.map((filter, index) => {
           const isActive = ratingFilter === filter.value;
+          const label = filter.value
+            ? t("filters.star", { value: filter.value })
+            : t("filters.all");
           return (
             <Pressable
-              key={filter.label}
+              key={filter.value ?? "all"}
               onPress={() => handleSelectRatingFilter(filter.value)}
               style={[
                 styles.chip,
@@ -176,7 +181,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
                   <Text
                     style={[styles.chipText, isActive && { color: "#fff" }]}
                   >
-                    {filter.label}
+                    {label}
                   </Text>
                   <Ionicons
                     name="star"
@@ -187,7 +192,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
                 </View>
               ) : (
                 <Text style={[styles.chipText, isActive && { color: "#fff" }]}>
-                  {filter.label}
+                  {label}
                 </Text>
               )}
             </Pressable>
@@ -204,7 +209,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {!isLoading && !ratings.length && !error ? (
-        <Text style={styles.emptyText}>No reviews match your filters.</Text>
+        <Text style={styles.emptyText}>{t("empty")}</Text>
       ) : null}
 
       {ratings.map(renderReview)}
@@ -221,7 +226,7 @@ const ReviewDermaInfor: React.FC<ReviewDermaInforProps> = ({
           onPress={handleShowMore}
         >
           <Text style={[styles.showMoreText, { color: primaryColor }]}>
-            Show more
+            {t("showMore")}
           </Text>
         </Pressable>
       ) : null}
