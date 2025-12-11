@@ -3,9 +3,16 @@
     "notAvailable": "N/A",
     "cancel": "Cancel",
     "ok": "OK",
-    "error": "Error"
+    "error": "Error",
+    "yes": "Yes",
+    "no": "No",
+    "unauthorized": "Unauthorized. Please login again."
   },
   "profile": {
+    "ok": "OK",
+    "topUp": "Top Up",
+    "withdraw": "Withdraw",
+    "history": "History",
     "title": "My Profile",
     "loading": "Loading profile...",
     "analysis": "Analysis",
@@ -25,6 +32,7 @@
     "address": "Address",
     "home": "Home",
     "walletBalance": "Wallet Balance",
+    "withdrawalHistory": "Withdrawal History",
     "verified": "Verified",
     "unverified": "Unverified",
     "saveChanges": "Save Changes",
@@ -260,7 +268,9 @@
       "combination": "Combination",
       "normal": "Normal",
       "sensitive": "Sensitive"
-    }
+    },
+    "noFaceDetectedTitle": "No Face Detected",
+    "noFaceDetectedMsg": "We could not find a face in the image. Please ensure your face is well-lit and centered."
   },
   "appointments": {
     "title": "My Appointments",
@@ -286,7 +296,6 @@
       "interrupted": "Interrupted",
       "disputed": "Disputed"
     },
-
     "cards": {
       "date": "Date",
       "time": "Time",
@@ -580,9 +589,12 @@
     "cancelOrder": "Cancel Order",
     "reorder": "Reorder",
     "contactSupport": "Contact Support",
+    "writeReview": "Write Review",
     "cancelTitle": "Cancel Order",
     "cancelConfirm": "Are you sure you want to cancel this order?",
     "cancel": "No",
+    "success": "Success",
+    "orderCompleted": "Order completed successfully",
     "confirmCancel": "Yes, Cancel",
     "cancelSuccess": "Order cancelled successfully",
     "cancelError": "Failed to cancel order",
@@ -808,6 +820,7 @@
     "anySkinArea": "Any Skin Area",
     "aiPowered": "AI-Powered Analysis",
     "manualEntry": "Manual Entry",
+    "recordSaved": "Record Saved",
     "recordWithoutCamera": "Record Analysis Without Camera",
     "resultsInformational": "The analysis results are for informational purposes only and should not replace professional medical advice.",
     "chooseSkinArea": "Choose Skin Area",
@@ -816,7 +829,12 @@
     "otherSkinArea": "Other Skin Area",
     "useBackCamera": "Use Back Camera for Other Areas",
     "positionFaceDisease": "Position the affected skin area within the frame",
-    "holdCameraClose": "Hold the camera close to the skin"
+    "holdCameraClose": "Hold the camera close to the skin",
+    "analysisFailed": "Analysis Failed",
+    "ok": "OK",
+    "aiProcessing": "AI is processing your image, please wait...",
+    "noFaceDetectedTitle": "No Face Detected",
+    "noFaceDetectedMsg": "We could not find a face in the image. Please ensure your face is well-lit and centered."
   },
   "manualEntry": {
     "title": "Manual Entry",
@@ -1176,6 +1194,73 @@
       "cancelling": "Cancelling...",
       "stay": "Stay",
       "cancellingOverlay": "Cancelling Reservation..."
+    }
+  },
+  "returnRequest": {
+    "title": "Return Request",
+    "myRequests": "My Return Requests",
+    "loading": "Loading...",
+    "empty": "No return requests",
+    "emptyDesc": "Your return requests will appear here",
+    "selectReason": "Select Return Reason",
+    "description": "Detailed Description",
+    "descriptionPlaceholder": "Please describe the issue with your order...",
+    "evidencePhotos": "Evidence Photos (Optional)",
+    "evidencePhotosDesc": "Upload up to 5 photos showing the issue",
+    "addPhoto": "Add Photo",
+    "submit": "Submit Request",
+    "orderId": "Order ID:",
+    "reason": "Reason:",
+    "cancel": "Cancel Request",
+    "cancelTitle": "Cancel Request",
+    "cancelConfirm": "Are you sure you want to cancel this return request?",
+    "cancelSuccess": "Return request cancelled successfully",
+    "cancelError": "Failed to cancel return request",
+    "success": "Success",
+    "error": "Error",
+    "requestCreated": "Return request submitted successfully",
+    "createError": "Failed to create return request",
+    "selectReasonError": "Please select a return reason",
+    "provideDetailsError": "Please provide detailed description",
+    "requestReturn": "Request Return",
+    "reasons": {
+      "damaged": "Damaged Product",
+      "wrong_item": "Wrong Item",
+      "defective": "Defective/Faulty",
+      "not_as_described": "Not As Described",
+      "change_mind": "Changed Mind",
+      "other": "Other Reason"
+    },
+    "status": {
+      "pending": "Pending Review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "withdrawalRequests": {
+    "title": "Withdrawal History",
+    "loading": "Loading...",
+    "empty": "No withdrawal requests",
+    "emptyDesc": "Your withdrawal requests will appear here",
+    "withdrawalAmount": "Withdrawal Amount",
+    "bank": "Bank:",
+    "accountNumber": "Account No.:",
+    "accountHolder": "Account Holder:",
+    "notes": "Notes:",
+    "rejectionReason": "Rejection Reason",
+    "verified": "Verified:",
+    "approved": "Approved:",
+    "completed": "Completed:",
+    "status": {
+      "pending": "Pending",
+      "verified": "Verified",
+      "approved": "Approved",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
     }
   }
 }

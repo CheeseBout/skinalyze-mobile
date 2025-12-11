@@ -3,9 +3,16 @@
     "notAvailable": "Không khả dụng",
     "cancel": "Hủy",
     "ok": "OK",
-    "error": "Lỗi"
+    "error": "Lỗi",
+    "yes": "Có",
+    "no": "Không",
+    "unauthorized": "Chưa xác thực. Vui lòng đăng nhập lại."
   },
   "profile": {
+    "ok": "OK",
+    "topUp": "Nạp Tiền",
+    "withdraw": "Rút Tiền",
+    "history": "Lịch Sử",
     "title": "Hồ Sơ Của Tôi",
     "loading": "Đang tải hồ sơ...",
     "analysis": "Phân Tích",
@@ -25,6 +32,7 @@
     "address": "Địa Chỉ",
     "home": "Nhà",
     "walletBalance": "Số Dư Ví",
+    "withdrawalHistory": "Lịch Sử Rút Tiền",
     "verified": "Đã Xác Minh",
     "unverified": "Chưa Xác Minh",
     "saveChanges": "Lưu Thay Đổi",
@@ -1086,6 +1094,73 @@
       "cancelling": "Đang hủy...",
       "stay": "Ở lại",
       "cancellingOverlay": "Đang hủy giữ chỗ..."
+    }
+  },
+  "returnRequest": {
+    "title": "Yêu cầu trả hàng",
+    "myRequests": "Yêu cầu trả hàng của tôi",
+    "loading": "Đang tải...",
+    "empty": "Chưa có yêu cầu trả hàng",
+    "emptyDesc": "Các yêu cầu trả hàng của bạn sẽ hiển thị ở đây",
+    "selectReason": "Chọn lý do trả hàng",
+    "description": "Mô tả chi tiết",
+    "descriptionPlaceholder": "Vui lòng mô tả vấn đề với đơn hàng của bạn...",
+    "evidencePhotos": "Ảnh minh chứng (Tùy chọn)",
+    "evidencePhotosDesc": "Tải lên tối đa 5 ảnh minh chứng vấn đề",
+    "addPhoto": "Thêm ảnh",
+    "submit": "Gửi yêu cầu",
+    "orderId": "Mã đơn hàng:",
+    "reason": "Lý do:",
+    "cancel": "Hủy yêu cầu",
+    "cancelTitle": "Hủy yêu cầu",
+    "cancelConfirm": "Bạn có chắc chắn muốn hủy yêu cầu trả hàng này?",
+    "cancelSuccess": "Đã hủy yêu cầu trả hàng thành công",
+    "cancelError": "Không thể hủy yêu cầu trả hàng",
+    "success": "Thành công",
+    "error": "Lỗi",
+    "requestCreated": "Đã gửi yêu cầu trả hàng thành công",
+    "createError": "Không thể tạo yêu cầu trả hàng",
+    "selectReasonError": "Vui lòng chọn lý do trả hàng",
+    "provideDetailsError": "Vui lòng cung cấp mô tả chi tiết",
+    "requestReturn": "Yêu cầu trả hàng",
+    "reasons": {
+      "damaged": "Sản phẩm bị hỏng",
+      "wrong_item": "Sai sản phẩm",
+      "defective": "Bị lỗi/hư hỏng",
+      "not_as_described": "Không đúng mô tả",
+      "change_mind": "Đổi ý",
+      "other": "Lý do khác"
+    },
+    "status": {
+      "pending": "Chờ duyệt",
+      "approved": "Đã duyệt",
+      "rejected": "Đã từ chối",
+      "in_progress": "Đang xử lý",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy"
+    }
+  },
+  "withdrawalRequests": {
+    "title": "Lịch sử rút tiền",
+    "loading": "Đang tải...",
+    "empty": "Chưa có yêu cầu rút tiền",
+    "emptyDesc": "Các yêu cầu rút tiền của bạn sẽ được hiển thị ở đây",
+    "withdrawalAmount": "Số tiền rút",
+    "bank": "Ngân hàng:",
+    "accountNumber": "Số TK:",
+    "accountHolder": "Chủ TK:",
+    "notes": "Ghi chú:",
+    "rejectionReason": "Lý do từ chối",
+    "verified": "Xác minh:",
+    "approved": "Duyệt:",
+    "completed": "Hoàn thành:",
+    "status": {
+      "pending": "Đang chờ",
+      "verified": "Đã xác minh",
+      "approved": "Đã duyệt",
+      "completed": "Hoàn thành",
+      "rejected": "Từ chối",
+      "cancelled": "Đã hủy"
     }
   }
 }

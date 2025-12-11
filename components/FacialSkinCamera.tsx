@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface FacialSkinCameraProps {
-  onCapture?: (imageUri: string) => void;
+  // Update type to allow Promise so we can wait for analysis to finish
+  onCapture?: (imageUri: string) => Promise<void> | void; 
   onClose: () => void;
   initialFacing?: 'front' | 'back';
   title?: string;
@@ -21,7 +22,11 @@ export default function FacialSkinCamera({
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
-  const {primaryColor} = useThemeColor()
+  
+  // Optional: Handle case where hook might be missing or return different structure
+  // If useThemeColor context isn't available, default to a color
+  const theme = useThemeColor ? useThemeColor() : { primaryColor: '#007AFF' };
+  const primaryColor = theme.primaryColor || '#007AFF';
 
   if (!permission) {
     return (
@@ -49,6 +54,7 @@ export default function FacialSkinCamera({
     }
 
     setIsProcessing(true);
+    
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
@@ -59,12 +65,19 @@ export default function FacialSkinCamera({
       }
 
       if (onCapture) {
-        onCapture(photo.uri);
+        // IMPORTANT: Await the parent function. 
+        // This keeps the spinner active while analysis happens,
+        // and ensures we hit the finally block afterwards.
+        await onCapture(photo.uri);
       }
 
     } catch (error) {
       console.error('Error taking picture:', error);
-      Alert.alert('Error', 'Failed to capture image');
+      // Note: We don't alert here if it's a "No face detected" error 
+      // because AnalyzeScreen handles the specific Alert UI.
+    } finally {
+      // CRITICAL FIX: This ensures the button stops spinning 
+      // regardless of whether the analysis succeeded or failed.
       setIsProcessing(false);
     }
   };
@@ -103,7 +116,7 @@ export default function FacialSkinCamera({
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="large" color="#fff" />
+              <ActivityIndicator size="large" color={primaryColor} />
             ) : (
               <View style={styles.captureButtonInner} />
             )}
@@ -133,7 +146,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 20,
+    paddingTop: 50, // Adjusted for better safe area spacing
     paddingHorizontal: 20,
     pointerEvents: 'box-none',
   },
@@ -235,7 +248,8 @@ const styles = StyleSheet.create({
     pointerEvents: 'auto',
   },
   captureButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.8,
+    backgroundColor: '#e0e0e0',
   },
   captureButtonInner: {
     width: 60,

@@ -93,6 +93,39 @@ interface UploadPhotoResponse {
   timestamp: string;
 }
 
+// Withdrawal Request Interfaces
+export interface WithdrawalRequest {
+  requestId: string;
+  userId: string;
+  fullName: string;
+  amount: string;
+  type: "withdraw";
+  bankName: string;
+  accountNumber: string;
+  status:
+    | "pending"
+    | "verified"
+    | "approved"
+    | "rejected"
+    | "completed"
+    | "cancelled";
+  notes: string | null;
+  rejectionReason: string | null;
+  verifiedAt: string | null;
+  approvedAt: string | null;
+  completedAt: string | null;
+  approvedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface WithdrawalRequestsResponse {
+  statusCode: number;
+  message: string;
+  data: WithdrawalRequest[];
+  timestamp: string;
+}
+
 // --- Re-export GHN Interfaces for backward compatibility ---
 export type Province = GHNProvince;
 export type District = GHNDistrict;
@@ -229,6 +262,21 @@ class UserService {
     } catch (error) {
       console.error("Error fetching user balance:", error);
       throw new Error("Failed to fetch user balance");
+    }
+  }
+
+  /**
+   * Get user's withdrawal requests
+   */
+  async getWithdrawalRequests(token: string): Promise<WithdrawalRequest[]> {
+    try {
+      const response = await apiService.get<WithdrawalRequestsResponse>(
+        "/withdrawals/my-requests"
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching withdrawal requests:", error);
+      throw new Error("Failed to fetch withdrawal requests");
     }
   }
 

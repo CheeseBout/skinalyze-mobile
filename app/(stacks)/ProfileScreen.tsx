@@ -57,7 +57,7 @@ export default function ProfileScreen() {
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
-    type: 'success' | 'error' | 'warning' | 'info';
+    type: "success" | "error" | "warning" | "info";
     title: string;
     message: string;
     confirmText?: string;
@@ -65,18 +65,18 @@ export default function ProfileScreen() {
     onConfirm: () => void;
     onCancel?: () => void;
   }>({
-    type: 'info',
-    title: '',
-    message: '',
+    type: "info",
+    title: "",
+    message: "",
     onConfirm: () => {},
   });
 
   // Helper function to show alert
   const showAlert = (
-    type: 'success' | 'error' | 'warning' | 'info',
+    type: "success" | "error" | "warning" | "info",
     title: string,
     message: string,
-    confirmText: string = t('profile.ok'),
+    confirmText: string = t("profile.ok"),
     onConfirm: () => void = () => {},
     cancelText?: string,
     onCancel?: () => void
@@ -91,10 +91,12 @@ export default function ProfileScreen() {
         setAlertVisible(false);
         onConfirm();
       },
-      onCancel: onCancel ? () => {
-        setAlertVisible(false);
-        onCancel();
-      } : undefined,
+      onCancel: onCancel
+        ? () => {
+            setAlertVisible(false);
+            onCancel();
+          }
+        : undefined,
     });
     setAlertVisible(true);
   };
@@ -149,7 +151,7 @@ export default function ProfileScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       showAlert(
-        'warning',
+        "warning",
         t("profile.permissionRequired"),
         t("profile.galleryPermissionMessage")
       );
@@ -174,7 +176,7 @@ export default function ProfileScreen() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       showAlert(
-        'warning',
+        "warning",
         t("profile.permissionRequired"),
         t("profile.cameraPermissionMessage")
       );
@@ -195,7 +197,7 @@ export default function ProfileScreen() {
 
   const handleSelectPhoto = () => {
     showAlert(
-      'info',
+      "info",
       t("profile.changePhoto"),
       t("profile.selectPhotoSource"),
       t("profile.takePhoto"),
@@ -210,11 +212,7 @@ export default function ProfileScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        showAlert(
-          'error',
-          t("profile.error"),
-          t("profile.loginAgain")
-        );
+        showAlert("error", t("profile.error"), t("profile.loginAgain"));
         return;
       }
 
@@ -227,7 +225,7 @@ export default function ProfileScreen() {
         } catch (photoError: any) {
           console.error("Error uploading photo:", photoError);
           showAlert(
-            'error',
+            "error",
             t("profile.error"),
             t("profile.failedPhotoUpload")
           );
@@ -243,15 +241,11 @@ export default function ProfileScreen() {
 
       setIsEditing(false);
       setSelectedPhotoUri(null);
-      
-      showAlert(
-        'success',
-        t("profile.success"),
-        t("profile.profileUpdated")
-      );
+
+      showAlert("success", t("profile.success"), t("profile.profileUpdated"));
     } catch (error: any) {
       showAlert(
-        'error',
+        "error",
         t("profile.error"),
         error.message || t("profile.failedUpdate")
       );
@@ -274,7 +268,7 @@ export default function ProfileScreen() {
 
   const handleDeleteAddress = async (addressId: string) => {
     showAlert(
-      'warning',
+      "warning",
       t("profile.deleteAddress"),
       t("profile.deleteAddressConfirm"),
       t("profile.delete"),
@@ -285,15 +279,15 @@ export default function ProfileScreen() {
 
           await userService.deleteAddress(token, addressId);
           await refreshUser();
-          
+
           showAlert(
-            'success',
+            "success",
             t("profile.success"),
             t("profile.addressDeleted")
           );
         } catch (error: any) {
           showAlert(
-            'error',
+            "error",
             t("profile.error"),
             error.message || t("profile.failedDelete")
           );
@@ -306,7 +300,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     showAlert(
-      'warning',
+      "warning",
       t("profile.logout"),
       t("profile.logoutConfirm"),
       t("profile.logout"),
@@ -424,7 +418,10 @@ export default function ProfileScreen() {
                   <ActivityIndicator size="small" color={primaryColor} />
                 </View>
               ) : selectedPhotoUri ? (
-                <Image source={{ uri: selectedPhotoUri }} style={styles.avatar} />
+                <Image
+                  source={{ uri: selectedPhotoUri }}
+                  style={styles.avatar}
+                />
               ) : user.photoUrl ? (
                 <Image source={{ uri: user.photoUrl }} style={styles.avatar} />
               ) : (
@@ -457,7 +454,9 @@ export default function ProfileScreen() {
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: user.isVerified ? "#34C759" : "#FF9500" },
+                    {
+                      backgroundColor: user.isVerified ? "#34C759" : "#FF9500",
+                    },
                   ]}
                 >
                   <Ionicons
@@ -526,13 +525,13 @@ export default function ProfileScreen() {
               { backgroundColor: `${primaryColor}08` },
             ]}
           >
-            <View style={styles.balanceLeft}>
+            <View style={styles.balanceInfo}>
               <View
                 style={[styles.balanceIcon, { backgroundColor: primaryColor }]}
               >
                 <Ionicons name="wallet-outline" size={22} color="#FFFFFF" />
               </View>
-              <View>
+              <View style={styles.balanceTextContainer}>
                 <Text style={styles.balanceLabel}>
                   {t("profile.walletBalance")}
                 </Text>
@@ -547,23 +546,62 @@ export default function ProfileScreen() {
                 )}
               </View>
             </View>
+
             <View style={styles.balanceActions}>
               <TouchableOpacity
-                style={[styles.topUpButton, { backgroundColor: primaryColor }]}
+                style={styles.balanceActionButton}
                 onPress={() => router.push("/(stacks)/TopUpScreen")}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
-                <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+                <View
+                  style={[
+                    styles.actionIconCircle,
+                    { backgroundColor: primaryColor },
+                  ]}
+                >
+                  <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                </View>
+                <Text style={styles.actionButtonText}>
+                  {t("profile.topUp")}
+                </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[
-                  styles.withdrawButton,
-                  { backgroundColor: primaryColor },
-                ]}
+                style={styles.balanceActionButton}
                 onPress={() => router.push("/(stacks)/WithdrawalScreen")}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
-                <Ionicons name="download-outline" size={16} color="#FFFFFF" />
+                <View
+                  style={[
+                    styles.actionIconCircle,
+                    { backgroundColor: primaryColor },
+                  ]}
+                >
+                  <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                </View>
+                <Text style={styles.actionButtonText}>
+                  {t("profile.withdraw")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.balanceActionButton}
+                onPress={() =>
+                  router.push("/(stacks)/WithdrawalRequestsScreen")
+                }
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.actionIconCircle,
+                    { backgroundColor: primaryColor },
+                  ]}
+                >
+                  <Ionicons name="time-outline" size={18} color="#FFFFFF" />
+                </View>
+                <Text style={styles.actionButtonText}>
+                  {t("profile.history")}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1162,16 +1200,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   balanceCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     padding: 16,
     borderRadius: 16,
   },
-  balanceLeft: {
+  balanceInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    marginBottom: 16,
+  },
+  balanceTextContainer: {
     flex: 1,
   },
   balanceIcon: {
@@ -1194,31 +1232,31 @@ const styles = StyleSheet.create({
   },
   balanceActions: {
     flexDirection: "row",
+    justifyContent: "space-between",
     gap: 8,
   },
-  topUpButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  balanceActionButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  actionIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
     elevation: 2,
   },
-  withdrawButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+  actionButtonText: {
+    fontSize: 11,
+    color: "#333",
+    fontWeight: "600",
   },
   quickActions: {
     flexDirection: "row",
