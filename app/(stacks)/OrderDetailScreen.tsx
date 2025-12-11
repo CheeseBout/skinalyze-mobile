@@ -594,7 +594,7 @@ export default function OrderDetailScreen() {
                   },
                 ]}
               >
-                {order.payment.status === "PAID"
+                {order.payment.status === "completed"
                   ? t("orderDetail.paid")
                   : t("orderDetail.unpaid")}
               </Text>
