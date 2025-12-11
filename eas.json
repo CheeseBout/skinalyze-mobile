@@ -6,13 +6,37 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_BASE_API_URL": "https://api.nhatlonh.id.vn/api/v1",
+        "EXPO_PUBLIC_GOONG_API_KEY": "Ny4yDb3an9eOyZarpwVwEBZgfJ1vYfCqM30pQtqX",
+        "EXPO_PUBLIC_GOONG_MAP_KEY": "9GnzoyZnBcqEx4HUjPcRi48BzFQSNtPTVBqh0R8d",
+        "EXPO_PUBLIC_GHN_TOKEN": "2841e3d4-ab04-11f0-b040-4e257d8388b4",
+        "EXPO_PUBLIC_GHN_SHOP_ID": "197622"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BASE_API_URL": "https://api.nhatlonh.id.vn/api/v1",
+        "EXPO_PUBLIC_GOONG_API_KEY": "Ny4yDb3an9eOyZarpwVwEBZgfJ1vYfCqM30pQtqX",
+        "EXPO_PUBLIC_GOONG_MAP_KEY": "9GnzoyZnBcqEx4HUjPcRi48BzFQSNtPTVBqh0R8d",
+        "EXPO_PUBLIC_GHN_TOKEN": "2841e3d4-ab04-11f0-b040-4e257d8388b4",
+        "EXPO_PUBLIC_GHN_SHOP_ID": "197622"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_BASE_API_URL": "https://api.nhatlonh.id.vn/api/v1",
+        "EXPO_PUBLIC_GOONG_API_KEY": "Ny4yDb3an9eOyZarpwVwEBZgfJ1vYfCqM30pQtqX",
+        "EXPO_PUBLIC_GOONG_MAP_KEY": "9GnzoyZnBcqEx4HUjPcRi48BzFQSNtPTVBqh0R8d",
+        "EXPO_PUBLIC_GHN_TOKEN": "2841e3d4-ab04-11f0-b040-4e257d8388b4",
+        "EXPO_PUBLIC_GHN_SHOP_ID": "197622"
+      }
     },
     "development-simulator": {
       "developmentClient": true,
@@ -20,7 +44,14 @@
       "ios": {
         "simulator": true
       },
-      "environment": "development"
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_BASE_API_URL": "https://api.nhatlonh.id.vn/api/v1",
+        "EXPO_PUBLIC_GOONG_API_KEY": "Ny4yDb3an9eOyZarpwVwEBZgfJ1vYfCqM30pQtqX",
+        "EXPO_PUBLIC_GOONG_MAP_KEY": "9GnzoyZnBcqEx4HUjPcRi48BzFQSNtPTVBqh0R8d",
+        "EXPO_PUBLIC_GHN_TOKEN": "2841e3d4-ab04-11f0-b040-4e257d8388b4",
+        "EXPO_PUBLIC_GHN_SHOP_ID": "197622"
+      }
     }
   },
   "submit": {
