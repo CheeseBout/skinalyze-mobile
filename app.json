@@ -28,7 +28,18 @@
       "usesCleartextTraffic": true,
       "package": "com.baolncse183721.skinalyzemobile",
       "notificationPermission": "Allow $(PRODUCT_NAME) to send you notifications.",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -66,7 +77,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e6156a4b-9856-4065-ba2a-0e78b4513676"
+        "projectId": "5d1883cb-9b8e-4f21-833b-c99329883c68"
       }
     }
   }
