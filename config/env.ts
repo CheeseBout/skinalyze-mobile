@@ -16,7 +16,9 @@ export const config = {
   GHN_TOKEN:
     process.env.EXPO_PUBLIC_GHN_TOKEN || "3ea563c2-a47c-11ef-8e53-0a00184fe694",
   GHN_SHOP_ID: process.env.EXPO_PUBLIC_GHN_SHOP_ID || "5381948",
-  GHN_API_URL: "https://dev-online-gateway.ghn.vn/shiip/public-api",
+  GHN_API_URL:
+    process.env.EXPO_PUBLIC_GHN_API_URL ||
+    "https://dev-online-gateway.ghn.vn/shiip/public-api",
 
   // Goong API endpoints
   GOONG_BASE_URL: "https://rsapi.goong.io",
