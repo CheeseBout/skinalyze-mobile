@@ -1441,5 +1441,35 @@
       "rejected": "Rejected",
       "cancelled": "Cancelled"
     }
+  },
+  "paymentHistory": {
+    "title": "Payment History",
+    "loading": "Loading payment history...",
+    "loadingMore": "Loading more...",
+    "empty": "No Payment History",
+    "emptyDesc": "Your payment transactions will appear here",
+    "retry": "Try Again",
+    "totalTransactions": "Total Transactions",
+    "currentPage": "Current Page",
+    "paidAt": "Paid at",
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "expired": "Expired",
+      "refunded": "Refunded"
+    },
+    "types": {
+      "topup": "Top Up",
+      "withdraw": "Withdrawal"
+    },
+    "status": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "expired": "Expired",
+      "refunded": "Refunded"
+    }
   }
 }

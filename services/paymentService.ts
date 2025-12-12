@@ -53,6 +53,37 @@ export interface PaymentStatusResponse {
   } | null;
 }
 
+export interface WalletTransaction {
+  paymentId: number;
+  paymentCode: string;
+  status: "pending" | "completed" | "failed" | "expired" | "refunded";
+  amount: string;
+  paidAmount?: string;
+  paymentMethod?: string | null;
+  paymentType: "topup" | "withdraw";
+  createdAt: string;
+  paidAt?: string | null;
+  expiredAt?: string;
+  userId: string;
+  orderId?: string | null;
+  user?: {
+    userId: string;
+    email: string;
+    fullName: string;
+    photoUrl?: string;
+    phone?: string;
+    role: string;
+  };
+}
+
+export interface WalletTransactionsResponse {
+  data: WalletTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface Bank {
   id: number;
   name: string;
@@ -127,6 +158,48 @@ class PaymentService {
     } catch (error) {
       console.error("Error checking payment status:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Get wallet transactions (TOPUP and WITHDRAW only)
+   */
+  async getWalletTransactions(
+    page: number = 1,
+    limit: number = 10,
+    status?: "pending" | "completed" | "failed" | "expired" | "refunded"
+  ): Promise<WalletTransactionsResponse> {
+    try {
+      const params: Record<string, any> = {
+        page,
+        limit,
+      };
+
+      if (status) {
+        params.status = status;
+      }
+
+      const response = await apiService.get<any>(
+        "/payments/wallet/transactions",
+        {
+          params,
+        }
+      );
+
+      console.log("Full API response:", response);
+
+      // API returns { success: true, data: [...], total, page, limit, totalPages }
+      // We need to return the whole response structure (excluding success field)
+      return {
+        data: response.data || [],
+        total: response.total || 0,
+        page: response.page || 1,
+        limit: response.limit || 10,
+        totalPages: response.totalPages || 1,
+      };
+    } catch (error: any) {
+      console.error("Error fetching wallet transactions:", error);
+      throw new Error(error.message || "Failed to fetch wallet transactions");
     }
   }
 }

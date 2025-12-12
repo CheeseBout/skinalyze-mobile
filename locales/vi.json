@@ -1303,5 +1303,35 @@
       "rejected": "Từ chối",
       "cancelled": "Đã hủy"
     }
+  },
+  "paymentHistory": {
+    "title": "Lịch sử thanh toán",
+    "loading": "Đang tải lịch sử thanh toán...",
+    "loadingMore": "Đang tải thêm...",
+    "empty": "Chưa có lịch sử thanh toán",
+    "emptyDesc": "Các giao dịch thanh toán của bạn sẽ được hiển thị ở đây",
+    "retry": "Thử lại",
+    "totalTransactions": "Tổng giao dịch",
+    "currentPage": "Trang hiện tại",
+    "paidAt": "Thanh toán lúc",
+    "filters": {
+      "all": "Tất cả",
+      "pending": "Đang chờ",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại",
+      "expired": "Đã hết hạn",
+      "refunded": "Đã hoàn tiền"
+    },
+    "types": {
+      "topup": "Nạp tiền",
+      "withdraw": "Rút tiền"
+    },
+    "status": {
+      "pending": "Đang chờ",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại",
+      "expired": "Đã hết hạn",
+      "refunded": "Đã hoàn tiền"
+    }
   }
 }

@@ -587,7 +587,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={styles.balanceActionButton}
                 onPress={() =>
-                  router.push("/(stacks)/WithdrawalRequestsScreen")
+                  router.push("/(stacks)/PaymentHistoryScreen")
                 }
                 activeOpacity={0.7}
               >
@@ -597,7 +597,7 @@ export default function ProfileScreen() {
                     { backgroundColor: primaryColor },
                   ]}
                 >
-                  <Ionicons name="time-outline" size={18} color="#FFFFFF" />
+                  <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
                 </View>
                 <Text style={styles.actionButtonText}>
                   {t("profile.history")}

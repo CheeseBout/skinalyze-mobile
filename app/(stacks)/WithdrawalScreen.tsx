@@ -22,6 +22,7 @@ import tokenService from "@/services/tokenService";
 import userService from "@/services/userService";
 import withdrawalService from "@/services/withdrawalService";
 import paymentService, { Bank } from "@/services/paymentService";
+import OTPInput from "@/components/OTPInput";
 
 export default function WithdrawalScreen() {
   const router = useRouter();
@@ -385,23 +386,14 @@ export default function WithdrawalScreen() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Verification Code</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons
-                    name="keypad-outline"
-                    size={20}
-                    color="#666"
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter OTP"
-                    value={otp}
-                    onChangeText={setOtp}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    editable={!loading}
-                  />
-                </View>
+                <OTPInput
+                  length={6}
+                  value={otp}
+                  onChangeText={setOtp}
+                  onComplete={(code) => setOtp(code)}
+                  primaryColor={primaryColor}
+                  disabled={loading}
+                />
               </View>
 
               <View style={styles.otpActions}>
