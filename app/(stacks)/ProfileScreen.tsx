@@ -44,6 +44,8 @@ export default function ProfileScreen() {
   const [currency, setCurrency] = useState<string>("VND");
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
+  
+  // Note: Gender is not included in formData because it is read-only
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
@@ -321,6 +323,20 @@ export default function ProfileScreen() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  // Helper to display Gender text based on boolean
+  const getGenderText = (gender: boolean | undefined | null) => {
+    if (gender === true) return t("profile.male");
+    if (gender === false) return t("profile.female");
+    return t("profile.notSet");
+  };
+
+  // Helper to get Gender Icon
+  const getGenderIcon = (gender: boolean | undefined | null) => {
+    if (gender === true) return "male";
+    if (gender === false) return "female";
+    return "person-outline"; // Neutral icon
   };
 
   if (!user) {
@@ -618,45 +634,39 @@ export default function ProfileScreen() {
           ]}
         >
           <QuickActionButton
-            icon="analytics"
+            icon="albums-outline"
             label={t("profile.analysis")}
-            color="#FF9500"
-            bgColor="#FFF4E6"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/AnalysisListScreen")}
           />
           <QuickActionButton
-            icon="receipt"
+            icon="receipt-outline"
             label={t("profile.orders")}
-            color="#007AFF"
-            bgColor="#F0F9FF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/OrderListScreen")}
           />
           <QuickActionButton
-            icon="calendar"
+            icon="calendar-outline"
             label={t("profile.appointments")}
-            color="#FF6F00"
-            bgColor="#FFF3E0"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MyAppointmentsScreen")}
           />
           <QuickActionButton
-            icon="clipboard"
+            icon="clipboard-outline"
             label={t("profile.routines")}
-            color="#10B981"
-            bgColor="#ECFDF5"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MyRoutinesScreen")}
           />
           <QuickActionButton
-            icon="medkit"
+            icon="medkit-outline"
             label={t("profile.subscriptions")}
-            color="#2563EB"
-            bgColor="#E0ECFF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MySubscriptionsScreen")}
           />
           <QuickActionButton
-            icon="settings"
+            icon="settings-outline"
             label={t("profile.settings")}
-            color="#A855F7"
-            bgColor="#F3E8FF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/SettingsScreen")}
           />
         </Animated.View>
@@ -701,6 +711,7 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            {/* Date of Birth Field */}
             <View style={styles.fieldWrapper}>
               <View
                 style={[
@@ -739,6 +750,45 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            {/* Gender Field - Read Only */}
+            <View style={styles.fieldWrapper}>
+              <View
+                style={[
+                  styles.fieldIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
+                <Ionicons
+                  name={getGenderIcon(user.gender)}
+                  size={18}
+                  color={primaryColor}
+                />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t("profile.gender")}</Text>
+                <Text style={styles.fieldValue}>
+                  {getGenderText(user.gender)}
+                </Text>
+                {isEditing && (
+                  <Text style={styles.fieldHint}>
+                    {t("profile.genderCannotChange")}
+                  </Text>
+                )}
+              </View>
+              
+              {/* Show Lock icon when editing to indicate read-only */}
+              {isEditing ? (
+                 <Ionicons name="lock-closed-outline" size={16} color="#999" />
+              ) : (
+                 user.gender !== null && user.gender !== undefined && (
+                   <Ionicons name="checkmark-circle" size={18} color="#34C759" />
+                 )
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Email Field - Read Only */}
             <View style={styles.fieldWrapper}>
               <View
                 style={[
@@ -991,7 +1041,7 @@ const InfoField: React.FC<InfoFieldProps> = ({
   keyboardType = "default",
   primaryColor,
 }) => {
-  const { t } = useTranslation(); // FIX: Using the hook inside the component
+  const { t } = useTranslation();
 
   return (
     <View style={styles.fieldWrapper}>

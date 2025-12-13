@@ -10,7 +10,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image  // Add this import
+  Image 
 } from 'react-native'
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'expo-router'
@@ -280,8 +280,8 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/AnalyzeScreen')}
           activeOpacity={0.7}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#F0F9FF' }]}>
-            <Ionicons name="camera" size={24} color="#2196F3" />
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="camera" size={24} color={primaryColor} />
           </View>
           <View style={styles.quickActionContent}>
             <Text style={styles.quickActionTitle}>{t('home.analyze')}</Text>  
@@ -297,8 +297,8 @@ export default function HomeScreen() {
           onPress={() => router.push('/(stacks)/OrderListScreen')}
           activeOpacity={0.7}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#FFF4E6' }]}>
-            <Ionicons name="receipt" size={24} color="#FF9800" />
+          <View style={styles.quickActionIcon }>
+            <Ionicons name="receipt" size={24} color={primaryColor} />
           </View>
           <View style={styles.quickActionContent}>
             <Text style={styles.quickActionTitle}>{t('home.orders')}</Text>  

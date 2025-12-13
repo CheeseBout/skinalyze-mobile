@@ -59,6 +59,7 @@ interface UpdateProfilePayload {
   fullName?: string;
   phone?: string;
   dob?: string;
+  gender?: boolean;
   photoUrl?: string;
 }
 

@@ -7,6 +7,7 @@ export interface RegisterPayload {
   fullName: string;
   phone: string;
   dob: string;
+  gender: boolean;
   photoUrl?: string;
   street: string;
   streetLine1: string;

@@ -61,7 +61,9 @@
     "permissionRequired": "Cần Quyền Truy Cập",
     "galleryPermissionMessage": "Vui lòng cho phép truy cập vào thư viện ảnh của bạn để chọn ảnh đại diện.",
     "cameraPermissionMessage": "Vui lòng cho phép truy cập vào camera của bạn để chụp ảnh đại diện.",
-    "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu."
+    "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu.",
+    "male": "Nam",
+    "female": "Nữ"
   },
   "home": {
     "goodMorning": "Chào buổi sáng",
