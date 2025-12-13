@@ -63,7 +63,8 @@
     "cameraPermissionMessage": "Vui lòng cho phép truy cập vào camera của bạn để chụp ảnh đại diện.",
     "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu.",
     "male": "Nam",
-    "female": "Nữ"
+    "female": "Nữ",
+    "gender": "Giới Tính"
   },
   "home": {
     "goodMorning": "Chào buổi sáng",

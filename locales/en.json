@@ -63,7 +63,8 @@
     "cameraPermissionMessage": "Please allow access to your camera to take a profile picture.",
     "failedPhotoUpload": "Failed to upload profile photo. Your other changes were saved.",
     "male": "Male",
-    "female": "Female"
+    "female": "Female",
+    "gender": "Gender"
   },
   "mySubscriptions": {
     "title": "My Subscriptions",

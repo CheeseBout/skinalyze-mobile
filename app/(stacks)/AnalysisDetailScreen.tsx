@@ -13,7 +13,6 @@ import {
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SkinAnalysisResult } from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import { useTranslation } from 'react-i18next';
 import Carousel, { ProductItem } from '@/components/Carousel';
@@ -21,13 +20,47 @@ import { productService, Product } from '@/services/productService';
 
 const { width } = Dimensions.get('window');
 
+// --- INTERFACES ---
+
+// Định nghĩa cấu trúc item trong mảng aiRecommendedProducts
+interface RecommendedProductRef {
+  productId: string;
+  reason: string;
+}
+
+// Cập nhật cấu trúc kết quả phân tích
+interface SkinAnalysisResult {
+  analysisId: string;
+  customerId: string;
+  source: "AI_SCAN" | "MANUAL";
+  chiefComplaint: string | null;
+  patientSymptoms: string | null;
+  imageUrls: string[];
+  notes: string | null;
+  aiDetectedDisease: string | null;
+  aiDetectedCondition: string | null;
+  // Hỗ trợ cả format mới (object) và cũ (string) để tránh lỗi runtime
+  aiRecommendedProducts: (RecommendedProductRef | string)[] | null; 
+  mask: string | string[] | null;
+  confidence?: number;
+  allPredictions?: { [key: string]: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Mở rộng Product để chứa reason cho UI
+interface ProductWithReason extends Product {
+  aiReason?: string;
+}
+
 export default function AnalysisDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { primaryColor } = useThemeColor();
   const { t } = useTranslation();
+  
   const [showMask, setShowMask] = useState(false);
-  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<ProductWithReason[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
   // Animations
@@ -54,15 +87,18 @@ export default function AnalysisDetailScreen() {
     ? JSON.parse(params.result as string)
     : null;
 
-  // Create a stable string representation of the product IDs
+  // Key để trigger useEffect khi danh sách sản phẩm thay đổi
   const productIdsKey = useMemo(() => {
     if (!result?.aiRecommendedProducts || result.aiRecommendedProducts.length === 0) {
       return '';
     }
-    return result.aiRecommendedProducts.join(',');
-  }, [result?.aiRecommendedProducts?.length, result?.aiRecommendedProducts?.[0]]);
+    // Xử lý logic lấy ID từ object hoặc string
+    return result.aiRecommendedProducts.map(item => 
+      typeof item === 'object' ? item.productId : item
+    ).join(',');
+  }, [result?.aiRecommendedProducts]);
 
-  // Fetch recommended products
+  // --- FETCH PRODUCTS LOGIC ---
   useEffect(() => {
     if (!productIdsKey) {
       setRecommendedProducts([]);
@@ -72,19 +108,30 @@ export default function AnalysisDetailScreen() {
     const fetchRecommendedProducts = async () => {
       try {
         setLoadingProducts(true);
-        const productIds = productIdsKey.split(',');
+        const recommendations = result.aiRecommendedProducts || [];
         
-        const productPromises = productIds.map(async (productId) => {
+        const productPromises = recommendations.map(async (item) => {
           try {
-            return await productService.getProductById(productId);
+            // Xác định ID và Reason dựa trên kiểu dữ liệu (mới/cũ)
+            const productId = typeof item === 'object' ? item.productId : item;
+            const reason = typeof item === 'object' ? item.reason : undefined;
+
+            // Gọi API lấy thông tin chi tiết sản phẩm
+            const product = await productService.getProductById(productId);
+            
+            if (product) {
+              // Gộp reason vào object product
+              return { ...product, aiReason: reason } as ProductWithReason;
+            }
+            return null;
           } catch (error) {
-            console.error(`Failed to fetch product ${productId}:`, error);
+            console.error(`Failed to fetch product:`, error);
             return null;
           }
         });
 
         const fetchedProducts = await Promise.all(productPromises);
-        const validProducts = fetchedProducts.filter((p): p is Product => p !== null);
+        const validProducts = fetchedProducts.filter((p): p is ProductWithReason => p !== null);
         
         setRecommendedProducts(validProducts);
       } catch (error) {
@@ -98,6 +145,7 @@ export default function AnalysisDetailScreen() {
     fetchRecommendedProducts();
   }, [productIdsKey]);
 
+  // --- RENDER GUARDS ---
   if (!result) {
     return (
       <View style={styles.container}>
@@ -112,15 +160,15 @@ export default function AnalysisDetailScreen() {
     );
   }
 
-  // --- LOGIC & CALCULATIONS ---
+  // --- UI LOGIC ---
   const isManual = result.source === 'MANUAL';
   
-  // 1. Determine Image
+  // Image URL
   const imageUrl = result.imageUrls && result.imageUrls.length > 0 
     ? result.imageUrls[0] 
     : null;
 
-  // 2. Determine Mask (Only for AI Disease)
+  // Mask URL
   let maskUrl: string | null = null;
   if (!isManual && result.mask) {
     if (Array.isArray(result.mask) && result.mask.length > 0) {
@@ -130,27 +178,16 @@ export default function AnalysisDetailScreen() {
     }
   }
 
-  // 3. Parse all predictions if available
-  const allPredictions = result.allPredictions 
-    ? Object.entries(result.allPredictions)
-        .sort(([, a], [, b]) => (b as number) - (a as number))
-    : [];
-
   const confidence = result.confidence;
 
-  // Helper function to normalize translation keys to match locale files
-  // Converts keys like "drug_eruption" or "DRUG_ERUPTION" to "Drug_Eruption"
   const normalizeKey = (key: string | null) => {
     if (!key) return '';
-    
-    // Split by underscore, capitalize first letter of each part, join back
     return key
       .split('_')
       .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
       .join('_');
   };
 
-  // 4. Determine Colors & Icons & Texts
   let displayTitle = '';
   let displayType = '';
   let displayDescription = '';
@@ -158,18 +195,14 @@ export default function AnalysisDetailScreen() {
   let iconName: any = 'scan';
 
   if (isManual) {
-    // MANUAL ENTRY LOOK
     displayTitle = result.chiefComplaint || t('analysis.manualRecord');
     displayType = t('analysis.manual');
-    themeColor = '#6D28D9'; // Purple
+    themeColor = '#6D28D9'; 
     iconName = 'create';
-    
     const symptoms = result.patientSymptoms ? `${t('analysis.symptoms')}: ${result.patientSymptoms}` : '';
     const notes = result.notes ? `${t('analysis.notes')}: ${result.notes}` : '';
     displayDescription = [symptoms, notes].filter(Boolean).join('\n\n') || t('analysis.noDetails');
-
   } else {
-    // AI DISEASE LOOK
     const normalizedDisease = normalizeKey(result.aiDetectedDisease);
     displayTitle = t('analysis.' + normalizedDisease);
     displayType = t('analysis.diseaseDetection');
@@ -180,14 +213,14 @@ export default function AnalysisDetailScreen() {
 
   const handleAskAI = () => {
     const analysisText = `Based on my skin analysis result: ${displayTitle}
-
-briefly explain and recommend specific skincare products with the following details:
-- Product name
-- Price range
-- Suitable skin type
-- Benefits and usage
-
-Focus on effective treatments for this detection.`
+    
+    Briefly explain and recommend specific skincare products with the following details:
+    - Product name
+    - Price range
+    - Suitable skin type
+    - Benefits and usage
+    
+    Focus on effective treatments for this detection.`;
 
     const navParams: any = {
       prefillText: analysisText
@@ -203,19 +236,18 @@ Focus on effective treatments for this detection.`
     });
   }
 
-  // Helper function to get confidence color
   const getConfidenceColor = (value: number) => {
-    if (value >= 0.7) return '#34C759'; // Green
-    if (value >= 0.4) return '#FF9500'; // Orange
-    return '#FF3B30'; // Red
+    if (value >= 0.7) return '#34C759';
+    if (value >= 0.4) return '#FF9500';
+    return '#FF3B30';
   };
 
-  // Prepare product carousel items
+  // --- CAROUSEL DATA ---
   const productCarouselItems: ProductItem[] = useMemo(() => {
     return recommendedProducts.map((product) => ({
       type: 'product' as const,
       id: product.productId,
-      product: product,
+      product: product, // Object này đã chứa aiReason
       onPress: () => {
         router.push({
           pathname: '/(stacks)/ProductDetailScreen',
@@ -251,7 +283,7 @@ Focus on effective treatments for this detection.`
               </View>
             )}
 
-            {/* Mask Overlay (AI Only) */}
+            {/* Mask Overlay */}
             {maskUrl && showMask && (
               <View style={styles.maskContainer}>
                 <Image
@@ -360,7 +392,7 @@ Focus on effective treatments for this detection.`
                 {displayDescription}
               </Text>
 
-              {/* Skin Type Chips - for AI detected conditions */}
+              {/* Skin Type Chips */}
               {!isManual && result.aiDetectedCondition && (
                 <View style={styles.skinTypeSection}>
                   <View style={styles.skinTypeLabelRow}>
@@ -371,7 +403,6 @@ Focus on effective treatments for this detection.`
                     {result.aiDetectedCondition.split(',').map((condition: string, index: number) => {
                       const trimmedCondition = condition.trim().toLowerCase();
                       
-                      // Color mapping for different skin types
                       const chipColors: { [key: string]: { bg: string; text: string } } = {
                         'combination': { bg: '#E8F5E9', text: '#2E7D32' },
                         'dry': { bg: '#FFF3E0', text: '#E65100' },
@@ -380,8 +411,6 @@ Focus on effective treatments for this detection.`
                         'sensitive': { bg: '#FCE4EC', text: '#C2185B' },
                       };
                       const colors = chipColors[trimmedCondition] || { bg: '#F5F5F5', text: '#666' };
-                      
-                      // Get translated skin type name
                       const translatedName = t(`analysis.skinTypes.${trimmedCondition}`);
                       
                       return (
@@ -399,7 +428,7 @@ Focus on effective treatments for this detection.`
                 </View>
               )}
 
-              {/* Metadata Row - moved here from separate section */}
+              {/* Metadata Row */}
               <View style={styles.metadataRow}>
                 <View style={styles.metadataItem}>
                   <Ionicons name="calendar" size={14} color="#2196F3" />
@@ -479,6 +508,13 @@ Focus on effective treatments for this detection.`
                 </TouchableOpacity>
               </View>
 
+              {/* Note about personalization */}
+              <View style={{ marginBottom: 12, paddingHorizontal: 4 }}>
+                 <Text style={{ fontSize: 13, color: '#666', fontStyle: 'italic', lineHeight: 18 }}>
+                    💡 Products selected based on your profile (Age, Gender, Allergies) and condition.
+                 </Text>
+              </View>
+
               {loadingProducts ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color={primaryColor} />
@@ -489,7 +525,7 @@ Focus on effective treatments for this detection.`
                   items={productCarouselItems}
                   autoPlay={false}
                   showPagination={true}
-                  itemWidth={width * 0.45}
+                  itemWidth={width * 0.75} // Widen to better fit reason text
                   itemSpacing={16}
                 />
               ) : (
@@ -510,6 +546,9 @@ Focus on effective treatments for this detection.`
               onPress={handleAskAI}
               activeOpacity={0.8}
             >
+              <View style={styles.askAIIcon}>
+                 <Ionicons name="chatbubbles-outline" size={20} color={themeColor} />
+              </View>
               <Text style={[styles.askAIText, { color: themeColor }]}>{t('analysis.askAI')}</Text> 
             </TouchableOpacity>
 
@@ -518,6 +557,9 @@ Focus on effective treatments for this detection.`
               onPress={() => router.push('/(stacks)/DermatologistListScreen')}
               activeOpacity={0.8}
             >
+              <View style={styles.consultIcon}>
+                 <Ionicons name="people-outline" size={20} color="#2196F3" />
+              </View>
               <Text style={[styles.consultText, { color: '#2196F3' }]}>Consult with Experts</Text>
             </TouchableOpacity>
 
@@ -526,6 +568,7 @@ Focus on effective treatments for this detection.`
               onPress={() => router.push('/(tabs)/AnalyzeScreen')}
               activeOpacity={0.8}
             >
+              <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>{t('analysis.startNew')}</Text> 
             </TouchableOpacity>
           </Animated.View>
@@ -540,16 +583,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-  },
-  backgroundPattern: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, height: 400, overflow: 'hidden',
-  },
-  circle1: {
-    position: 'absolute', width: 350, height: 350, borderRadius: 175, top: -150, right: -80,
-  },
-  circle2: {
-    position: 'absolute', width: 250, height: 250, borderRadius: 125, top: -80, left: -60,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -644,9 +677,6 @@ const styles = StyleSheet.create({
   maskToggleText: {
     fontSize: 14, fontWeight: '700', color: '#1A1A1A',
   },
-  maskToggleTextActive: {
-    color: '#FFFFFF',
-  },
   contentSection: {
     padding: 24,
     marginTop: -20,
@@ -692,13 +722,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   confidenceLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: 12, fontWeight: '600', color: '#666',
   },
   confidenceValue: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 14, fontWeight: '800',
   },
   resultDivider: {
     height: 1, backgroundColor: '#F0F0F0', marginBottom: 20,
@@ -723,52 +750,31 @@ const styles = StyleSheet.create({
     borderTopColor: '#E8E8E8',
   },
   skinTypeLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10,
   },
   skinTypeLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#666',
-    textTransform: 'uppercase',
+    fontSize: 12, fontWeight: '700', color: '#666', textTransform: 'uppercase',
   },
   chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
   },
   skinTypeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
   skinTypeChipText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12, fontWeight: '700',
   },
   metadataRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12,
   },
   metadataItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   metadataDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0E0E0',
+    width: 4, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0',
   },
   metadataText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#1A1A1A',
+    fontSize: 13, fontWeight: '500', color: '#1A1A1A',
   },
   disclaimer: {
     backgroundColor: '#FFF8E1', borderRadius: 16, padding: 16, marginBottom: 24,
@@ -787,57 +793,34 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   recommendedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
   recommendedTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   recommendedIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
   },
   recommendedTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    letterSpacing: -0.3,
+    fontSize: 18, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.3,
   },
   viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 14, fontWeight: '600',
   },
   loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 12,
+    paddingVertical: 40, alignItems: 'center', gap: 12,
   },
   loadingText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 14, color: '#666', fontWeight: '500',
   },
   noProductsContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 12,
+    paddingVertical: 40, alignItems: 'center', gap: 12,
   },
   noProductsText: {
-    fontSize: 14,
-    color: '#999',
-    fontWeight: '500',
+    fontSize: 14, color: '#999', fontWeight: '500',
   },
   askAIButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -845,56 +828,32 @@ const styles = StyleSheet.create({
     marginBottom: 16, backgroundColor: '#FFFFFF',
   },
   askAIIcon: {
-    width: 32, height: 32, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center',
+    // styles updated
   },
   askAIText: {
     fontSize: 16, fontWeight: '700',
   },
   consultButton: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 10,
-    paddingVertical: 16, 
-    borderRadius: 18, 
-    borderWidth: 1.5,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 16, borderRadius: 18, borderWidth: 1.5, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
   consultIcon: {
-    width: 32, 
-    height: 32, 
-    borderRadius: 10,
-    justifyContent: 'center', 
-    alignItems: 'center',
+    // styles updated
   },
   consultText: {
-    fontSize: 16, 
-    fontWeight: '700',
+    fontSize: 16, fontWeight: '700',
   },
   actionButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     paddingVertical: 18, borderRadius: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
   },
   actionButtonText: {
     fontSize: 17, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3,
   },
   errorContainer: {
     flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40,
-  },
-  errorIcon: {
-    width: 100, height: 100, borderRadius: 50,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
-  },
-  errorTitle: {
-    fontSize: 22, fontWeight: '800', color: '#1A1A1A', marginBottom: 8,
   },
   errorText: {
     fontSize: 15, color: '#666', marginBottom: 28, textAlign: 'center',

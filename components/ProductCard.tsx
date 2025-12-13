@@ -2,46 +2,46 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
-import { productService, Product } from "@/services/productService"; // Import Product interface
+import { productService, Product } from "@/services/productService";
 
+// ✅ Cập nhật ProductCardProps để chấp nhận thêm aiReason
 interface ProductCardProps {
-  product: Product; // Use the actual Product type from your service
+  product: Product & { aiReason?: string }; // Mở rộng type Product để có thêm field tùy chọn
   onPress: () => void;
 }
 
 const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
   const { primaryColor } = useThemeColor();
 
-  // 1. Get Pricing in USD
+  // 1. Tính toán giá (USD)
   const originalPriceUSD = product.sellingPrice || 0;
   const finalPriceUSD = productService.calculateDiscountedPrice(product);
 
-  // 2. Convert to VND
-  // const originalPriceVND = productService.convertToVND(originalPriceUSD);
-  // const finalPriceVND = productService.convertToVND(finalPriceUSD);
-
-  // 3. Determine Discount Status
-  // We use the API's salePercentage string to determine if a discount exists
+  // 2. Kiểm tra giảm giá
+  // API trả về salePercentage dạng string, cần parse sang float
   const salePercentVal = parseFloat(product.salePercentage);
   const hasDiscount = salePercentVal > 0;
 
-  // 4. Handle Image (API returns an array 'productImages')
+  // 3. Xử lý hình ảnh (API trả về mảng productImages)
   const displayImage =
     product.productImages && product.productImages.length > 0
       ? product.productImages[0]
       : "https://img.freepik.com/free-vector/illustration-gallery-icon_53876-27002.jpg?semt=ais_hybrid&w=740&q=80";
 
-  // 5. Handle Rating
+  // 4. Tính điểm đánh giá trung bình
   const averageRating = productService.calculateAverageRating(product);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+      {/* --- Image Section --- */}
       <View style={styles.imageContainer}>
         <Image
           source={{ uri: displayImage }}
           style={styles.productImage}
           resizeMode="cover"
         />
+        
+        {/* Badge giảm giá */}
         {hasDiscount && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>
@@ -50,10 +50,24 @@ const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
           </View>
         )}
       </View>
+
+      {/* --- Content Section --- */}
       <View style={styles.content}>
         <Text style={styles.productName} numberOfLines={2}>
           {product.productName || "Unknown Product"}
         </Text>
+
+        {/* ✅ HIỂN THỊ LÝ DO GỢI Ý TỪ AI (NẾU CÓ) */}
+        {product.aiReason && (
+          <View style={styles.reasonContainer}>
+            <Ionicons name="sparkles" size={12} color="#D97706" style={{ marginTop: 2 }} />
+            <Text style={styles.reasonText} numberOfLines={3}>
+              {product.aiReason}
+            </Text>
+          </View>
+        )}
+
+        {/* Giá tiền */}
         <View style={styles.priceContainer}>
           {hasDiscount ? (
             <>
@@ -71,6 +85,7 @@ const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
           )}
         </View>
 
+        {/* Đánh giá sao */}
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={14} color="#FFD700" />
           <Text style={styles.ratingText}>
@@ -88,10 +103,12 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
+    // Shadow cho iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    // Shadow cho Android
     elevation: 3,
     marginBottom: 12,
     overflow: "hidden",
@@ -129,14 +146,34 @@ const styles = StyleSheet.create({
     color: "#1A1A1A",
     marginBottom: 6,
     lineHeight: 18,
-    height: 36,
+    height: 36, // Giới hạn chiều cao cho 2 dòng text
   },
+  
+  // ✅ Styles cho phần AI Reason
+  reasonContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB', // Nền vàng nhạt
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  reasonText: {
+    fontSize: 11,
+    color: '#92400E', // Chữ màu nâu/cam đậm
+    flex: 1,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+
   priceContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 4,
     height: 22,
-    flexWrap: "wrap", // Added to prevent overflow if prices are long
+    flexWrap: "wrap", 
   },
   price: {
     fontSize: 16,
@@ -150,7 +187,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   originalPrice: {
-    fontSize: 12, // Slightly smaller for better fit
+    fontSize: 12, 
     color: "#999",
     textDecorationLine: "line-through",
   },
