@@ -7,7 +7,6 @@ import {
   TouchableOpacity, 
   ActivityIndicator, 
   Dimensions, 
-  Alert,
   StatusBar,
   Animated,
   SafeAreaView
@@ -24,7 +23,7 @@ import { useThemeColor } from '@/contexts/ThemeColorContext';
 import ReviewsComponent from '@/components/ReviewsComponent';
 import { useTranslation } from 'react-i18next';
 import Carousel, { ProductItem } from '@/components/Carousel';
-import CustomAlert from '@/components/CustomAlert';
+import CustomAlert from '@/components/CustomAlert'; // Import CustomAlert
 
 const { width } = Dimensions.get('window');
 
@@ -45,7 +44,7 @@ export default function ProductDetailScreen() {
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const { refreshCount } = useCartCount();
 
-  // Alert state
+  // Custom Alert State
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';

@@ -930,7 +930,16 @@
     "chiefComplaintPlaceholder": "Describe your main skin concerns...",
     "additionalNotes": "Additional Notes",
     "fieldsRequired": "* Indicates required fields",
-    "saveRecord": "Save Record"
+    "saveRecord": "Save Record",
+    "couldNotPickImage": "Could not pick image",
+    "chiefComplaintRequired": "Chief complaint is required",
+    "symptomsRequired": "Symptoms are required",
+    "validationError": "Validation Error",
+    "fillRequiredFields": "Please fill in all required fields",
+    "userNotAuthenticated": "User not authenticated",
+    "recordSaved": "Record saved successfully",
+    "failedSaveRecord": "Failed to save record",
+    "errorDecs": "An error occurred while saving your record. Please try again."
   },
   "tabBar": {
     "home": "Home",

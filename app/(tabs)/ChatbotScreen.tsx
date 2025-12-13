@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Keyboard,
   Image,
   SafeAreaView,
@@ -25,6 +24,7 @@ import chatbotService, {
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useProducts } from "@/hooks/useProducts";
 import Markdown from "react-native-markdown-display";
+import CustomAlert from "@/components/CustomAlert"; // Import CustomAlert
 
 export default function ChatbotScreen() {
   const { user } = useAuth();
@@ -46,6 +46,23 @@ export default function ChatbotScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
+
+  // Custom Alert State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    type: "info",
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   // Refs
   const flatListRef = useRef<FlatList>(null);
@@ -145,7 +162,7 @@ export default function ChatbotScreen() {
         () => flatListRef.current?.scrollToEnd({ animated: false }),
         100
       );
-      console.log("Message: ", chatMessages)
+      console.log("Message: ", chatMessages);
     } catch (error) {
       console.error("Error loading messages:", error);
     }
@@ -164,7 +181,14 @@ export default function ChatbotScreen() {
       setShowChatList(false);
       hasPrefillAppliedRef.current = false;
     } catch (error) {
-      Alert.alert("Error", "Failed to start new chat");
+      setAlertConfig({
+        type: "error",
+        title: "Error",
+        message: "Failed to start new chat",
+        confirmText: "OK",
+        onConfirm: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
     } finally {
       setIsLoading(false);
     }
@@ -180,34 +204,44 @@ export default function ChatbotScreen() {
       setMessages(newChat.messages || []);
       setShowChatList(false);
     } catch (error) {
-      Alert.alert("Error", "Failed to start new chat for analysis");
+      setAlertConfig({
+        type: "error",
+        title: "Error",
+        message: "Failed to start new chat for analysis",
+        confirmText: "OK",
+        onConfirm: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
     } finally {
       setIsLoading(false);
     }
   };
 
   const deleteChat = async (chatId: string) => {
-    Alert.alert("Delete Chat", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await chatbotService.deleteChatSession(chatId);
-            const updated = chatSessions.filter((c) => c.chatId !== chatId);
-            setChatSessions(updated);
-            if (currentChatId === chatId) {
-              updated.length > 0
-                ? setCurrentChatId(updated[0].chatId)
-                : createNewChat();
-            }
-          } catch (e) {
-            console.error(e);
+    setAlertConfig({
+      type: "warning",
+      title: "Delete Chat",
+      message: "Are you sure you want to delete this chat?",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        setAlertVisible(false); // Close alert first
+        try {
+          await chatbotService.deleteChatSession(chatId);
+          const updated = chatSessions.filter((c) => c.chatId !== chatId);
+          setChatSessions(updated);
+          if (currentChatId === chatId) {
+            updated.length > 0
+              ? setCurrentChatId(updated[0].chatId)
+              : createNewChat();
           }
-        },
+        } catch (e) {
+          console.error(e);
+        }
       },
-    ]);
+      onCancel: () => setAlertVisible(false),
+    });
+    setAlertVisible(true);
   };
 
   const selectChat = (chatId: string) => {
@@ -226,7 +260,14 @@ export default function ChatbotScreen() {
       });
       if (!result.canceled) setSelectedImage(result.assets[0].uri);
     } catch (error) {
-      Alert.alert("Error", "Could not select image");
+      setAlertConfig({
+        type: "error",
+        title: "Error",
+        message: "Could not select image",
+        confirmText: "OK",
+        onConfirm: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -238,7 +279,11 @@ export default function ChatbotScreen() {
   // --- Sending Message ---
 
   const sendMessage = async () => {
-    if ((!inputMessage.trim() && !selectedImage) || !currentChatId || isSending)
+    if (
+      (!inputMessage.trim() && !selectedImage) ||
+      !currentChatId ||
+      isSending
+    )
       return;
 
     const textToSend = inputMessage.trim();
@@ -269,10 +314,15 @@ export default function ChatbotScreen() {
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    setTimeout(
+      () => flatListRef.current?.scrollToEnd({ animated: true }),
+      100
+    );
 
     try {
-      console.log("📞 [ChatbotScreen] Calling chatbotService.sendMessage...");
+      console.log(
+        "📞 [ChatbotScreen] Calling chatbotService.sendMessage..."
+      );
 
       const { userMessage, aiMessage } = await chatbotService.sendMessage(
         currentChatId,
@@ -280,7 +330,9 @@ export default function ChatbotScreen() {
         imageToSend
       );
 
-      console.log("✅ [ChatbotScreen] Response received from chatbotService:");
+      console.log(
+        "✅ [ChatbotScreen] Response received from chatbotService:"
+      );
       console.log("👤 User Message:", {
         id: userMessage.messageId,
         content: userMessage.messageContent?.substring(0, 100),
@@ -292,7 +344,10 @@ export default function ChatbotScreen() {
         contentPreview: aiMessage.messageContent?.substring(0, 200),
         createdAt: aiMessage.createdAt,
       });
-      console.log("📝 Full AI Message Content:", aiMessage.messageContent);
+      console.log(
+        "📝 Full AI Message Content:",
+        aiMessage.messageContent
+      );
 
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.messageId !== tempId);
@@ -312,14 +367,24 @@ export default function ChatbotScreen() {
         chatbotService
           .getChatSessionsByUserId(user!.userId)
           .then((sessions) => {
-            console.log("📋 [ChatbotScreen] Chat sessions refreshed:", sessions.length);
+            console.log(
+              "📋 [ChatbotScreen] Chat sessions refreshed:",
+              sessions.length
+            );
             setChatSessions(sessions);
           });
       }
     } catch (error) {
       console.error("❌ [ChatbotScreen] Error in sendMessage:");
       console.error(error);
-      Alert.alert("Error", "Failed to send message");
+      setAlertConfig({
+        type: "error",
+        title: "Error",
+        message: "Failed to send message",
+        confirmText: "OK",
+        onConfirm: () => setAlertVisible(false),
+      });
+      setAlertVisible(true);
       setMessages((prev) => prev.filter((msg) => msg.messageId !== tempId));
       setInputMessage(textToSend);
       setSelectedImage(imageToSend);
@@ -330,132 +395,154 @@ export default function ChatbotScreen() {
   };
 
   // --- Product Matching Helper ---
-  const findProductByName = useCallback((productName: string) => {
-    if (!products || products.length === 0) {
-      console.log("⚠️ No products available for matching");
-      return null;
-    }
-    
-    // Clean up the product name for matching
-    const cleanName = productName.trim().toLowerCase();
-    console.log("🔍 Searching for product:", cleanName);
-    
-    // 1. Try exact match first
-    let found = products.find(
-      (p) => p.productName.toLowerCase() === cleanName
-    );
-    if (found) {
-      console.log("✅ Exact match found:", found.productName);
-      return found;
-    }
-    
-    // 2. Try if product name contains the search term
-    found = products.find(
-      (p) => p.productName.toLowerCase().includes(cleanName)
-    );
-    if (found) {
-      console.log("✅ Contains match found:", found.productName);
-      return found;
-    }
-    
-    // 3. Try if search term contains the product name
-    found = products.find(
-      (p) => cleanName.includes(p.productName.toLowerCase())
-    );
-    if (found) {
-      console.log("✅ Reverse contains match found:", found.productName);
-      return found;
-    }
-    
-    // 4. Try matching by significant keywords (words with 4+ chars)
-    const searchWords = cleanName
-      .split(/[\s\-_]+/)
-      .filter(w => w.length >= 4)
-      .map(w => w.toLowerCase());
-    
-    console.log("🔤 Search keywords:", searchWords);
-    
-    if (searchWords.length > 0) {
-      // Find product with most keyword matches
-      let bestMatch: { product: any; score: number } | null = null;
-      
+  const findProductByName = useCallback(
+    (productName: string) => {
+      if (!products || products.length === 0) {
+        console.log("⚠️ No products available for matching");
+        return null;
+      }
+
+      // Clean up the product name for matching
+      const cleanName = productName.trim().toLowerCase();
+      console.log("🔍 Searching for product:", cleanName);
+
+      // 1. Try exact match first
+      let found = products.find(
+        (p) => p.productName.toLowerCase() === cleanName
+      );
+      if (found) {
+        console.log("✅ Exact match found:", found.productName);
+        return found;
+      }
+
+      // 2. Try if product name contains the search term
+      found = products.find((p) =>
+        p.productName.toLowerCase().includes(cleanName)
+      );
+      if (found) {
+        console.log("✅ Contains match found:", found.productName);
+        return found;
+      }
+
+      // 3. Try if search term contains the product name
+      found = products.find((p) =>
+        cleanName.includes(p.productName.toLowerCase())
+      );
+      if (found) {
+        console.log("✅ Reverse contains match found:", found.productName);
+        return found;
+      }
+
+      // 4. Try matching by significant keywords (words with 4+ chars)
+      const searchWords = cleanName
+        .split(/[\s\-_]+/)
+        .filter((w) => w.length >= 4)
+        .map((w) => w.toLowerCase());
+
+      console.log("🔤 Search keywords:", searchWords);
+
+      if (searchWords.length > 0) {
+        // Find product with most keyword matches
+        let bestMatch: { product: any; score: number } | null = null;
+
+        for (const product of products) {
+          const productNameLower = product.productName.toLowerCase();
+          const productWords = productNameLower.split(/[\s\-_]+/);
+
+          // Count matching keywords
+          let matchScore = 0;
+          for (const searchWord of searchWords) {
+            // Check if any product word contains the search word or vice versa
+            const hasMatch = productWords.some(
+              (pw: string) =>
+                pw.includes(searchWord) || searchWord.includes(pw)
+            );
+            if (hasMatch) matchScore++;
+
+            // Also check if product name contains the search word directly
+            if (productNameLower.includes(searchWord)) matchScore += 0.5;
+          }
+
+          // Also check brand match
+          if (
+            product.brand &&
+            cleanName.includes(product.brand.toLowerCase())
+          ) {
+            matchScore += 1;
+          }
+
+          if (matchScore > 0 && (!bestMatch || matchScore > bestMatch.score)) {
+            bestMatch = { product, score: matchScore };
+          }
+        }
+
+        if (bestMatch && bestMatch.score >= 1) {
+          console.log(
+            "✅ Keyword match found:",
+            bestMatch.product.productName,
+            "Score:",
+            bestMatch.score
+          );
+          return bestMatch.product;
+        }
+      }
+
+      // 5. Try fuzzy matching - check each word separately
       for (const product of products) {
         const productNameLower = product.productName.toLowerCase();
-        const productWords = productNameLower.split(/[\s\-_]+/);
-        
-        // Count matching keywords
-        let matchScore = 0;
-        for (const searchWord of searchWords) {
-          // Check if any product word contains the search word or vice versa
-          const hasMatch = productWords.some(
-            (pw: string) => pw.includes(searchWord) || searchWord.includes(pw)
-          );
-          if (hasMatch) matchScore++;
-          
-          // Also check if product name contains the search word directly
-          if (productNameLower.includes(searchWord)) matchScore += 0.5;
-        }
-        
-        // Also check brand match
-        if (product.brand && cleanName.includes(product.brand.toLowerCase())) {
-          matchScore += 1;
-        }
-        
-        if (matchScore > 0 && (!bestMatch || matchScore > bestMatch.score)) {
-          bestMatch = { product, score: matchScore };
-        }
-      }
-      
-      if (bestMatch && bestMatch.score >= 1) {
-        console.log("✅ Keyword match found:", bestMatch.product.productName, "Score:", bestMatch.score);
-        return bestMatch.product;
-      }
-    }
-    
-    // 5. Try fuzzy matching - check each word separately
-    for (const product of products) {
-      const productNameLower = product.productName.toLowerCase();
-      
-      // Check if at least 2 significant words from search match product name
-      const matchingWords = searchWords.filter(word => 
-        productNameLower.includes(word)
-      );
-      
-      if (matchingWords.length >= 2) {
-        console.log("✅ Multi-word match found:", product.productName);
-        return product;
-      }
-      
-      // Check first word match (usually product line name)
-      if (searchWords.length > 0 && productNameLower.startsWith(searchWords[0])) {
-        console.log("✅ First word match found:", product.productName);
-        return product;
-      }
-    }
-    
-    console.log("❌ No product found for:", productName);
-    return null;
-  }, [products]);
 
-  const navigateToProduct = useCallback((productName: string) => {
-    console.log("🛒 Attempting to navigate to product:", productName);
-    const product = findProductByName(productName);
-    
-    if (product) {
-      console.log("✅ Navigating to:", product.productId, product.productName);
-      router.push({
-        pathname: "/(stacks)/ProductDetailScreen",
-        params: { productId: product.productId },
-      });
-    } else {
-      console.log("❌ Product not found, searching instead:", productName);
-      // Navigate to search screen with the product name as query
-      router.push({
-        pathname: "/(stacks)/SearchScreen",
-        params: { query: productName },
-      });
-    }
-  }, [findProductByName, router]);
+        // Check if at least 2 significant words from search match product name
+        const matchingWords = searchWords.filter((word) =>
+          productNameLower.includes(word)
+        );
+
+        if (matchingWords.length >= 2) {
+          console.log("✅ Multi-word match found:", product.productName);
+          return product;
+        }
+
+        // Check first word match (usually product line name)
+        if (
+          searchWords.length > 0 &&
+          productNameLower.startsWith(searchWords[0])
+        ) {
+          console.log("✅ First word match found:", product.productName);
+          return product;
+        }
+      }
+
+      console.log("❌ No product found for:", productName);
+      return null;
+    },
+    [products]
+  );
+
+  const navigateToProduct = useCallback(
+    (productName: string) => {
+      console.log("🛒 Attempting to navigate to product:", productName);
+      const product = findProductByName(productName);
+
+      if (product) {
+        console.log(
+          "✅ Navigating to:",
+          product.productId,
+          product.productName
+        );
+        router.push({
+          pathname: "/(stacks)/ProductDetailScreen",
+          params: { productId: product.productId },
+        });
+      } else {
+        console.log("❌ Product not found, searching instead:", productName);
+        // Navigate to search screen with the product name as query
+        router.push({
+          pathname: "/(stacks)/SearchScreen",
+          params: { query: productName },
+        });
+      }
+    },
+    [findProductByName, router]
+  );
 
   // --- Render Helpers ---
 
@@ -562,12 +649,13 @@ export default function ChatbotScreen() {
     const markdownRules = {
       strong: (node: any, children: any, parent: any, styles: any) => {
         const text = node.children?.[0]?.content || "";
-        
+
         // Check if this looks like a product name (contains "của" or brand pattern)
-        const isProductName = text.includes(" của ") || 
-                             text.includes(" by ") ||
-                             /^[A-Z]/.test(text); // Starts with uppercase
-        
+        const isProductName =
+          text.includes(" của ") ||
+          text.includes(" by ") ||
+          /^[A-Z]/.test(text); // Starts with uppercase
+
         if (isProductName && !isUser) {
           // Extract just the product name (before "của" or "by")
           let productName = text;
@@ -576,7 +664,7 @@ export default function ChatbotScreen() {
           } else if (text.includes(" by ")) {
             productName = text.split(" by ")[0].trim();
           }
-          
+
           return (
             <Text
               key={node.key}
@@ -594,7 +682,7 @@ export default function ChatbotScreen() {
             </Text>
           );
         }
-        
+
         return (
           <Text key={node.key} style={styles.strong}>
             {children}
@@ -647,10 +735,7 @@ export default function ChatbotScreen() {
                 {item.messageContent}
               </Text>
             ) : (
-              <Markdown 
-                style={markdownStyles}
-                rules={markdownRules}
-              >
+              <Markdown style={markdownStyles} rules={markdownRules}>
                 {item.messageContent}
               </Markdown>
             )
@@ -788,6 +873,17 @@ export default function ChatbotScreen() {
             </View>
           }
         />
+        {/* Custom Alert Integration */}
+        <CustomAlert
+          visible={alertVisible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          cancelText={alertConfig.cancelText}
+          onConfirm={alertConfig.onConfirm}
+          onCancel={alertConfig.onCancel}
+        />
       </SafeAreaView>
     );
   }
@@ -916,6 +1012,18 @@ export default function ChatbotScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Custom Alert Integration */}
+        <CustomAlert
+          visible={alertVisible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          cancelText={alertConfig.cancelText}
+          onConfirm={alertConfig.onConfirm}
+          onCancel={alertConfig.onCancel}
+        />
       </SafeAreaView>
     </KeyboardAvoidingView>
   );

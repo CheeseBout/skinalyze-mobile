@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
   KeyboardAvoidingView,
@@ -23,6 +22,7 @@ import userService from "@/services/userService";
 import withdrawalService from "@/services/withdrawalService";
 import paymentService, { Bank } from "@/services/paymentService";
 import OTPInput from "@/components/OTPInput";
+import CustomAlert from "@/components/CustomAlert"; // Make sure path is correct
 
 export default function WithdrawalScreen() {
   const router = useRouter();
@@ -46,6 +46,26 @@ export default function WithdrawalScreen() {
   const [otp, setOtp] = useState("");
   const [countdown, setCountdown] = useState(0);
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   useEffect(() => {
     fetchBalance();
     fetchBanks();
@@ -60,15 +80,18 @@ export default function WithdrawalScreen() {
 
   const fetchBalance = async () => {
     try {
-      // const token = await tokenService.getToken();
-      // if (!token) return;
-
       const balanceData = await userService.getBalance();
       setBalance(balanceData.balance);
       setCurrency(balanceData.currency);
     } catch (error: any) {
       console.error("Error fetching balance:", error);
-      Alert.alert("Error", "Failed to fetch balance");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Failed to fetch balance",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     }
   };
 
@@ -89,32 +112,68 @@ export default function WithdrawalScreen() {
     const amountNum = parseFloat(amount);
 
     if (!amount || isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert("Error", "Please enter a valid amount");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Please enter a valid amount",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
     if (balance !== null && amountNum > balance) {
-      Alert.alert("Error", "Insufficient balance");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Insufficient balance",
+        type: "error",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
     if (amountNum < 50000) {
-      Alert.alert("Error", "Minimum withdrawal amount is 50,000 VND");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Minimum withdrawal amount is 50,000 VND",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
     if (!bankName.trim()) {
-      Alert.alert("Error", "Please enter bank name");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Please enter bank name",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
     if (!accountNumber.trim()) {
-      Alert.alert("Error", "Please enter account number");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Please enter account number",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
     if (!accountHolderName.trim()) {
-      Alert.alert("Error", "Please enter account holder name");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Please enter account holder name",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return false;
     }
 
@@ -132,9 +191,21 @@ export default function WithdrawalScreen() {
 
       setStep("otp");
       setCountdown(60);
-      Alert.alert("Success", "OTP has been sent to your email");
+      setAlertConfig({
+        visible: true,
+        title: "Success",
+        message: "OTP has been sent to your email",
+        type: "success",
+        onConfirm: hideAlert,
+      });
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to request OTP");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: error.message || "Failed to request OTP",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -142,7 +213,13 @@ export default function WithdrawalScreen() {
 
   const handleVerifyAndWithdraw = async () => {
     if (!otp.trim() || otp.length < 4) {
-      Alert.alert("Error", "Please enter a valid OTP");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Please enter a valid OTP",
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return;
     }
 
@@ -157,18 +234,25 @@ export default function WithdrawalScreen() {
         accountNumber: accountNumber,
       });
 
-      Alert.alert(
-        "Success",
-        "Withdrawal request submitted successfully. Your funds will be processed within 1-3 business days.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      setAlertConfig({
+        visible: true,
+        title: "Success",
+        message:
+          "Withdrawal request submitted successfully. Your funds will be processed within 1-3 business days.",
+        type: "success",
+        onConfirm: () => {
+          hideAlert();
+          router.back();
+        },
+      });
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to process withdrawal");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: error.message || "Failed to process withdrawal",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -184,9 +268,21 @@ export default function WithdrawalScreen() {
       });
 
       setCountdown(60);
-      Alert.alert("Success", "OTP has been resent to your email");
+      setAlertConfig({
+        visible: true,
+        title: "Success",
+        message: "OTP has been resent to your email",
+        type: "success",
+        onConfirm: hideAlert,
+      });
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to resend OTP");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: error.message || "Failed to resend OTP",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -535,6 +631,16 @@ export default function WithdrawalScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        onConfirm={alertConfig.onConfirm}
+      />
     </KeyboardAvoidingView>
   );
 }

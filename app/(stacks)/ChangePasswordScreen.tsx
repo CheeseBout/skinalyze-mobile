@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   StatusBar,
   KeyboardAvoidingView,
@@ -16,6 +15,7 @@ import { useRouter } from 'expo-router'
 import tokenService from '@/services/tokenService'
 import userService from '@/services/userService'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import CustomAlert from '@/components/CustomAlert' // Make sure this path is correct
 
 interface PasswordFormData {
   oldPassword: string
@@ -36,6 +36,25 @@ export default function ChangePasswordScreen() {
     confirmPassword: '',
   })
   const [errors, setErrors] = useState<Partial<PasswordFormData>>({})
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<PasswordFormData> = {}
@@ -67,7 +86,13 @@ export default function ChangePasswordScreen() {
 
   const handleChangePassword = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fill in all fields correctly')
+      setAlertConfig({
+        visible: true,
+        title: 'Validation Error',
+        message: 'Please fill in all fields correctly',
+        type: 'warning',
+        onConfirm: hideAlert
+      });
       return
     }
 
@@ -75,7 +100,13 @@ export default function ChangePasswordScreen() {
     try {
       const token = await tokenService.getToken()
       if (!token) {
-        Alert.alert('Error', 'Please login again')
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: 'Please login again',
+          type: 'error',
+          onConfirm: hideAlert
+        });
         return
       }
 
@@ -85,21 +116,33 @@ export default function ChangePasswordScreen() {
         formData.newPassword
       )
 
-      Alert.alert('Success', 'Password changed successfully', [
-        {
-          text: 'OK',
-          onPress: () => router.back()
+      // Success Alert
+      setAlertConfig({
+        visible: true,
+        title: 'Success',
+        message: 'Password changed successfully',
+        type: 'success',
+        onConfirm: () => {
+          hideAlert();
+          router.back();
         }
-      ])
+      });
 
-      // Clear form
+      // Clear form (though we navigate back immediately usually)
       setFormData({
         oldPassword: '',
         newPassword: '',
         confirmPassword: '',
       })
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to change password')
+      // Error Alert
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: error.message || 'Failed to change password',
+        type: 'error',
+        onConfirm: hideAlert
+      });
     } finally {
       setLoading(false)
     }
@@ -339,6 +382,16 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="OK"
+      />
     </KeyboardAvoidingView>
   )
 }

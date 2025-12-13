@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
   KeyboardAvoidingView,
@@ -19,6 +18,7 @@ import { useThemeColor } from "@/contexts/ThemeColorContext";
 import reviewService from "@/services/reviewService";
 import productService from "@/services/productService";
 import { useAuth } from "@/hooks/useAuth";
+import CustomAlert from "@/components/CustomAlert"; // Make sure path is correct
 
 export default function CreateReviewScreen() {
   const router = useRouter();
@@ -27,7 +27,6 @@ export default function CreateReviewScreen() {
   const { user } = useAuth();
 
   const productId = params.productId as string;
-  const orderId = params.orderId as string;
   const reviewId = params.reviewId as string;
   const existingRating = params.existingRating as string;
   const existingContent = params.existingContent as string;
@@ -39,8 +38,25 @@ export default function CreateReviewScreen() {
   const [rating, setRating] = useState(isEditing && existingRating ? parseInt(existingRating) : 0);
   const [content, setContent] = useState(isEditing && existingContent ? existingContent : "");
   const [canReview, setCanReview] = useState(true);
-  const [hasReviewed, setHasReviewed] = useState(false);
-  const [hasPurchased, setHasPurchased] = useState(false);
+  
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     if (productId) {
@@ -56,8 +72,16 @@ export default function CreateReviewScreen() {
       setProduct(productData);
     } catch (error: any) {
       console.error("Error fetching product:", error);
-      Alert.alert("Error", "Failed to load product details");
-      router.back();
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Failed to load product details",
+        type: "error",
+        onConfirm: () => {
+          hideAlert();
+          router.back();
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -66,35 +90,43 @@ export default function CreateReviewScreen() {
   const checkReviewEligibility = async () => {
     try {
       if (!user) {
-        Alert.alert("Not Logged In", "Please log in to write a review");
-        router.back();
+        setAlertConfig({
+          visible: true,
+          title: "Not Logged In",
+          message: "Please log in to write a review",
+          type: "warning",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          }
+        });
         return;
       }
 
       // Skip all checks when editing
       if (isEditing) {
         setCanReview(true);
-        setHasPurchased(true);
         return;
       }
 
-      // If user reached this screen, they should be eligible (button was shown)
-      // But we'll do a final check for extra safety
       const reviews = await reviewService.getProductReviews(productId);
       const userReview = reviews.find(review => review.userId === user.userId);
       
       if (userReview) {
-        setHasReviewed(true);
-        Alert.alert(
-          "Already Reviewed", 
-          "You have already reviewed this product.",
-          [{ text: "OK", onPress: () => router.back() }]
-        );
+        setAlertConfig({
+          visible: true,
+          title: "Already Reviewed",
+          message: "You have already reviewed this product.",
+          type: "info",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          }
+        });
         return;
       }
 
       setCanReview(true);
-      setHasPurchased(true);
     } catch (error: any) {
       console.error("Error checking review eligibility:", error);
       setCanReview(true); // Allow review on error
@@ -103,12 +135,24 @@ export default function CreateReviewScreen() {
 
   const handleSubmitReview = async () => {
     if (rating === 0) {
-      Alert.alert("Required", "Please select a rating");
+      setAlertConfig({
+        visible: true,
+        title: "Required",
+        message: "Please select a rating",
+        type: "warning",
+        onConfirm: hideAlert
+      });
       return;
     }
 
     if (!content.trim()) {
-      Alert.alert("Required", "Please write a review");
+      setAlertConfig({
+        visible: true,
+        title: "Required",
+        message: "Please write a review",
+        type: "warning",
+        onConfirm: hideAlert
+      });
       return;
     }
 
@@ -122,41 +166,49 @@ export default function CreateReviewScreen() {
 
       if (isEditing && reviewId) {
         await reviewService.updateReview(reviewId, reviewData);
-        Alert.alert(
-          "Review Updated!",
-          "Your review has been updated successfully.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                router.back();
-              },
-            },
-          ]
-        );
+        setAlertConfig({
+          visible: true,
+          title: "Review Updated!",
+          message: "Your review has been updated successfully.",
+          type: "success",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          }
+        });
       } else {
         await reviewService.postReview(reviewData);
-        Alert.alert(
-          "Review Submitted!",
-          "Thank you for your review. It will help other customers.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                router.back();
-              },
-            },
-          ]
-        );
+        setAlertConfig({
+          visible: true,
+          title: "Review Submitted!",
+          message: "Thank you for your review. It will help other customers.",
+          type: "success",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          }
+        });
       }
     } catch (error: any) {
       console.error("Error submitting review:", error);
       const message = error.message || "Failed to submit review";
       
       if (message.includes("already reviewed") || message.includes("duplicate")) {
-        Alert.alert("Already Reviewed", "You have already reviewed this product");
+        setAlertConfig({
+          visible: true,
+          title: "Already Reviewed",
+          message: "You have already reviewed this product",
+          type: "warning",
+          onConfirm: hideAlert
+        });
       } else {
-        Alert.alert("Error", message);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: message,
+          type: "error",
+          onConfirm: hideAlert
+        });
       }
     } finally {
       setSubmitting(false);
@@ -306,6 +358,16 @@ export default function CreateReviewScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="OK"
+      />
     </KeyboardAvoidingView>
   );
 }

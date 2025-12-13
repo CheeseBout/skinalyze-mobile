@@ -3,9 +3,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Image,
-  ScrollView,
   TouchableOpacity,
   StatusBar,
   Animated,
@@ -21,6 +19,7 @@ import ReviewDermaInfor from "@/components/ReviewDermaInfor";
 import { Dermatologist } from "@/types/dermatologist.type";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
+import CustomAlert from "@/components/CustomAlert"; // Make sure path is correct
 
 const { width } = Dimensions.get("window");
 
@@ -47,6 +46,25 @@ export default function DermatologistDetailScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   useEffect(() => {
     if (!dermatologistId) {
       setError(t("dermatologistDetail.errors.noId"));
@@ -70,7 +88,15 @@ export default function DermatologistDetailScreen() {
         const errorMessage =
           err?.message || t("dermatologistDetail.errors.fetch");
         setError(errorMessage);
-        Alert.alert(t("common.error"), errorMessage);
+        
+        // Use CustomAlert instead of native Alert
+        setAlertConfig({
+          visible: true,
+          title: t("common.error"),
+          message: errorMessage,
+          type: "error",
+          onConfirm: hideAlert
+        });
       } finally {
         setIsLoading(false);
       }
@@ -85,7 +111,7 @@ export default function DermatologistDetailScreen() {
         setSpecializations(data);
       } catch (err: any) {
         console.error("Error fetching specializations:", err);
-        // Don't show error alert, just log it
+        // Don't show error alert, just log it as per original logic
       } finally {
         setSpecializationsLoading(false);
       }
@@ -202,6 +228,16 @@ export default function DermatologistDetailScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Render CustomAlert even in error state if triggered */}
+        <CustomAlert 
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onConfirm={alertConfig.onConfirm}
+          confirmText={t("common.ok")}
+        />
       </View>
     );
   }
@@ -660,6 +696,16 @@ export default function DermatologistDetailScreen() {
 
         <View style={{ height: 40 }} />
       </Animated.ScrollView>
+
+      {/* Integrate CustomAlert at the root of the component */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText={t("common.ok")}
+      />
     </View>
   );
 }

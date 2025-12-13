@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   StatusBar,
   KeyboardAvoidingView,
@@ -25,6 +24,7 @@ import ghnService, {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
+import CustomAlert from "@/components/CustomAlert"; // Make sure this path is correct
 
 interface AddressFormData {
   street: string;
@@ -80,6 +80,28 @@ export default function AddressDetailScreen() {
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     loadProvinces();
@@ -150,8 +172,16 @@ export default function AddressDetailScreen() {
 
       startAnimations();
     } catch (error: any) {
-      Alert.alert(t("address.error"), error.message || t("address.loadError"));
-      router.back();
+      setAlertConfig({
+        visible: true,
+        title: t("address.error"),
+        message: error.message || t("address.loadError"),
+        type: "error",
+        onConfirm: () => {
+          hideAlert();
+          router.back();
+        },
+      });
     } finally {
       setInitialLoading(false);
     }
@@ -175,7 +205,13 @@ export default function AddressDetailScreen() {
 
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert(t("address.validationError"), t("address.fillRequired"));
+      setAlertConfig({
+        visible: true,
+        title: t("address.validationError"),
+        message: t("address.fillRequired"),
+        type: "warning",
+        onConfirm: hideAlert,
+      });
       return;
     }
 
@@ -183,19 +219,38 @@ export default function AddressDetailScreen() {
     try {
       const token = await tokenService.getToken();
       if (!token) {
-        Alert.alert(t("address.error"), t("address.loginAgain"));
+        setAlertConfig({
+          visible: true,
+          title: t("address.error"),
+          message: t("address.loginAgain"),
+          type: "error",
+          onConfirm: hideAlert,
+        });
         return;
       }
 
       if (isEditMode && addressId) {
         await userService.updateAddress(token, addressId as string, formData);
         await refreshUser();
-        Alert.alert(t("address.success"), t("address.updated"), [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        setAlertConfig({
+          visible: true,
+          title: t("address.success"),
+          message: t("address.updated"),
+          type: "success",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          },
+        });
       } else {
         if (!user?.userId) {
-          Alert.alert(t("address.error"), t("address.userNotFound"));
+          setAlertConfig({
+            visible: true,
+            title: t("address.error"),
+            message: t("address.userNotFound"),
+            type: "error",
+            onConfirm: hideAlert,
+          });
           return;
         }
         await userService.createAddress(token, {
@@ -203,49 +258,77 @@ export default function AddressDetailScreen() {
           ...formData,
         });
         await refreshUser();
-        Alert.alert(t("address.success"), t("address.added"), [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        setAlertConfig({
+          visible: true,
+          title: t("address.success"),
+          message: t("address.added"),
+          type: "success",
+          onConfirm: () => {
+            hideAlert();
+            router.back();
+          },
+        });
       }
     } catch (error: any) {
       const msg = isEditMode
         ? t("address.updateError")
         : t("address.createError");
-      Alert.alert(t("address.error"), error.message || msg);
+      setAlertConfig({
+        visible: true,
+        title: t("address.error"),
+        message: error.message || msg,
+        type: "error",
+        onConfirm: hideAlert,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    Alert.alert(t("address.deleteTitle"), t("address.deleteConfirm"), [
-      { text: t("profile.cancel"), style: "cancel" },
-      {
-        text: t("profile.delete"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setLoading(true);
-            const token = await tokenService.getToken();
-            if (!token || !addressId) return;
+  const executeDelete = async () => {
+    hideAlert(); // Close confirmation modal
+    try {
+      setLoading(true);
+      const token = await tokenService.getToken();
+      if (!token || !addressId) return;
 
-            await userService.deleteAddress(token, addressId as string);
-            await refreshUser();
+      await userService.deleteAddress(token, addressId as string);
+      await refreshUser();
 
-            Alert.alert(t("address.success"), t("address.deleted"), [
-              { text: "OK", onPress: () => router.back() },
-            ]);
-          } catch (error: any) {
-            Alert.alert(
-              t("address.error"),
-              error.message || t("address.deleteError")
-            );
-          } finally {
-            setLoading(false);
-          }
+      setAlertConfig({
+        visible: true,
+        title: t("address.success"),
+        message: t("address.deleted"),
+        type: "success",
+        onConfirm: () => {
+          hideAlert();
+          router.back();
         },
-      },
-    ]);
+      });
+    } catch (error: any) {
+      setAlertConfig({
+        visible: true,
+        title: t("address.error"),
+        message: error.message || t("address.deleteError"),
+        type: "error",
+        onConfirm: hideAlert,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    setAlertConfig({
+      visible: true,
+      title: t("address.deleteTitle"),
+      message: t("address.deleteConfirm"),
+      type: "warning",
+      confirmText: t("profile.delete"),
+      cancelText: t("profile.cancel"),
+      onConfirm: executeDelete,
+      onCancel: hideAlert,
+    });
   };
 
   // GHN Address Handlers
@@ -726,6 +809,18 @@ export default function AddressDetailScreen() {
           </View>
         </View>
       )}
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </KeyboardAvoidingView>
   );
 }

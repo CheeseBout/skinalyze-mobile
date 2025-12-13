@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import skinAnalysisService from '@/services/skinAnalysisService';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import { useTranslation } from 'react-i18next';
+import CustomAlert from '@/components/CustomAlert'; // Import CustomAlert
 
 export default function ManualEntryScreen() {
   const router = useRouter();
@@ -38,6 +38,25 @@ export default function ManualEntryScreen() {
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     startAnimations();
@@ -70,7 +89,13 @@ export default function ManualEntryScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert(t('manualEntry.error'), t('manualEntry.couldNotPickImage'));
+      setAlertConfig({
+        visible: true,
+        title: t('manualEntry.error'),
+        message: t('manualEntry.couldNotPickImage'),
+        type: 'error',
+        onConfirm: hideAlert
+      });
     }
   };
 
@@ -91,12 +116,24 @@ export default function ManualEntryScreen() {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert(t('manualEntry.validationError'), t('manualEntry.fillRequiredFields'));
+      setAlertConfig({
+        visible: true,
+        title: t('manualEntry.validationError'),
+        message: t('manualEntry.fillRequiredFields'),
+        type: 'warning',
+        onConfirm: hideAlert
+      });
       return;
     }
 
     if (!user?.userId) {
-      Alert.alert(t('manualEntry.error'), t('manualEntry.userNotAuthenticated'));
+      setAlertConfig({
+        visible: true,
+        title: t('manualEntry.error'),
+        message: t('manualEntry.userNotAuthenticated'),
+        type: 'error',
+        onConfirm: hideAlert
+      });
       return;
     }
 
@@ -110,11 +147,25 @@ export default function ManualEntryScreen() {
         imageUris: selectedImage ? [selectedImage] : null,
       });
 
-      Alert.alert(t('manualEntry.success'), t('manualEntry.recordSaved'), [
-        { text: t('manualEntry.ok'), onPress: () => router.back() }
-      ]);
+      // Success Alert with navigation callback
+      setAlertConfig({
+        visible: true,
+        title: t('manualEntry.success'),
+        message: t('manualEntry.recordSaved'),
+        type: 'success',
+        onConfirm: () => {
+          hideAlert();
+          router.back();
+        }
+      });
     } catch (error: any) {
-      Alert.alert(t('manualEntry.error'), error.message || t('manualEntry.failedSaveRecord'));
+      setAlertConfig({
+        visible: true,
+        title: t('manualEntry.error'),
+        message: error.message || t('manualEntry.failedSaveRecord'),
+        type: 'error',
+        onConfirm: hideAlert
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -346,6 +397,16 @@ export default function ManualEntryScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText={t('manualEntry.ok')}
+      />
     </KeyboardAvoidingView>
   );
 }
