@@ -15,6 +15,7 @@ import orderService, { Order, OrderItem } from "@/services/orderService";
 import tokenService from "@/services/tokenService";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import reviewService from "@/services/reviewService";
+import returnRequestService from "@/services/returnRequestService";
 import { useTranslation } from "react-i18next";
 import CustomAlert from "@/components/CustomAlert"; // Ensure path matches your project structure
 
@@ -28,6 +29,7 @@ export default function OrderDetailScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingAction, setProcessingAction] = useState(false);
+  const [hasReturnRequest, setHasReturnRequest] = useState(false);
   const [reviewEligibility, setReviewEligibility] = useState<
     Record<
       string,
@@ -59,6 +61,7 @@ export default function OrderDetailScreen() {
         if (order.status === "DELIVERED" || order.status === "COMPLETED") {
           checkReviewEligibility(order.orderItems);
         }
+        checkReturnRequest();
       }
     }, [orderId, isAuthenticated, order])
   );
@@ -66,6 +69,21 @@ export default function OrderDetailScreen() {
   // Helper to close alert
   const hideAlert = () => {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
+  // Check if order has any return requests
+  const checkReturnRequest = async () => {
+    try {
+      const token = await tokenService.getToken();
+      if (!token || !orderId) return;
+      
+      const returnRequests = await returnRequestService.getMyReturnRequests(token);
+      const hasRequest = returnRequests.some(request => request.orderId === orderId);
+      setHasReturnRequest(hasRequest);
+    } catch (error) {
+      console.error("Error checking return requests:", error);
+      setHasReturnRequest(false);
+    }
   };
 
   const fetchOrderDetail = async () => {
@@ -105,6 +123,9 @@ export default function OrderDetailScreen() {
       if (data.status === "DELIVERED" || data.status === "COMPLETED") {
         await checkReviewEligibility(data.orderItems);
       }
+
+      // Check for return requests
+      await checkReturnRequest();
     } catch (error: any) {
       console.error("Error fetching order detail:", error);
       setAlertConfig({
@@ -603,7 +624,7 @@ export default function OrderDetailScreen() {
         )}
 
         {/* COMPLETE ORDER BUTTON SECTION */}
-        {order.status === "DELIVERED" && (
+        {order.status === "DELIVERED" && !hasReturnRequest && (
           <View style={styles.actionContainer}>
             <View style={styles.completeInfoBox}>
               <Ionicons name="gift-outline" size={24} color={primaryColor} />
@@ -639,29 +660,31 @@ export default function OrderDetailScreen() {
         {order.status === "DELIVERED" &&
           order.shippingLogs?.some((log) => log.status === "DELIVERED") && (
             <View style={styles.returnRequestContainer}>
-              <TouchableOpacity
-                style={styles.returnRequestButton}
-                onPress={() => {
-                  const deliveredLog = order.shippingLogs?.find(
-                    (log) => log.status === "DELIVERED"
-                  );
-                  if (deliveredLog) {
-                    router.push({
-                      pathname: "/(stacks)/CreateReturnRequestScreen",
-                      params: {
-                        orderId: order.orderId,
-                        shippingLogId: deliveredLog.shippingLogId,
-                      },
-                    });
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="return-down-back" size={20} color="#FF6B6B" />
-                <Text style={styles.returnRequestButtonText}>
-                  {t("returnRequest.requestReturn")}
-                </Text>
-              </TouchableOpacity>
+              {!hasReturnRequest && (
+                <TouchableOpacity
+                  style={styles.returnRequestButton}
+                  onPress={() => {
+                    const deliveredLog = order.shippingLogs?.find(
+                      (log) => log.status === "DELIVERED"
+                    );
+                    if (deliveredLog) {
+                      router.push({
+                        pathname: "/(stacks)/CreateReturnRequestScreen",
+                        params: {
+                          orderId: order.orderId,
+                          shippingLogId: deliveredLog.shippingLogId,
+                        },
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="return-down-back" size={20} color="#FF6B6B" />
+                  <Text style={styles.returnRequestButtonText}>
+                    {t("returnRequest.requestReturn")}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.viewReturnRequestsButton}

@@ -695,6 +695,12 @@ export default function ProfileScreen() {
             onPress={() => router.push("/(stacks)/SettingsScreen")}
           />
           <QuickActionButton
+            icon="return-down-back-outline"
+            label={t("returnRequest.myRequests")}
+            color="#FF6B6B"
+            onPress={() => router.push("/(stacks)/MyReturnRequestsScreen")}
+          />
+          <QuickActionButton
             icon="alert-circle-outline"
             label={t("profile.updateAllergies")}
             color="#EF4444"
@@ -1442,6 +1448,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#1A1A1A",
+    textAlign: "center",
   },
   section: {
     paddingHorizontal: 24,
