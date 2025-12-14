@@ -8,6 +8,7 @@ export interface Dermatologist {
   yearsOfExperience: number;
   yearsOfExp?: number; // Alternative field name from API
   bio: string;
+  about?: string;
   clinicAddress: string;
   defaultSlotPrice: number;
   createdAt: string;

@@ -418,35 +418,9 @@ export default function DermatologistDetailScreen() {
               {t("dermatologistDetail.sections.about")}
             </Text>
           </View>
-          <Text style={styles.bioText}>{dermatologist.bio}</Text>
-        </Animated.View>
-
-        {/* Clinic Location */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <View
-              style={[styles.cardHeaderIcon, { backgroundColor: "#FEF3C7" }]}
-            >
-              <Ionicons name="location" size={20} color="#F59E0B" />
-            </View>
-            <Text style={styles.cardTitle}>
-              {t("dermatologistDetail.sections.clinicLocation")}
-            </Text>
-          </View>
-          <View style={styles.locationContainer}>
-            <Ionicons name="navigate" size={18} color="#666" />
-            <Text style={styles.addressText}>
-              {dermatologist.clinicAddress}
-            </Text>
-          </View>
+          <Text style={styles.bioText}>
+            {dermatologist.about || dermatologist.bio}
+          </Text>
         </Animated.View>
 
         {/* Specializations & Certifications */}
