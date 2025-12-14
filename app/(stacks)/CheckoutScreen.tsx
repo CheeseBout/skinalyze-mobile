@@ -362,7 +362,7 @@ export default function CheckoutScreen() {
             (item) => item.productId
           );
 
-          const order = await orderService.checkout(token, {
+          const checkoutResult = await orderService.checkout(token, {
             shippingAddress: shippingAddress.trim(),
             province: province.trim(),
             district: district.trim(),
@@ -382,25 +382,28 @@ export default function CheckoutScreen() {
           }
 
           // For banking payment, navigate to PaymentScreen with QR details
-          if (paymentMethod === "banking" && order.payment) {
+          if (paymentMethod === "banking" && checkoutResult.payment) {
             router.replace({
               pathname: "/(stacks)/PaymentScreen",
               params: {
-                paymentCode: order.payment.paymentCode || "",
-                expiredAt: order.payment.expiredAt || "",
+                paymentCode: checkoutResult.payment.paymentCode || "",
+                expiredAt: checkoutResult.payment.expiredAt || "",
                 appointmentId: "",
-                orderId: order.orderId,
+                orderId: "", // Order will be created after payment
                 bankingInfo: JSON.stringify({
-                  bankName: order.payment.bankingInfo?.bankName || "",
-                  accountNumber: order.payment.bankingInfo?.accountNumber || "",
-                  accountName: order.payment.bankingInfo?.accountName || "",
-                  amount: order.payment.amount || 0,
-                  qrCodeUrl: order.payment.qrCodeUrl || "",
+                  bankName: checkoutResult.payment.bankingInfo?.bankName || "",
+                  accountNumber: checkoutResult.payment.bankingInfo?.accountNumber || "",
+                  accountName: checkoutResult.payment.bankingInfo?.accountName || "",
+                  amount: checkoutResult.payment.amount || 0,
+                  qrCodeUrl: checkoutResult.payment.qrCodeUrl || "",
                 }),
               },
             });
             return;
           }
+
+          // For other payment methods (wallet, COD), checkoutResult is the order object
+          const order = checkoutResult;
 
           // For other payment methods, show success alert
           showAlert(
