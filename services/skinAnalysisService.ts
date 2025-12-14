@@ -2,7 +2,10 @@ import apiService from "./apiService";
 import tokenService from "./tokenService";
 import userService from "./userService";
 
-// Type definitions based on API response
+export interface RecommendedProductRef {
+  productId: string;
+  reason: string;
+}
 export interface SkinAnalysisResult {
   analysisId: string;
   customerId: string;
@@ -13,7 +16,7 @@ export interface SkinAnalysisResult {
   notes: string | null;
   aiDetectedDisease: string | null;
   aiDetectedCondition: string | null;
-  aiRecommendedProducts: string[] | null;
+  aiRecommendedProducts: RecommendedProductRef[] | null;
   mask: string | string[] | null;
   confidence?: number;
   allPredictions?: { [key: string]: number };

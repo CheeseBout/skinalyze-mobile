@@ -61,7 +61,22 @@
     "permissionRequired": "Permission Required",
     "galleryPermissionMessage": "Please allow access to your photo library to select a profile picture.",
     "cameraPermissionMessage": "Please allow access to your camera to take a profile picture.",
-    "failedPhotoUpload": "Failed to upload profile photo. Your other changes were saved."
+    "failedPhotoUpload": "Failed to upload profile photo. Your other changes were saved.",
+    "male": "Male",
+    "female": "Female",
+    "gender": "Gender",
+    "allergies": "Allergies",
+    "allergiesPlaceholder": "e.g. Peanuts, Pollen",
+    "allergiesHint": "Separate multiple allergies with commas",
+    "noAllergies": "No known allergies",
+    "updateAllergies": "Allergies",
+    "updateAllergiesTitle": "Update Allergies",
+    "updateAllergiesSubtitle": "Help AI exclude products with ingredients harmful to your skin.",
+    "allergiesListLabel": "Allergy List (separated by commas):",
+    "allergiesExample": "Example: Peanuts, Alcohol, Fragrances...",
+    "skip": "Skip",
+    "sessionExpired": "Session expired.",
+    "updateFailed": "Update failed. Please try again."
   },
   "mySubscriptions": {
     "title": "My Subscriptions",
@@ -928,7 +943,16 @@
     "chiefComplaintPlaceholder": "Describe your main skin concerns...",
     "additionalNotes": "Additional Notes",
     "fieldsRequired": "* Indicates required fields",
-    "saveRecord": "Save Record"
+    "saveRecord": "Save Record",
+    "couldNotPickImage": "Could not pick image",
+    "chiefComplaintRequired": "Chief complaint is required",
+    "symptomsRequired": "Symptoms are required",
+    "validationError": "Validation Error",
+    "fillRequiredFields": "Please fill in all required fields",
+    "userNotAuthenticated": "User not authenticated",
+    "recordSaved": "Record saved successfully",
+    "failedSaveRecord": "Failed to save record",
+    "errorDecs": "An error occurred while saving your record. Please try again."
   },
   "tabBar": {
     "home": "Home",
@@ -1441,5 +1465,56 @@
       "rejected": "Rejected",
       "cancelled": "Cancelled"
     }
+  },
+  "paymentHistory": {
+    "title": "Payment History",
+    "loading": "Loading payment history...",
+    "loadingMore": "Loading more...",
+    "empty": "No Payment History",
+    "emptyDesc": "Your payment transactions will appear here",
+    "retry": "Try Again",
+    "totalTransactions": "Total Transactions",
+    "currentPage": "Current Page",
+    "paidAt": "Paid at",
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "expired": "Expired",
+      "refunded": "Refunded"
+    },
+    "types": {
+      "topup": "Top Up",
+      "withdraw": "Withdrawal"
+    },
+    "status": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "expired": "Expired",
+      "refunded": "Refunded"
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to SkinAlyze!",
+    "welcomeSubtitle": "Your personalized skin care journey starts here. Let's help you find the perfect products for your skin.",
+    "feature1": "Get AI-powered skin analysis and personalized recommendations",
+    "feature2": "Find products that match your skin type and concerns",
+    "feature3": "Avoid ingredients that may harm your skin",
+    "getStarted": "Get Started",
+    "allergyTitle": "Tell Us About Your Allergies",
+    "allergyInfo": "Help us personalize your experience by letting us know about any allergies or sensitivities. We'll exclude products with these ingredients from your recommendations.",
+    "commonAllergies": "Common Allergies",
+    "otherAllergies": "Other Allergies",
+    "customPlaceholder": "Enter custom allergy...",
+    "selectedCount": "{{count}} allergy selected",
+    "selectedCount_plural": "{{count}} allergies selected",
+    "skip": "Skip for Now",
+    "continue": "Continue",
+    "successTitle": "All Set!",
+    "successMessage": "Your allergy preferences have been saved. You're ready to explore!",
+    "saveError": "Failed to save your allergies. Please try again.",
+    "skipError": "Failed to skip. Please try again."
   }
 }

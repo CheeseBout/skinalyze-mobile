@@ -44,10 +44,16 @@ export default function ProfileScreen() {
   const [currency, setCurrency] = useState<string>("VND");
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
+
+  // ✅ Form State: Includes allergies as a comma-separated string for editing
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     dob: user?.dob || "",
+    allergies:
+      user?.allergies && Array.isArray(user.allergies)
+        ? user.allergies.join(", ")
+        : "",
   });
 
   // Animations
@@ -107,6 +113,11 @@ export default function ProfileScreen() {
         fullName: user.fullName,
         phone: user.phone,
         dob: user.dob,
+        // Ensure allergies is handled correctly whether it's null or array
+        allergies:
+          user.allergies && Array.isArray(user.allergies)
+            ? user.allergies.join(", ")
+            : "",
       });
       fetchBalance();
 
@@ -235,8 +246,22 @@ export default function ProfileScreen() {
         }
       }
 
+      // ✅ Process allergies string into array for API payload
+      // Split by comma, trim whitespace, and filter empty strings
+      const allergiesArray = formData.allergies
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      const payload = {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        dob: formData.dob,
+        allergies: allergiesArray, // ✅ Send array to backend
+      };
+
       // Update profile data
-      await userService.updateProfile(token, formData);
+      await userService.updateProfile(token, payload);
       await refreshUser();
 
       setIsEditing(false);
@@ -260,6 +285,10 @@ export default function ProfileScreen() {
         fullName: user.fullName,
         phone: user.phone,
         dob: user.dob,
+        allergies:
+          user.allergies && Array.isArray(user.allergies)
+            ? user.allergies.join(", ")
+            : "",
       });
     }
     setSelectedPhotoUri(null);
@@ -306,7 +335,7 @@ export default function ProfileScreen() {
       t("profile.logout"),
       async () => {
         await logout();
-        router.replace("/WelcomeScreen" as any);
+        router.replace("/SignInScreen" as any);
       },
       t("profile.cancel"),
       () => {}
@@ -321,6 +350,20 @@ export default function ProfileScreen() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  // Helper to display Gender text based on boolean
+  const getGenderText = (gender: boolean | undefined | null) => {
+    if (gender === true) return t("profile.male");
+    if (gender === false) return t("profile.female");
+    return t("profile.notSet");
+  };
+
+  // Helper to get Gender Icon
+  const getGenderIcon = (gender: boolean | undefined | null) => {
+    if (gender === true) return "male";
+    if (gender === false) return "female";
+    return "person-outline"; // Neutral icon
   };
 
   if (!user) {
@@ -586,9 +629,7 @@ export default function ProfileScreen() {
 
               <TouchableOpacity
                 style={styles.balanceActionButton}
-                onPress={() =>
-                  router.push("/(stacks)/WithdrawalRequestsScreen")
-                }
+                onPress={() => router.push("/(stacks)/PaymentHistoryScreen")}
                 activeOpacity={0.7}
               >
                 <View
@@ -597,7 +638,7 @@ export default function ProfileScreen() {
                     { backgroundColor: primaryColor },
                   ]}
                 >
-                  <Ionicons name="time-outline" size={18} color="#FFFFFF" />
+                  <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
                 </View>
                 <Text style={styles.actionButtonText}>
                   {t("profile.history")}
@@ -618,46 +659,52 @@ export default function ProfileScreen() {
           ]}
         >
           <QuickActionButton
-            icon="analytics"
+            icon="albums-outline"
             label={t("profile.analysis")}
-            color="#FF9500"
-            bgColor="#FFF4E6"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/AnalysisListScreen")}
           />
           <QuickActionButton
-            icon="receipt"
+            icon="receipt-outline"
             label={t("profile.orders")}
-            color="#007AFF"
-            bgColor="#F0F9FF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/OrderListScreen")}
           />
           <QuickActionButton
-            icon="calendar"
+            icon="calendar-outline"
             label={t("profile.appointments")}
-            color="#FF6F00"
-            bgColor="#FFF3E0"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MyAppointmentsScreen")}
           />
           <QuickActionButton
-            icon="clipboard"
+            icon="clipboard-outline"
             label={t("profile.routines")}
-            color="#10B981"
-            bgColor="#ECFDF5"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MyRoutinesScreen")}
           />
           <QuickActionButton
-            icon="medkit"
+            icon="medkit-outline"
             label={t("profile.subscriptions")}
-            color="#2563EB"
-            bgColor="#E0ECFF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/MySubscriptionsScreen")}
           />
           <QuickActionButton
-            icon="settings"
+            icon="settings-outline"
             label={t("profile.settings")}
-            color="#A855F7"
-            bgColor="#F3E8FF"
+            color={primaryColor}
             onPress={() => router.push("/(stacks)/SettingsScreen")}
+          />
+          <QuickActionButton
+            icon="return-down-back-outline"
+            label={t("returnRequest.myRequests")}
+            color="#FF6B6B"
+            onPress={() => router.push("/(stacks)/MyReturnRequestsScreen")}
+          />
+          <QuickActionButton
+            icon="alert-circle-outline"
+            label={t("profile.updateAllergies")}
+            color="#EF4444"
+            onPress={() => router.push("/(stacks)/AllergyOnboardingScreen")}
           />
         </Animated.View>
 
@@ -701,6 +748,7 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            {/* Date of Birth Field */}
             <View style={styles.fieldWrapper}>
               <View
                 style={[
@@ -739,6 +787,46 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            {/* Gender Field - Read Only */}
+            <View style={styles.fieldWrapper}>
+              <View
+                style={[
+                  styles.fieldIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
+                <Ionicons
+                  name={getGenderIcon(user.gender)}
+                  size={18}
+                  color={primaryColor}
+                />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t("profile.gender")}</Text>
+                <Text style={styles.fieldValue}>
+                  {getGenderText(user.gender)}
+                </Text>
+                {isEditing && (
+                  <Text style={styles.fieldHint}>
+                    {t("profile.genderCannotChange")}
+                  </Text>
+                )}
+              </View>
+
+              {/* Show Lock icon when editing to indicate read-only */}
+              {isEditing ? (
+                <Ionicons name="lock-closed-outline" size={16} color="#999" />
+              ) : (
+                user.gender !== null &&
+                user.gender !== undefined && (
+                  <Ionicons name="checkmark-circle" size={18} color="#34C759" />
+                )
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Email Field - Read Only */}
             <View style={styles.fieldWrapper}>
               <View
                 style={[
@@ -752,6 +840,76 @@ export default function ProfileScreen() {
                 <Text style={styles.fieldLabel}>{t("profile.email")}</Text>
                 <Text style={styles.fieldValue}>{user.email}</Text>
                 <Text style={styles.fieldHint}>{t("profile.emailHint")}</Text>
+              </View>
+            </View>
+
+            {/* ✅ ALLERGIES SECTION (NEW) */}
+            <View style={styles.divider} />
+
+            <View style={styles.fieldWrapper}>
+              <View
+                style={[
+                  styles.fieldIcon,
+                  { backgroundColor: `${primaryColor}10` },
+                ]}
+              >
+                <Ionicons
+                  name="alert-circle-outline" // Warning icon for allergies
+                  size={18}
+                  color={primaryColor}
+                />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t("profile.allergies")}</Text>
+
+                {isEditing ? (
+                  <TextInput
+                    style={[
+                      styles.fieldInput,
+                      { borderBottomColor: primaryColor },
+                    ]}
+                    value={formData.allergies}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, allergies: text })
+                    }
+                    placeholder={t("profile.allergiesPlaceholder")} // e.g. "Peanuts, Pollen"
+                    placeholderTextColor="#999"
+                    multiline
+                  />
+                ) : (
+                  <View style={styles.allergyTagsContainer}>
+                    {user.allergies && user.allergies.length > 0 ? (
+                      user.allergies.map((allergy: string, index: number) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.allergyTag,
+                            { backgroundColor: "#FEE2E2" },
+                          ]} // Red light background
+                        >
+                          <Text
+                            style={[
+                              styles.allergyTagText,
+                              { color: "#EF4444" },
+                            ]}
+                          >
+                            {allergy}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.fieldValue}>
+                        {t("profile.noAllergies")}
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {isEditing && (
+                  <Text style={styles.fieldHint}>
+                    {t("profile.allergiesHint")}
+                  </Text>
+                )}
               </View>
             </View>
           </View>
@@ -991,7 +1149,7 @@ const InfoField: React.FC<InfoFieldProps> = ({
   keyboardType = "default",
   primaryColor,
 }) => {
-  const { t } = useTranslation(); // FIX: Using the hook inside the component
+  const { t } = useTranslation();
 
   return (
     <View style={styles.fieldWrapper}>
@@ -1290,6 +1448,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#1A1A1A",
+    textAlign: "center",
   },
   section: {
     paddingHorizontal: 24,
@@ -1559,5 +1718,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+  },
+  // ✅ Added styles for Allergies
+  allergyTagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  allergyTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  allergyTagText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

@@ -37,6 +37,23 @@ export interface ReviewStats {
   }>;
 }
 
+export interface ReviewableProduct {
+  productId: string;
+  productName: string;
+  productImages: string[];
+  priceAtTime: number;
+  quantity: number;
+}
+
+export interface OrderReviewableResponse {
+  orderId: string;
+  orderStatus: string;
+  reviewableProducts: ReviewableProduct[];
+  totalProducts: number;
+  reviewedCount: number;
+  remainingCount: number;
+}
+
 interface ReviewResponse {
   statusCode: number;
   message: string;
@@ -55,6 +72,13 @@ interface ReviewStatsResponse {
   statusCode: number;
   message: string;
   data: ReviewStats;
+  timestamp: string;
+}
+
+interface OrderReviewableApiResponse {
+  statusCode: number;
+  message: string;
+  data: OrderReviewableResponse;
   timestamp: string;
 }
 
@@ -115,6 +139,30 @@ class ReviewService {
         } catch (error) {
           console.error("❌ Error fetching review stats:", error);
           throw error;
+        }
+    }
+
+    async getOrderReviewableProducts(orderId: string): Promise<OrderReviewableResponse> {
+        try {
+          const response = await apiService.get<OrderReviewableApiResponse>(`/reviews/order/${orderId}/reviewable`);
+          return response.data;
+        } catch (error) {
+          console.error("❌ Error fetching reviewable products:", error);
+          throw error;
+        }
+    }
+
+    async canReviewOrder(orderId: string): Promise<{ canReview: boolean; reviewableCount: number }> {
+        try {
+          const reviewableData = await this.getOrderReviewableProducts(orderId);
+          const canReview = reviewableData.orderStatus === 'DELIVERED' && reviewableData.remainingCount > 0;
+          return { 
+            canReview, 
+            reviewableCount: reviewableData.remainingCount 
+          };
+        } catch (error) {
+          console.error("❌ Error checking if order can be reviewed:", error);
+          return { canReview: false, reviewableCount: 0 };
         }
     }
 

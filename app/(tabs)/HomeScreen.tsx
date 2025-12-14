@@ -10,7 +10,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image  // Add this import
+  Image 
 } from 'react-native'
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'expo-router'
@@ -20,18 +20,18 @@ import ProductCard from '@/components/ProductCard'
 import { useThemeColor } from '@/contexts/ThemeColorContext'
 import { useAuth } from '@/hooks/useAuth'
 import ToTopButton from '@/components/ToTopButton' 
-import { productService } from '@/services/productService'
-import { Product } from '@/services/productService'
+import { productService, Product } from '@/services/productService'
 import { useTranslation } from 'react-i18next';
 import skinAnalysisService from '@/services/skinAnalysisService';
 import tokenService from '@/services/tokenService';
 import userService from '@/services/userService';
+import AllergyUpdateModal from '@/components/AllergyUpdateModal'; // ✅ Import Modal
 
 const { width } = Dimensions.get('window')
 
 export default function HomeScreen() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { primaryColor } = useThemeColor()
   const { 
     categories, 
@@ -54,6 +54,10 @@ export default function HomeScreen() {
   const [showToTop, setShowToTop] = useState(false)
   const [userSkinTypes, setUserSkinTypes] = useState<string[]>([])
   
+  // ✅ State for Allergy Modal
+  const [showAllergyModal, setShowAllergyModal] = useState(false);
+  const hasCheckedAllergies = useRef(false); // Track if we've already checked
+
   const PRODUCTS_PER_PAGE = 50
   const flatListRef = useRef<FlatList>(null)
 
@@ -77,9 +81,30 @@ export default function HomeScreen() {
     ]).start()
   }, [])
 
+  // ✅ Check Allergies on Load (only once per session)
+  useEffect(() => {
+    if (user && !hasCheckedAllergies.current) {
+      // Check if allergies array is missing or empty
+      const hasAllergiesSet = user.allergies && Array.isArray(user.allergies) && user.allergies.length > 0;
+
+      if (!hasAllergiesSet) {
+         // Delay popup slightly for better UX
+         const timer = setTimeout(() => {
+            setShowAllergyModal(true);
+            hasCheckedAllergies.current = true; // Mark as checked
+         }, 1500);
+         return () => clearTimeout(timer);
+      } else {
+        hasCheckedAllergies.current = true; // Mark as checked even if they have allergies
+      }
+    }
+  }, [user]);
+
   // Fetch latest skin analysis to get user's skin conditions
   useEffect(() => {
-    fetchLatestSkinAnalysis();
+    if (user?.userId) {
+      fetchLatestSkinAnalysis();
+    }
   }, [user?.userId]);
 
   const fetchLatestSkinAnalysis = async () => {
@@ -280,8 +305,8 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/AnalyzeScreen')}
           activeOpacity={0.7}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#F0F9FF' }]}>
-            <Ionicons name="camera" size={24} color="#2196F3" />
+          <View style={styles.quickActionIcon}>
+            <Ionicons name="camera" size={24} color={primaryColor} />
           </View>
           <View style={styles.quickActionContent}>
             <Text style={styles.quickActionTitle}>{t('home.analyze')}</Text>  
@@ -297,8 +322,8 @@ export default function HomeScreen() {
           onPress={() => router.push('/(stacks)/OrderListScreen')}
           activeOpacity={0.7}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#FFF4E6' }]}>
-            <Ionicons name="receipt" size={24} color="#FF9800" />
+          <View style={styles.quickActionIcon }>
+            <Ionicons name="receipt" size={24} color={primaryColor} />
           </View>
           <View style={styles.quickActionContent}>
             <Text style={styles.quickActionTitle}>{t('home.orders')}</Text>  
@@ -384,7 +409,6 @@ export default function HomeScreen() {
                   key={category.categoryId}
                   style={styles.categoryCard}
                   activeOpacity={0.7}
-                  // === MODIFIED: Navigation to SearchScreen with Params ===
                   onPress={() => router.push({
                     pathname: '/(stacks)/SearchScreen',
                     params: { 
@@ -522,6 +546,13 @@ export default function HomeScreen() {
       <ToTopButton
         visible={showToTop}
         onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
+      />
+
+      {/* ✅ Modal to update Allergies */}
+      <AllergyUpdateModal
+        visible={showAllergyModal}
+        onClose={() => setShowAllergyModal(false)}
+        onSuccess={() => setShowAllergyModal(false)}
       />
     </View>
   )

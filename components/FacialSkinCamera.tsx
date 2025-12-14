@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import React, { useState, useRef } from 'react';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import CustomAlert from '@/components/CustomAlert'; // Import CustomAlert
 
 interface FacialSkinCameraProps {
   // Update type to allow Promise so we can wait for analysis to finish
@@ -23,8 +24,25 @@ export default function FacialSkinCamera({
   const [isProcessing, setIsProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   
-  // Optional: Handle case where hook might be missing or return different structure
-  // If useThemeColor context isn't available, default to a color
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
+  
   const theme = useThemeColor ? useThemeColor() : { primaryColor: '#007AFF' };
   const primaryColor = theme.primaryColor || '#007AFF';
 
@@ -49,7 +67,13 @@ export default function FacialSkinCamera({
 
   const takePicture = async () => {
     if (!cameraRef.current) {
-      Alert.alert('Error', 'Camera not ready');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Camera not ready',
+        type: 'error',
+        onConfirm: hideAlert
+      });
       return;
     }
 
@@ -71,10 +95,16 @@ export default function FacialSkinCamera({
         await onCapture(photo.uri);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error taking picture:', error);
-      // Note: We don't alert here if it's a "No face detected" error 
-      // because AnalyzeScreen handles the specific Alert UI.
+      // Show alert if analysis fails or capture fails
+      setAlertConfig({
+        visible: true,
+        title: 'Capture Failed',
+        message: error.message || 'An unexpected error occurred.',
+        type: 'error',
+        onConfirm: hideAlert
+      });
     } finally {
       // CRITICAL FIX: This ensures the button stops spinning 
       // regardless of whether the analysis succeeded or failed.
@@ -123,6 +153,16 @@ export default function FacialSkinCamera({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Integrate Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="OK"
+      />
     </View>
   );
 }

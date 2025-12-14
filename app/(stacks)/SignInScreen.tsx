@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Animated
 } from 'react-native'
@@ -19,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth'
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useThemeColor } from '@/contexts/ThemeColorContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomAlert from '@/components/CustomAlert'; // Import CustomAlert
 
 const REMEMBER_ME_KEY = '@remember_me';
 const SAVED_EMAIL_KEY = '@saved_email';
@@ -40,6 +40,19 @@ export default function SignInScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info' as 'success' | 'error' | 'warning' | 'info',
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     loadSavedCredentials();
@@ -133,14 +146,33 @@ export default function SignInScreen() {
       
       await authLogin(response.data.access_token, response.data.user)
 
-      Alert.alert('Success', 'Login successful!', [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/(tabs)/HomeScreen')
+      // Success Alert
+      setAlertConfig({
+        visible: true,
+        title: 'Success',
+        message: 'Login successful!',
+        type: 'success',
+        onConfirm: () => {
+          hideAlert();
+          // Check if user has allergies set, if not redirect to onboarding
+          const hasAllergies = response.data.user.allergies && response.data.user.allergies.length > 0;
+          if (hasAllergies) {
+            router.replace('/(tabs)/HomeScreen');
+          } else {
+            router.replace('/(stacks)/AllergyOnboardingScreen');
+          }
         }
-      ])
+      });
+
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Unable to login. Please try again.')
+      // Error Alert
+      setAlertConfig({
+        visible: true,
+        title: 'Login Failed',
+        message: error.message || 'Unable to login. Please try again.',
+        type: 'error',
+        onConfirm: hideAlert
+      });
     } finally {
       setLoading(false)
     }
@@ -327,6 +359,16 @@ export default function SignInScreen() {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Custom Alert Integration */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="OK"
+      />
     </KeyboardAvoidingView>
   )
 }

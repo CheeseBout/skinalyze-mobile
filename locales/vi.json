@@ -61,7 +61,23 @@
     "permissionRequired": "Cần Quyền Truy Cập",
     "galleryPermissionMessage": "Vui lòng cho phép truy cập vào thư viện ảnh của bạn để chọn ảnh đại diện.",
     "cameraPermissionMessage": "Vui lòng cho phép truy cập vào camera của bạn để chụp ảnh đại diện.",
-    "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu."
+    "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu.",
+    "male": "Nam",
+    "female": "Nữ",
+    "gender": "Giới Tính",
+    "allergies": "Dị ứng",
+    "allergiesPlaceholder": "vd: Đậu phộng, Phấn hoa",
+    "allergiesHint": "Phân cách nhiều loại bằng dấu phẩy",
+    "noAllergies": "Không có dị ứng",
+    "updateAllergies": "Dị Ứng",
+    "updateAllergiesTitle": "Cập Nhật Dị Ứng",
+    "updateAllergiesSubtitle": "Giúp AI loại trừ sản phẩm có thành phần gây hại cho da bạn.",
+    "allergiesListLabel": "Danh sách dị ứng (phân cách bằng dấu phẩy):",
+    "allergiesExample": "Ví dụ: Đậu phộng, Cồn, Hương liệu...",
+    "skip": "Bỏ Qua",
+    "sessionExpired": "Phiên đã hết hạn.",
+    "updateFailed": "Cập nhật thất bại. Vui lòng thử lại.",
+    "genderCannotChange": "Giới tính không thể thay đổi"
   },
   "home": {
     "goodMorning": "Chào buổi sáng",
@@ -790,7 +806,8 @@
     "tapToUpload": "Nhấn để tải lên ảnh",
     "fileTypes": "JPG, PNG lên đến 10MB",
     "fieldsRequired": "Các trường được đánh dấu * là bắt buộc",
-    "ok": "OK"
+    "ok": "OK",
+    "errorDecs": "Đã xảy ra lỗi khi chọn hình ảnh. Vui lòng thử lại."
   },
   "tabBar": {
     "home": "Trang Chủ",
@@ -1303,5 +1320,56 @@
       "rejected": "Từ chối",
       "cancelled": "Đã hủy"
     }
+  },
+  "paymentHistory": {
+    "title": "Lịch sử thanh toán",
+    "loading": "Đang tải lịch sử thanh toán...",
+    "loadingMore": "Đang tải thêm...",
+    "empty": "Chưa có lịch sử thanh toán",
+    "emptyDesc": "Các giao dịch thanh toán của bạn sẽ được hiển thị ở đây",
+    "retry": "Thử lại",
+    "totalTransactions": "Tổng giao dịch",
+    "currentPage": "Trang hiện tại",
+    "paidAt": "Thanh toán lúc",
+    "filters": {
+      "all": "Tất cả",
+      "pending": "Đang chờ",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại",
+      "expired": "Đã hết hạn",
+      "refunded": "Đã hoàn tiền"
+    },
+    "types": {
+      "topup": "Nạp tiền",
+      "withdraw": "Rút tiền"
+    },
+    "status": {
+      "pending": "Đang chờ",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại",
+      "expired": "Đã hết hạn",
+      "refunded": "Đã hoàn tiền"
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Chào mừng đến với SkinAlyze!",
+    "welcomeSubtitle": "Hành trình chăm sóc da cá nhân hóa của bạn bắt đầu từ đây. Hãy để chúng tôi giúp bạn tìm sản phẩm hoàn hảo cho làn da của bạn.",
+    "feature1": "Nhận phân tích da bằng AI và đề xuất sản phẩm phù hợp",
+    "feature2": "Tìm sản phẩm phù hợp với loại da và vấn đề của bạn",
+    "feature3": "Tránh các thành phần có thể gây hại cho da bạn",
+    "getStarted": "Bắt Đầu",
+    "allergyTitle": "Cho Chúng Tôi Biết Về Dị Ứng Của Bạn",
+    "allergyInfo": "Giúp chúng tôi cá nhân hóa trải nghiệm của bạn bằng cách cho biết về bất kỳ dị ứng hoặc nhạy cảm nào. Chúng tôi sẽ loại trừ các sản phẩm có thành phần này khỏi đề xuất của bạn.",
+    "commonAllergies": "Dị Ứng Phổ Biến",
+    "otherAllergies": "Dị Ứng Khác",
+    "customPlaceholder": "Nhập dị ứng tùy chỉnh...",
+    "selectedCount": "Đã chọn {{count}} dị ứng",
+    "selectedCount_plural": "Đã chọn {{count}} dị ứng",
+    "skip": "Bỏ Qua",
+    "continue": "Tiếp Tục",
+    "successTitle": "Hoàn Tất!",
+    "successMessage": "Tùy chọn dị ứng của bạn đã được lưu. Bạn đã sẵn sàng khám phá!",
+    "saveError": "Không thể lưu dị ứng của bạn. Vui lòng thử lại.",
+    "skipError": "Không thể bỏ qua. Vui lòng thử lại."
   }
 }

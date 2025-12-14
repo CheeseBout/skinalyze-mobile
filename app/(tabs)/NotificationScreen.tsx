@@ -6,13 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useNotificationWebSocket } from "@/hooks/useNotificationWebSocket";
 import { Notification } from "@/services/notificationWebSocketService";
+import CustomAlert from "@/components/CustomAlert"; // Import CustomAlert
 
 const ACTION_URL_PLACEHOLDER = "https://placeholder";
 
@@ -57,6 +57,26 @@ export default function NotificationScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshNotifications();
@@ -67,16 +87,34 @@ export default function NotificationScreen() {
     try {
       await markAsRead(notificationId);
     } catch (error) {
-      Alert.alert("Error", "Failed to mark notification as read");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Failed to mark notification as read",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
       await markAllAsRead();
-      Alert.alert("Success", "All notifications marked as read");
+      setAlertConfig({
+        visible: true,
+        title: "Success",
+        message: "All notifications marked as read",
+        type: "success",
+        onConfirm: hideAlert,
+      });
     } catch (error) {
-      Alert.alert("Error", "Failed to mark all as read");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Failed to mark all as read",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     }
   };
 
@@ -89,7 +127,13 @@ export default function NotificationScreen() {
       const { pathname, params } = parseActionRoute(actionUrl);
       router.push({ pathname: pathname as any, params: params as any });
     } catch (error) {
-      Alert.alert("Error", "Unable to open notification action");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Unable to open notification action",
+        type: "error",
+        onConfirm: hideAlert,
+      });
     }
   };
 
@@ -277,6 +321,16 @@ export default function NotificationScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Integrate CustomAlert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        onConfirm={alertConfig.onConfirm}
       />
     </SafeAreaView>
   );

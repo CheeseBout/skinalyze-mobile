@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useCallback } from "react";
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from "@expo/vector-icons/Ionicons";
 import reviewService, { Review, ReviewStats } from "@/services/reviewService";
 import { useAuth } from "@/hooks/useAuth";
+import CustomAlert from "@/components/CustomAlert"; // Make sure path is correct
 
 interface ReviewsComponentProps {
   productId: string;
@@ -33,6 +33,28 @@ export default function ReviewsComponent({
   const [hasPurchased, setHasPurchased] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const { user } = useAuth();
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     if (productId) {
@@ -108,6 +130,69 @@ export default function ReviewsComponent({
       console.error("Error fetching reviews:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const showReviewOptions = (review: Review) => {
+    setAlertConfig({
+      visible: true,
+      title: "Review Options",
+      message: "What would you like to do with this review?",
+      type: "info",
+      confirmText: "Edit",
+      cancelText: "Delete", 
+      onConfirm: () => {
+        hideAlert();
+        if (onWriteReview) onWriteReview(review);
+      },
+      onCancel: () => {
+        hideAlert();
+        confirmDeleteReview(review);
+      }
+    });
+  };
+
+  const confirmDeleteReview = (review: Review) => {
+    // Need a slight delay to allow the first modal to close completely
+    setTimeout(() => {
+      setAlertConfig({
+        visible: true,
+        title: "Delete Review",
+        message: "Are you sure you want to delete this review? This action cannot be undone.",
+        type: "warning",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        onConfirm: () => deleteReview(review),
+        onCancel: hideAlert
+      });
+    }, 300);
+  };
+
+  const deleteReview = async (review: Review) => {
+    hideAlert();
+    try {
+      await reviewService.deleteReview(review.reviewId);
+      fetchReviewData(); // Refresh list
+      
+      setTimeout(() => {
+        setAlertConfig({
+          visible: true,
+          title: "Success",
+          message: "Review deleted successfully",
+          type: "success",
+          onConfirm: hideAlert
+        });
+      }, 300);
+    } catch (error: any) {
+      setTimeout(() => {
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: "Failed to delete review. Please try again.",
+          type: "error",
+          onConfirm: hideAlert
+        });
+      }, 300);
     }
   };
 
@@ -206,63 +291,6 @@ export default function ReviewsComponent({
 
   const displayReviews = expanded ? reviews : reviews.slice(0, 3);
 
-  const showReviewOptions = (review: Review) => {
-    Alert.alert(
-      "Review Options",
-      "What would you like to do?",
-      [
-        {
-          text: "Edit",
-          onPress: () => editReview(review)
-        },
-        {
-          text: "Delete", 
-          style: "destructive",
-          onPress: () => confirmDeleteReview(review)
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
-  };
-
-  const editReview = (review: Review) => {
-    if (onWriteReview) {
-      // Pass the existing review data to the write review screen for editing
-      onWriteReview(review);
-    }
-  };
-
-  const confirmDeleteReview = (review: Review) => {
-    Alert.alert(
-      "Delete Review",
-      "Are you sure you want to delete this review? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive", 
-          onPress: () => deleteReview(review)
-        }
-      ]
-    );
-  };
-
-  const deleteReview = async (review: Review) => {
-    try {
-      await reviewService.deleteReview(review.reviewId);
-      Alert.alert("Success", "Review deleted successfully");
-      fetchReviewData(); // Refresh the reviews
-    } catch (error: any) {
-      Alert.alert("Error", "Failed to delete review. Please try again.");
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Reviews Header */}
@@ -330,6 +358,18 @@ export default function ReviewsComponent({
           </Text>
         </View>
       )}
+
+      {/* Integrate Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   );
 }

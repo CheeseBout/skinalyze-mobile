@@ -8,7 +8,6 @@ import {
   ScrollView,
   RefreshControl,
   Linking,
-  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +18,7 @@ import shippingLogService, {
 import tokenService from "@/services/tokenService";
 import { useThemeColor } from "@/contexts/ThemeColorContext";
 import { useTranslation } from "react-i18next";
+import CustomAlert from "@/components/CustomAlert"; // Import CustomAlert
 
 export default function ShippingTrackingScreen() {
   const router = useRouter();
@@ -33,6 +33,28 @@ export default function ShippingTrackingScreen() {
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   useEffect(() => {
     if (orderId && isAuthenticated) {
       loadTrackingData();
@@ -46,7 +68,6 @@ export default function ShippingTrackingScreen() {
 
       const token = await tokenService.getToken();
       if (!token) {
-        // Don't set error, just show no data state
         setTrackingData(null);
         return;
       }
@@ -58,7 +79,6 @@ export default function ShippingTrackingScreen() {
       setTrackingData(data);
     } catch (err: any) {
       console.error("Error loading shipping tracking:", err);
-      // Don't set error, just leave trackingData as null to show no data state
       setTrackingData(null);
     } finally {
       setLoading(false);
@@ -74,22 +94,22 @@ export default function ShippingTrackingScreen() {
   const handleCallStaff = () => {
     if (!trackingData?.shippingStaff) return;
 
-    Alert.alert(
-      t("shippingTracking.callStaff"),
-      t("shippingTracking.callStaffMessage", {
+    setAlertConfig({
+      visible: true,
+      title: t("shippingTracking.callStaff"),
+      message: t("shippingTracking.callStaffMessage", {
         name: trackingData.shippingStaff.fullName,
       }),
-      [
-        { text: t("shippingTracking.cancel"), style: "cancel" },
-        {
-          text: t("shippingTracking.call"),
-          onPress: () => {
-            const phoneNumber = trackingData.shippingStaff!.phone;
-            Linking.openURL(`tel:${phoneNumber}`);
-          },
-        },
-      ]
-    );
+      type: "info",
+      confirmText: t("shippingTracking.call"),
+      cancelText: t("shippingTracking.cancel"),
+      onCancel: hideAlert,
+      onConfirm: () => {
+        hideAlert();
+        const phoneNumber = trackingData.shippingStaff!.phone;
+        Linking.openURL(`tel:${phoneNumber}`);
+      },
+    });
   };
 
   if (loading && !trackingData) {
@@ -376,6 +396,18 @@ export default function ShippingTrackingScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Integrate Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   );
 }

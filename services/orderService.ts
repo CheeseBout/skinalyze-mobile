@@ -136,8 +136,9 @@ export interface CheckoutResponse {
   statusCode: number;
   message: string;
   data: {
-    order: Order;
+    order?: Order;
     message: string;
+    payment?: any; // For banking payment method
   };
   timestamp: string;
 }
@@ -146,7 +147,7 @@ class OrderService {
   /**
    * Checkout cart and create order
    */
-  async checkout(token: string, payload: CheckoutPayload): Promise<Order> {
+  async checkout(token: string, payload: CheckoutPayload): Promise<any> {
     try {
       ("🛒 Creating checkout order...");
 
@@ -154,7 +155,17 @@ class OrderService {
         "/orders/checkout",
         payload
       );
+      console.log("✅ Checkout successful:", response.data);
 
+      // For banking payment, return the whole response data (includes payment info)
+      if (payload.paymentMethod === "banking" && response.data.payment) {
+        return response.data;
+      }
+
+      // For other payment methods, return the order
+      if (!response.data.order) {
+        throw new Error("Order data is missing from response");
+      }
       return response.data.order;
     } catch (error) {
       console.error("❌ Checkout error:", error);

@@ -44,6 +44,7 @@ export interface Product {
   salePercentage: string;
   createdAt: string;
   updatedAt: string;
+  aiReason?: string;
 }
 
 interface ProductListResponse {

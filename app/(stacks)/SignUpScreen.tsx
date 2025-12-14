@@ -24,7 +24,7 @@ import ghnService, {
   GHNDistrict,
   Ward,
 } from "@/services/ghnService";
-import CustomAlert from "@/components/CustomAlert"; // Import CustomAlert
+import CustomAlert from "@/components/CustomAlert";
 
 // Static definition ensures no calculation errors
 const MONTH_NAMES = [
@@ -44,12 +44,15 @@ const MONTH_NAMES = [
 
 export default function SignUpScreen() {
   const router = useRouter();
+  
+  // Initialize form data with gender defaulting to Male (true)
   const [formData, setFormData] = useState<RegisterPayload>({
     email: "",
     password: "",
     fullName: "",
     phone: "",
     dob: "",
+    gender: true, // Default: true (Male)
     street: "",
     streetLine1: "",
     streetLine2: "",
@@ -59,6 +62,7 @@ export default function SignUpScreen() {
     districtId: undefined,
     wardCode: undefined,
   });
+
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<
     Partial<Record<keyof RegisterPayload | "confirmPassword", string>>
@@ -199,7 +203,8 @@ export default function SignUpScreen() {
         type: "success",
         onConfirm: () => {
           hideAlert();
-          router.replace("/(tabs)/HomeScreen");
+          // Navigate new users to allergy onboarding
+          router.replace("/(stacks)/AllergyOnboardingScreen");
         },
       });
     } catch (error: any) {
@@ -223,7 +228,6 @@ export default function SignUpScreen() {
     if (errors.phone) setErrors({ ...errors, phone: "" });
   };
 
-  // REFACTORED: String-based formatting prevents timezone shifts
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
     const parts = dateString.split("-");
@@ -237,7 +241,7 @@ export default function SignUpScreen() {
       ? MONTH_NAMES[monthIndex].slice(0, 3)
       : "";
 
-    return `${day} ${monthName} ${year}`; // "23 Feb 2004"
+    return `${day} ${monthName} ${year}`; 
   };
 
   // GHN Address Handlers
@@ -249,7 +253,6 @@ export default function SignUpScreen() {
     });
     if (errors.city) setErrors({ ...errors, city: "" });
 
-    // Load districts for this province
     try {
       const districtList = await ghnService.getDistricts(province.ProvinceID);
       setDistricts(districtList);
@@ -257,7 +260,6 @@ export default function SignUpScreen() {
       console.error("Error loading districts:", error);
     }
 
-    // Reset dependent selections
     setSelectedDistrictId(null);
     setSelectedWardCode("");
     setWards([]);
@@ -280,7 +282,6 @@ export default function SignUpScreen() {
     });
     if (errors.district) setErrors({ ...errors, district: "" });
 
-    // Load wards for this district
     try {
       const wardList = await ghnService.getWards(district.DistrictID);
       setWards(wardList);
@@ -288,7 +289,6 @@ export default function SignUpScreen() {
       console.error("Error loading wards:", error);
     }
 
-    // Reset ward selection
     setSelectedWardCode("");
     setFormData((prev) => ({
       ...prev,
@@ -347,14 +347,11 @@ export default function SignUpScreen() {
     </View>
   );
 
-  // --- Date Logic ---
-
-  // Helper to get days in month (accounts for leap years correctly)
+  // Date Logic
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month, 0).getDate();
   };
 
-  // Memoized arrays to prevent re-renders
   const years = useMemo(
     () =>
       Array.from(
@@ -373,7 +370,6 @@ export default function SignUpScreen() {
     [selectedYear, selectedMonth]
   );
 
-  // Update DOB string construction
   const handleDateConfirm = () => {
     const formattedDate = `${selectedYear}-${String(selectedMonth).padStart(
       2,
@@ -384,7 +380,6 @@ export default function SignUpScreen() {
     setShowCalendar(false);
   };
 
-  // Initialize picker with current selection or defaults
   const handleOpenCalendar = () => {
     if (formData.dob) {
       const [y, m, d] = formData.dob.split("-").map(Number);
@@ -549,6 +544,65 @@ export default function SignUpScreen() {
                   9 digits after country code
                 </Text>
               </View>
+
+              {/* ----- GENDER SELECTION ----- */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Gender</Text>
+                <View style={styles.genderRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      formData.gender === true && {
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                      },
+                    ]}
+                    onPress={() => setFormData({ ...formData, gender: true })}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="male"
+                      size={20}
+                      color={formData.gender === true ? "#FFF" : "#666"}
+                    />
+                    <Text
+                      style={[
+                        styles.genderText,
+                        formData.gender === true && { color: "#FFF" },
+                      ]}
+                    >
+                      Male
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      formData.gender === false && {
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                      },
+                    ]}
+                    onPress={() => setFormData({ ...formData, gender: false })}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="female"
+                      size={20}
+                      color={formData.gender === false ? "#FFF" : "#666"}
+                    />
+                    <Text
+                      style={[
+                        styles.genderText,
+                        formData.gender === false && { color: "#FFF" },
+                      ]}
+                    >
+                      Female
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {/* --------------------------- */}
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Date of Birth</Text>
@@ -724,7 +778,6 @@ export default function SignUpScreen() {
               </View>
 
               {/* GHN Address Pickers */}
-              {/* Province Picker */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>City/Province *</Text>
                 <TouchableOpacity
@@ -750,7 +803,6 @@ export default function SignUpScreen() {
                 )}
               </View>
 
-              {/* District Picker */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>District *</Text>
                 <TouchableOpacity
@@ -780,7 +832,6 @@ export default function SignUpScreen() {
                 )}
               </View>
 
-              {/* Ward Picker */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Ward/Commune *</Text>
                 <TouchableOpacity
@@ -1075,7 +1126,7 @@ export default function SignUpScreen() {
   );
 }
 
-// Reusable Input Components
+// Reusable Input Components (unchanged but included for completeness)
 interface InputFieldProps {
   label: string;
   placeholder: string;
@@ -1172,6 +1223,7 @@ const PasswordField: React.FC<any> = ({
 );
 
 const styles = StyleSheet.create({
+  // ... existing styles ...
   container: {
     flex: 1,
     backgroundColor: "#FAFAFA",
@@ -1595,5 +1647,27 @@ const styles = StyleSheet.create({
   },
   modalItemTextSelected: {
     fontWeight: "700",
+  },
+  // ----- New Styles for Gender -----
+  genderRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#E5E5E5",
+    backgroundColor: "#F5F5F5",
+  },
+  genderText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#666",
+    marginLeft: 8,
   },
 });

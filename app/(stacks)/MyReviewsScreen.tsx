@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +14,7 @@ import { useThemeColor } from '@/contexts/ThemeColorContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import reviewService, { Review } from '@/services/reviewService';
 import productService from '@/services/productService';
+import CustomAlert from '@/components/CustomAlert'; // Ensure path is correct
 
 export default function MyReviewsScreen() {
   const router = useRouter();
@@ -23,6 +23,28 @@ export default function MyReviewsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enrichedReviews, setEnrichedReviews] = useState<Review[]>([]);
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     fetchMyReviews();
@@ -34,35 +56,18 @@ export default function MyReviewsScreen() {
       const reviewsData = await reviewService.getMyReviews();
       setReviews(reviewsData);
       
-      // Enrich reviews with product data
       const enrichedData = await Promise.all(
         reviewsData.map(async (review) => {
           try {
-            console.log('Processing review for product:', review.productId);
-            
-            // If product data is already included, use it
             if (review.product && review.product.name) {
-              console.log('Product data already available:', review.product.name);
               return review;
             }
             
-            // Otherwise, fetch product details
-            console.log('Fetching product details for:', review.productId);
-            
-            // Try to get product details - this might need authentication
             const productData = await productService.getProductById(review.productId);
             
             if (!productData) {
               throw new Error('Product data is null or undefined');
             }
-            
-            console.log('Product data received:', {
-              id: productData.productId,
-              name: productData.productName,
-              price: productData.sellingPrice,
-              images: productData.productImages?.length || 0,
-              fullData: productData
-            });
             
             return {
               ...review,
@@ -77,7 +82,6 @@ export default function MyReviewsScreen() {
             };
           } catch (error) {
             console.error(`Failed to fetch product ${review.productId}:`, error);
-            // Return review with placeholder product data
             return {
               ...review,
               product: {
@@ -94,10 +98,8 @@ export default function MyReviewsScreen() {
       );
       
       setEnrichedReviews(enrichedData);
-      console.log('Successfully enriched', enrichedData.length, 'reviews');
     } catch (error: any) {
       console.error('Error fetching my reviews:', error);
-      // If enrichment fails, show reviews with basic info
       setEnrichedReviews(reviews.map(review => ({
         ...review,
         product: {
@@ -109,7 +111,14 @@ export default function MyReviewsScreen() {
           category: 'Unknown',
         },
       })));
-      Alert.alert('Error', 'Failed to fetch your reviews');
+      
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Failed to fetch your reviews",
+        type: "error",
+        onConfirm: hideAlert
+      });
     } finally {
       setLoading(false);
     }
@@ -135,26 +144,43 @@ export default function MyReviewsScreen() {
   };
 
   const handleDeleteReview = (reviewId: string) => {
-    Alert.alert(
-      'Delete Review',
-      'Are you sure you want to delete this review? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await reviewService.deleteReview(reviewId);
-              await fetchMyReviews(); // Refresh the list
-              Alert.alert('Success', 'Review deleted successfully');
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to delete review');
-            }
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Delete Review',
+      message: 'Are you sure you want to delete this review? This action cannot be undone.',
+      type: 'warning',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onCancel: hideAlert,
+      onConfirm: async () => {
+        hideAlert(); // Close confirm modal
+        try {
+          await reviewService.deleteReview(reviewId);
+          await fetchMyReviews();
+          
+          // Show success alert
+          setTimeout(() => {
+            setAlertConfig({
+              visible: true,
+              title: 'Success',
+              message: 'Review deleted successfully',
+              type: 'success',
+              onConfirm: hideAlert
+            });
+          }, 300);
+        } catch (error: any) {
+          setTimeout(() => {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: 'Failed to delete review',
+              type: 'error',
+              onConfirm: hideAlert
+            });
+          }, 300);
+        }
+      },
+    });
   };
 
   const renderStars = (rating: number) => {
@@ -231,25 +257,19 @@ export default function MyReviewsScreen() {
           </View>
         ) : (
           <View style={styles.reviewsList}>
-            {/* Show enriched reviews if available, otherwise show basic reviews */}
             {(enrichedReviews.length > 0 ? enrichedReviews : reviews).map((review) => (
               <View key={review.reviewId} style={styles.reviewCard}>
-                {/* Product Info Header */}
                 <TouchableOpacity
                   style={styles.productHeader}
                   onPress={() => navigateToProduct(review.productId)}
                   activeOpacity={0.7}
                 >
-                  {/* Product Image */}
                   <View style={styles.productImageContainer}>
                     {review.product?.images?.[0] ? (
                       <Image
                         source={{ uri: review.product.images[0] }}
                         style={styles.productImage}
-                        onError={() => {
-                          // Handle image load error
-                          console.warn('Failed to load product image');
-                        }}
+                        onError={() => console.warn('Failed to load product image')}
                       />
                     ) : (
                       <View style={[styles.productImage, styles.placeholderImage]}>
@@ -276,18 +296,14 @@ export default function MyReviewsScreen() {
                   <Ionicons name="chevron-forward" size={20} color="#999" />
                 </TouchableOpacity>
 
-                {/* Review Content */}
                 <View style={styles.reviewContent}>
-                  {/* Rating */}
                   <View style={styles.ratingSection}>
                     <View style={styles.stars}>{renderStars(review.rating)}</View>
                     <Text style={styles.ratingText}>{review.rating}/5</Text>
                   </View>
 
-                  {/* Review Text */}
                   <Text style={styles.reviewText}>{review.content}</Text>
 
-                  {/* Review Meta */}
                   <View style={styles.reviewMeta}>
                     <Text style={styles.reviewDate}>
                       {formatDate(review.createdAt)}
@@ -298,7 +314,6 @@ export default function MyReviewsScreen() {
                   </View>
                 </View>
 
-                {/* Action Buttons */}
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={[styles.actionButton, { backgroundColor: `${primaryColor}15` }]}
@@ -327,6 +342,18 @@ export default function MyReviewsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Integrated Custom Alert */}
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+      />
     </View>
   );
 }

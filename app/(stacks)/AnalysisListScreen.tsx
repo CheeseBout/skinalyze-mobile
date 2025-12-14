@@ -247,9 +247,6 @@ export function AnalysisListScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <View style={[styles.headerIcon, { backgroundColor: `${primaryColor}15` }]}>
-            <Ionicons name="analytics" size={20} color={primaryColor} />
-          </View>
           <Text style={styles.headerTitle}>{t('analysis.historyTitle')}</Text>
         </View>
         
@@ -322,7 +319,7 @@ export function AnalysisListScreen() {
             ]}
           >
             <View style={[styles.emptyIcon, { backgroundColor: `${primaryColor}10` }]}>
-              <Ionicons name="analytics-outline" size={56} color={primaryColor} />
+              <Ionicons name="albums-outline" size={56} color={primaryColor} />
             </View>
             <Text style={styles.emptyTitle}>{t('analysis.noAnalysis')}</Text>
             <Text style={styles.emptySubtitle}>
