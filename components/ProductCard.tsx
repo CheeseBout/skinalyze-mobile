@@ -57,11 +57,11 @@ const ProductCard = React.memo<ProductCardProps>(({ product, onPress }) => {
           {product.productName || "Unknown Product"}
         </Text>
 
-        {/* ✅ HIỂN THỊ LÝ DO GỢI Ý TỪ AI (NẾU CÓ) */}
+        {/* --- AI Reason --- */}
         {product.aiReason && (
           <View style={styles.reasonContainer}>
             <Ionicons name="sparkles" size={12} color="#D97706" style={{ marginTop: 2 }} />
-            <Text style={styles.reasonText} numberOfLines={3}>
+            <Text style={styles.reasonText} numberOfLines={10}>
               {product.aiReason}
             </Text>
           </View>

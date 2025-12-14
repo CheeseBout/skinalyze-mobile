@@ -64,7 +64,13 @@
     "failedPhotoUpload": "Không thể tải ảnh đại diện lên. Các thay đổi khác của bạn đã được lưu.",
     "male": "Nam",
     "female": "Nữ",
-    "gender": "Giới Tính"
+    "gender": "Giới Tính",
+    "profile": {
+      "allergies": "Dị ứng",
+      "allergiesPlaceholder": "vd: Đậu phộng, Phấn hoa",
+      "allergiesHint": "Phân cách nhiều loại bằng dấu phẩy",
+      "noAllergies": "Không có dị ứng"
+    }
   },
   "home": {
     "goodMorning": "Chào buổi sáng",

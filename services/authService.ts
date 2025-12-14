@@ -46,6 +46,7 @@ export interface User {
   phone: string;
   dob: string;
   gender: boolean;
+  allergies?: string[];
   photoUrl?: string;
   addresses: Address[];
   balance: string;

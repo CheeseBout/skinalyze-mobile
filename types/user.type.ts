@@ -9,6 +9,7 @@ export interface User {
   photoUrl?: string;
   address: string;
   gender: boolean;
+  allergies?: string[];
   role: string;
   isActive?: boolean;
   isVerified?: boolean;

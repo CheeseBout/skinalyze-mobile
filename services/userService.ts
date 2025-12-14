@@ -61,6 +61,7 @@ interface UpdateProfilePayload {
   dob?: string;
   gender?: boolean;
   photoUrl?: string;
+  allergies?: string[];
 }
 
 interface CreateAddressPayload {

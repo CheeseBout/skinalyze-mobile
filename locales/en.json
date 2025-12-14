@@ -64,7 +64,18 @@
     "failedPhotoUpload": "Failed to upload profile photo. Your other changes were saved.",
     "male": "Male",
     "female": "Female",
-    "gender": "Gender"
+    "gender": "Gender",
+    "allergies": "Allergies",
+    "allergiesPlaceholder": "e.g. Peanuts, Pollen",
+    "allergiesHint": "Separate multiple allergies with commas",
+    "noAllergies": "No known allergies",
+    "updateAllergiesTitle": "Update Allergies",
+    "updateAllergiesSubtitle": "Help AI exclude products with ingredients harmful to your skin.",
+    "allergiesListLabel": "Allergy List (separated by commas):",
+    "allergiesExample": "Example: Peanuts, Alcohol, Fragrances...",
+    "skip": "Skip",
+    "sessionExpired": "Session expired.",
+    "updateFailed": "Update failed. Please try again."
   },
   "mySubscriptions": {
     "title": "My Subscriptions",

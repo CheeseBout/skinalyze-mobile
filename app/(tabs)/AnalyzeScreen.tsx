@@ -363,7 +363,7 @@ export default function AnalyzeScreen() {
             activeOpacity={0.8}
           >
             <View style={[styles.optionIconBox, { backgroundColor: '#FFF3E0' }]}>
-              <Ionicons name="happy" size={28} color="#FF9800" />
+              <Ionicons name="happy-outline" size={28} color="#FF9800" />
             </View>
             <View style={styles.optionContent}>
               <Text style={styles.optionTitle}>{t('analyze.facialSkinArea')}</Text>
@@ -379,7 +379,7 @@ export default function AnalyzeScreen() {
             activeOpacity={0.8}
           >
             <View style={[styles.optionIconBox, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="body" size={28} color="#4CAF50" />
+              <Ionicons name="body-outline" size={28} color="#4CAF50" />
             </View>
             <View style={styles.optionContent}>
               <Text style={styles.optionTitle}>{t('analyze.otherSkinArea')}</Text>
