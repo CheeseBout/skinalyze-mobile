@@ -32,6 +32,8 @@ type ConnectionListener = (isConnected: boolean) => void;
 class NotificationWebSocketService {
   private socket: Socket | null = null;
   private isConnecting: boolean = false;
+  private serverDisconnectCount: number = 0;
+  private readonly MAX_SERVER_DISCONNECT_RETRIES = 3;
   private listeners: {
     newNotification: NotificationListener[];
     unreadCount: UnreadCountListener[];
@@ -47,7 +49,7 @@ class NotificationWebSocketService {
   // Thay đổi URL này theo backend của bạn
   // Use EXPO_BASE_URL (without /api/v1) for Socket.IO connection
   private readonly SOCKET_URL =
-    process.env.EXPO_BASE_URL || "https://api.nhatlonh.id.vn";
+    process.env.EXPO_BASE_URL || "https://skinalyze-be.nhatlonh.id.vn";
   // private readonly SOCKET_URL = 'http://localhost:3000'; // iOS simulator
   // private readonly SOCKET_URL = 'https://api.skinalyze.com'; // Production
 
@@ -121,6 +123,7 @@ class NotificationWebSocketService {
       console.log("⏰ Connected at:", new Date().toLocaleString());
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       this.isConnecting = false;
+      this.serverDisconnectCount = 0; // Reset counter on successful connection
       this.notifyConnectionListeners(true);
 
       // Request unread count khi kết nối
@@ -155,10 +158,34 @@ class NotificationWebSocketService {
 
       // Auto-reconnect nếu server ngắt kết nối
       if (reason === "io server disconnect") {
-        console.log("🔄 Server disconnected, will auto-reconnect in 1s...");
-        setTimeout(() => {
-          this.socket?.connect();
-        }, 1000);
+        this.serverDisconnectCount++;
+        console.log(
+          `🔄 Server disconnected (${this.serverDisconnectCount}/${this.MAX_SERVER_DISCONNECT_RETRIES})`
+        );
+
+        if (this.serverDisconnectCount <= this.MAX_SERVER_DISCONNECT_RETRIES) {
+          console.log(
+            `⏳ Will retry connection in ${this.serverDisconnectCount}s...`
+          );
+          setTimeout(() => {
+            this.socket?.connect();
+          }, this.serverDisconnectCount * 1000);
+        } else {
+          console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          console.error("❌ MAX RECONNECTION ATTEMPTS REACHED");
+          console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          console.error("🚫 Server keeps disconnecting the client");
+          console.error("💡 Possible causes:");
+          console.error("   1. Authentication/Authorization failed");
+          console.error("   2. Token is invalid or expired");
+          console.error("   3. Server-side error");
+          console.error(
+            "   4. User not authorized for notifications namespace"
+          );
+          console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          console.error("🔧 Please check your backend logs for details");
+          console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        }
       }
     });
 
