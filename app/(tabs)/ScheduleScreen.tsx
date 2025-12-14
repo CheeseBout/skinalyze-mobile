@@ -65,6 +65,8 @@ const getEventIcon = (status: AppointmentStatus | string) => {
       return "checkmark-circle";
     case AppointmentStatus.CANCELLED:
     case AppointmentStatus.NO_SHOW:
+    case AppointmentStatus.INTERRUPTED:
+    case AppointmentStatus.DISPUTED:
       return "close-circle";
     default:
       return "time-outline";
@@ -84,6 +86,9 @@ const getEventColor = (status: AppointmentStatus | string) => {
     case AppointmentStatus.CANCELLED:
     case AppointmentStatus.NO_SHOW:
       return "#9E9E9E";
+    case AppointmentStatus.INTERRUPTED:
+    case AppointmentStatus.DISPUTED:
+      return "#F44336";
     default:
       return "#FF9800";
   }
@@ -100,6 +105,8 @@ const getEventBadgeText = (
     CANCELLED: t("schedule.status.cancelled"),
     NO_SHOW: t("schedule.status.noShow"),
     SETTLED: t("schedule.status.settled"),
+    INTERRUPTED: t("schedule.status.interrupted"),
+    DISPUTED: t("schedule.status.disputed"),
   };
 
   if (isSettledStatus(status) || status === AppointmentStatus.COMPLETED) {

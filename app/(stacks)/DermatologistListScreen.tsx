@@ -102,8 +102,7 @@ export default function DermatologistListScreen() {
           })
         : t("rating.noRatings");
     const avatarUrl = item.user?.photoUrl;
-    const clinicName = item.clinicAddress?.split(",")[0]?.trim();
-    const addressText = clinicName || t("fallbacks.clinic");
+
     const experienceLabel = t("experienceLabel", {
       years: item.yearsOfExperience || item.yearsOfExp || 0,
     });
@@ -166,13 +165,6 @@ export default function DermatologistListScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Ionicons name="location" size={14} color="#666" />
-                <Text style={styles.statText} numberOfLines={1}>
-                  {addressText}
-                </Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
                 <Ionicons name="star" size={14} color="#FFB300" />
                 <Text style={styles.statText} numberOfLines={1}>
                   {ratingText}
@@ -230,7 +222,7 @@ export default function DermatologistListScreen() {
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t("title")}</Text>
-          <View style={styles.backButton} />
+          <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.centerContainer}>
@@ -278,7 +270,7 @@ export default function DermatologistListScreen() {
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t("title")}</Text>
-          <View style={styles.backButton} />
+          <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.errorContainer}>
@@ -352,7 +344,7 @@ export default function DermatologistListScreen() {
           <Text style={styles.headerTitle}>{t("title")}</Text>
         </View>
 
-        <View style={styles.backButton} />
+        <View style={{ width: 40 }} />
       </Animated.View>
 
       {/* Stats Card */}

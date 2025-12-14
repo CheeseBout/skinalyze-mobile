@@ -989,7 +989,6 @@
     "fallbacks": {
       "dermatologist": "Dermatologist",
       "specialist": "Dermatology Specialist",
-      "clinic": "Clinic"
     },
     "rating": {
       "withCount": "{{rating}} ★ ({{count}})",
@@ -1018,7 +1017,6 @@
     },
     "sections": {
       "about": "About",
-      "clinicLocation": "Clinic Location",
       "specializations": "Specializations & Certifications",
       "certificationsLoading": "Loading certifications...",
       "noCertifications": "No certifications added yet"
@@ -1079,6 +1077,8 @@
       "cancelled": "Cancelled",
       "noShow": "No-show",
       "settled": "Settled",
+      "interrupted":"Interrupted",
+      "disputed": "Disputed",
       "default": "Upcoming"
     }
   },

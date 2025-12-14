@@ -148,6 +148,21 @@ class DermatologistService {
       throw error;
     }
   }
+
+  async getPatientCount(id: string): Promise<number> {
+    try {
+      const response = await apiService.get<ApiResponse<{ count: number }>>(
+        `/dermatologists/${id}/patient-count`
+      );
+      return response.data.count;
+    } catch (error) {
+      console.error(
+        `Error fetching patient count for dermatologist ${id}:`,
+        error
+      );
+      return 0;
+    }
+  }
 }
 
 export default new DermatologistService();

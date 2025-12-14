@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
   TouchableOpacity,
   StatusBar,
   Animated,
@@ -29,6 +28,7 @@ export default function DermatologistDetailScreen() {
     null
   );
   const [specializations, setSpecializations] = useState<Specialization[]>([]);
+  const [patientCount, setPatientCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [specializationsLoading, setSpecializationsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +66,7 @@ export default function DermatologistDetailScreen() {
 
         // Fetch specializations
         fetchSpecializations();
+        fetchPatientCount();
       } catch (err: any) {
         const errorMessage =
           err?.message || t("dermatologistDetail.errors.fetch");
@@ -88,6 +89,17 @@ export default function DermatologistDetailScreen() {
         // Don't show error alert, just log it
       } finally {
         setSpecializationsLoading(false);
+      }
+    };
+
+    const fetchPatientCount = async () => {
+      try {
+        const count = await dermatologistService.getPatientCount(
+          dermatologistId
+        );
+        setPatientCount(count);
+      } catch (err) {
+        console.error("Error fetching patient count:", err);
       }
     };
 
@@ -216,6 +228,8 @@ export default function DermatologistDetailScreen() {
   const yearsExp =
     dermatologist.yearsOfExperience || dermatologist.yearsOfExp || 0;
 
+  const averageRating = dermatologist.averageRating || "N/A";
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
@@ -323,7 +337,7 @@ export default function DermatologistDetailScreen() {
             <View style={[styles.statIcon, { backgroundColor: "#F0F9FF" }]}>
               <Ionicons name="star" size={24} color="#2196F3" />
             </View>
-            <Text style={styles.statValue}>4.8</Text>
+            <Text style={styles.statValue}>{averageRating}</Text>
             <Text style={styles.statLabel}>
               {t("dermatologistDetail.header.rating")}
             </Text>
@@ -333,7 +347,9 @@ export default function DermatologistDetailScreen() {
             <View style={[styles.statIcon, { backgroundColor: "#F0FDF4" }]}>
               <Ionicons name="people" size={24} color="#22C55E" />
             </View>
-            <Text style={styles.statValue}>500+</Text>
+            <Text style={styles.statValue}>
+              {patientCount > 0 ? `${patientCount}+` : "0"}
+            </Text>
             <Text style={styles.statLabel}>
               {t("dermatologistDetail.header.patients")}
             </Text>
@@ -382,35 +398,7 @@ export default function DermatologistDetailScreen() {
               {t("dermatologistDetail.sections.about")}
             </Text>
           </View>
-          <Text style={styles.bioText}>{dermatologist.bio}</Text>
-        </Animated.View>
-
-        {/* Clinic Location */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <View
-              style={[styles.cardHeaderIcon, { backgroundColor: "#FEF3C7" }]}
-            >
-              <Ionicons name="location" size={20} color="#F59E0B" />
-            </View>
-            <Text style={styles.cardTitle}>
-              {t("dermatologistDetail.sections.clinicLocation")}
-            </Text>
-          </View>
-          <View style={styles.locationContainer}>
-            <Ionicons name="navigate" size={18} color="#666" />
-            <Text style={styles.addressText}>
-              {dermatologist.clinicAddress}
-            </Text>
-          </View>
+          <Text style={styles.bioText}>{dermatologist.about}</Text>
         </Animated.View>
 
         {/* Specializations & Certifications */}
@@ -946,17 +934,7 @@ const styles = StyleSheet.create({
     color: "#555",
     lineHeight: 24,
   },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: 15,
-    color: "#555",
-    lineHeight: 22,
-  },
+
   specializationsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",

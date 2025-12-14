@@ -850,8 +850,7 @@
     },
     "fallbacks": {
       "dermatologist": "Bác sĩ da liễu",
-      "specialist": "Chuyên gia da liễu",
-      "clinic": "Phòng khám"
+      "specialist": "Chuyên gia da liễu"
     },
     "rating": {
       "withCount": "{{rating}} ★ ({{count}})",
@@ -880,7 +879,6 @@
     },
     "sections": {
       "about": "Giới thiệu",
-      "clinicLocation": "Phòng khám",
       "specializations": "Chuyên môn & Chứng chỉ",
       "certificationsLoading": "Đang tải chứng chỉ...",
       "noCertifications": "Chưa có chứng chỉ"
@@ -941,7 +939,9 @@
       "cancelled": "Đã hủy",
       "noShow": "Vắng mặt",
       "settled": "Đã quyết toán",
-      "default": "Sắp diễn ra"
+      "default": "Sắp diễn ra",
+      "interrupted": "Bị gián đoạn",
+      "disputed": "Tranh chấp"
     }
   },
   "bookingCalendar": {
