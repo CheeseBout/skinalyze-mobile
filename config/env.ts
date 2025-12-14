@@ -4,6 +4,10 @@ export const config = {
   API_BASE_URL:
     process.env.EXPO_PUBLIC_BASE_API_URL || "https://api.nhatlonh.id.vn/api/v1",
 
+  // WebSocket Base URL (without /api/v1)
+  WEBSOCKET_URL:
+    process.env.EXPO_PUBLIC_BASE_URL || "https://skinalyze-be.nhatlonh.id.vn",
+
   // Goong Maps API Keys
   GOONG_API_KEY:
     process.env.EXPO_PUBLIC_GOONG_API_KEY ||
