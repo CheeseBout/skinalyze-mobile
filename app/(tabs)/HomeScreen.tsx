@@ -56,6 +56,7 @@ export default function HomeScreen() {
   
   // ✅ State for Allergy Modal
   const [showAllergyModal, setShowAllergyModal] = useState(false);
+  const hasCheckedAllergies = useRef(false); // Track if we've already checked
 
   const PRODUCTS_PER_PAGE = 50
   const flatListRef = useRef<FlatList>(null)
@@ -80,18 +81,21 @@ export default function HomeScreen() {
     ]).start()
   }, [])
 
-  // ✅ Check Allergies on Load
+  // ✅ Check Allergies on Load (only once per session)
   useEffect(() => {
-    if (user) {
+    if (user && !hasCheckedAllergies.current) {
       // Check if allergies array is missing or empty
       const hasAllergiesSet = user.allergies && Array.isArray(user.allergies) && user.allergies.length > 0;
-      
+
       if (!hasAllergiesSet) {
          // Delay popup slightly for better UX
          const timer = setTimeout(() => {
             setShowAllergyModal(true);
-         }, 1500); 
+            hasCheckedAllergies.current = true; // Mark as checked
+         }, 1500);
          return () => clearTimeout(timer);
+      } else {
+        hasCheckedAllergies.current = true; // Mark as checked even if they have allergies
       }
     }
   }, [user]);

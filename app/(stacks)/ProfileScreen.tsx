@@ -44,13 +44,16 @@ export default function ProfileScreen() {
   const [currency, setCurrency] = useState<string>("VND");
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
-  
+
   // ✅ Form State: Includes allergies as a comma-separated string for editing
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     dob: user?.dob || "",
-    allergies: user?.allergies && Array.isArray(user.allergies) ? user.allergies.join(", ") : "",
+    allergies:
+      user?.allergies && Array.isArray(user.allergies)
+        ? user.allergies.join(", ")
+        : "",
   });
 
   // Animations
@@ -111,7 +114,10 @@ export default function ProfileScreen() {
         phone: user.phone,
         dob: user.dob,
         // Ensure allergies is handled correctly whether it's null or array
-        allergies: user.allergies && Array.isArray(user.allergies) ? user.allergies.join(", ") : "",
+        allergies:
+          user.allergies && Array.isArray(user.allergies)
+            ? user.allergies.join(", ")
+            : "",
       });
       fetchBalance();
 
@@ -248,10 +254,10 @@ export default function ProfileScreen() {
         .filter((item) => item.length > 0);
 
       const payload = {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          dob: formData.dob,
-          allergies: allergiesArray // ✅ Send array to backend
+        fullName: formData.fullName,
+        phone: formData.phone,
+        dob: formData.dob,
+        allergies: allergiesArray, // ✅ Send array to backend
       };
 
       // Update profile data
@@ -279,7 +285,10 @@ export default function ProfileScreen() {
         fullName: user.fullName,
         phone: user.phone,
         dob: user.dob,
-        allergies: user.allergies && Array.isArray(user.allergies) ? user.allergies.join(", ") : "",
+        allergies:
+          user.allergies && Array.isArray(user.allergies)
+            ? user.allergies.join(", ")
+            : "",
       });
     }
     setSelectedPhotoUri(null);
@@ -326,7 +335,7 @@ export default function ProfileScreen() {
       t("profile.logout"),
       async () => {
         await logout();
-        router.replace("/WelcomeScreen" as any);
+        router.replace("/SignInScreen" as any);
       },
       t("profile.cancel"),
       () => {}
@@ -620,9 +629,7 @@ export default function ProfileScreen() {
 
               <TouchableOpacity
                 style={styles.balanceActionButton}
-                onPress={() =>
-                  router.push("/(stacks)/PaymentHistoryScreen")
-                }
+                onPress={() => router.push("/(stacks)/PaymentHistoryScreen")}
                 activeOpacity={0.7}
               >
                 <View
@@ -686,6 +693,12 @@ export default function ProfileScreen() {
             label={t("profile.settings")}
             color={primaryColor}
             onPress={() => router.push("/(stacks)/SettingsScreen")}
+          />
+          <QuickActionButton
+            icon="alert-circle-outline"
+            label={t("profile.updateAllergies")}
+            color="#EF4444"
+            onPress={() => router.push("/(stacks)/AllergyOnboardingScreen")}
           />
         </Animated.View>
 
@@ -793,14 +806,15 @@ export default function ProfileScreen() {
                   </Text>
                 )}
               </View>
-              
+
               {/* Show Lock icon when editing to indicate read-only */}
               {isEditing ? (
-                 <Ionicons name="lock-closed-outline" size={16} color="#999" />
+                <Ionicons name="lock-closed-outline" size={16} color="#999" />
               ) : (
-                 user.gender !== null && user.gender !== undefined && (
-                   <Ionicons name="checkmark-circle" size={18} color="#34C759" />
-                 )
+                user.gender !== null &&
+                user.gender !== undefined && (
+                  <Ionicons name="checkmark-circle" size={18} color="#34C759" />
+                )
               )}
             </View>
 
@@ -841,7 +855,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.fieldContent}>
                 <Text style={styles.fieldLabel}>{t("profile.allergies")}</Text>
-                
+
                 {isEditing ? (
                   <TextInput
                     style={[
@@ -860,29 +874,38 @@ export default function ProfileScreen() {
                   <View style={styles.allergyTagsContainer}>
                     {user.allergies && user.allergies.length > 0 ? (
                       user.allergies.map((allergy: string, index: number) => (
-                        <View 
-                          key={index} 
-                          style={[styles.allergyTag, { backgroundColor: '#FEE2E2' }]} // Red light background
+                        <View
+                          key={index}
+                          style={[
+                            styles.allergyTag,
+                            { backgroundColor: "#FEE2E2" },
+                          ]} // Red light background
                         >
-                          <Text style={[styles.allergyTagText, { color: '#EF4444' }]}>
+                          <Text
+                            style={[
+                              styles.allergyTagText,
+                              { color: "#EF4444" },
+                            ]}
+                          >
                             {allergy}
                           </Text>
                         </View>
                       ))
                     ) : (
-                      <Text style={styles.fieldValue}>{t("profile.noAllergies")}</Text>
+                      <Text style={styles.fieldValue}>
+                        {t("profile.noAllergies")}
+                      </Text>
                     )}
                   </View>
                 )}
-                
+
                 {isEditing && (
                   <Text style={styles.fieldHint}>
-                    {t("profile.allergiesHint")} 
+                    {t("profile.allergiesHint")}
                   </Text>
                 )}
               </View>
             </View>
-
           </View>
         </Animated.View>
 
@@ -1691,8 +1714,8 @@ const styles = StyleSheet.create({
   },
   // ✅ Added styles for Allergies
   allergyTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 4,
   },
@@ -1701,10 +1724,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   allergyTagText: {
     fontSize: 12,
-    fontWeight: '600',
-  }
+    fontWeight: "600",
+  },
 });

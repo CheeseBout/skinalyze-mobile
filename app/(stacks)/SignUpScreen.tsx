@@ -203,7 +203,8 @@ export default function SignUpScreen() {
         type: "success",
         onConfirm: () => {
           hideAlert();
-          router.replace("/(tabs)/HomeScreen");
+          // Navigate new users to allergy onboarding
+          router.replace("/(stacks)/AllergyOnboardingScreen");
         },
       });
     } catch (error: any) {

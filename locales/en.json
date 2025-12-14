@@ -69,6 +69,7 @@
     "allergiesPlaceholder": "e.g. Peanuts, Pollen",
     "allergiesHint": "Separate multiple allergies with commas",
     "noAllergies": "No known allergies",
+    "updateAllergies": "Allergies",
     "updateAllergiesTitle": "Update Allergies",
     "updateAllergiesSubtitle": "Help AI exclude products with ingredients harmful to your skin.",
     "allergiesListLabel": "Allergy List (separated by commas):",
@@ -1494,5 +1495,26 @@
       "expired": "Expired",
       "refunded": "Refunded"
     }
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to SkinAlyze!",
+    "welcomeSubtitle": "Your personalized skin care journey starts here. Let's help you find the perfect products for your skin.",
+    "feature1": "Get AI-powered skin analysis and personalized recommendations",
+    "feature2": "Find products that match your skin type and concerns",
+    "feature3": "Avoid ingredients that may harm your skin",
+    "getStarted": "Get Started",
+    "allergyTitle": "Tell Us About Your Allergies",
+    "allergyInfo": "Help us personalize your experience by letting us know about any allergies or sensitivities. We'll exclude products with these ingredients from your recommendations.",
+    "commonAllergies": "Common Allergies",
+    "otherAllergies": "Other Allergies",
+    "customPlaceholder": "Enter custom allergy...",
+    "selectedCount": "{{count}} allergy selected",
+    "selectedCount_plural": "{{count}} allergies selected",
+    "skip": "Skip for Now",
+    "continue": "Continue",
+    "successTitle": "All Set!",
+    "successMessage": "Your allergy preferences have been saved. You're ready to explore!",
+    "saveError": "Failed to save your allergies. Please try again.",
+    "skipError": "Failed to skip. Please try again."
   }
 }

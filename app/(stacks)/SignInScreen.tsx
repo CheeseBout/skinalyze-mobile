@@ -154,7 +154,13 @@ export default function SignInScreen() {
         type: 'success',
         onConfirm: () => {
           hideAlert();
-          router.replace('/(tabs)/HomeScreen');
+          // Check if user has allergies set, if not redirect to onboarding
+          const hasAllergies = response.data.user.allergies && response.data.user.allergies.length > 0;
+          if (hasAllergies) {
+            router.replace('/(tabs)/HomeScreen');
+          } else {
+            router.replace('/(stacks)/AllergyOnboardingScreen');
+          }
         }
       });
 
