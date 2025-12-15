@@ -212,15 +212,24 @@ export default function AnalysisDetailScreen() {
   }
 
   const handleAskAI = () => {
-    const analysisText = `Based on my skin analysis result: ${displayTitle}
-    
-    Briefly explain and recommend specific skincare products with the following details:
-    - Product name
-    - Price range
-    - Suitable skin type
-    - Benefits and usage
-    
-    Focus on effective treatments for this detection.`;
+    const analysisText = `
+Role: Bạn là một Chuyên gia Tư vấn Chăm sóc da (Skincare Consultant) thân thiện và chuyên nghiệp.
+
+Context: Người dùng vừa nhận được kết quả phân tích da là: "${displayTitle}".
+
+Task:
+1. Giải thích ngắn gọn về tình trạng "${displayTitle}" dưới góc độ thẩm mỹ (ví dụ: biểu hiện trên da thế nào, nguyên nhân cơ bản). Tránh dùng thuật ngữ y khoa quá chuyên sâu.
+2. Đề xuất quy trình chăm sóc da (skincare routine) hoặc các thành phần mỹ phẩm (ingredients) giúp LÀM DỊU và CẢI THIỆN VẺ NGOÀI của da.
+3. Gợi ý cụ thể các sản phẩm phù hợp có trong cơ sở dữ liệu của bạn.
+
+Safety Constraints (Quan trọng):
+- Tuyệt đối KHÔNG đưa ra lời khuyên y tế, chẩn đoán hay kê đơn thuốc.
+- Luôn nhấn mạnh rằng đây chỉ là gợi ý tham khảo để chăm sóc da tại nhà.
+- Nếu tình trạng nghiêm trọng, hãy khuyên người dùng gặp bác sĩ da liễu.
+- Sử dụng ngôn ngữ mang tính "hỗ trợ", "làm dịu", "chăm sóc" thay vì "điều trị", "chữa khỏi".
+
+Hãy trả lời bằng tiếng Việt, ngắn gọn, súc tích và trình bày đẹp mắt.
+    `.trim();
 
     const navParams: any = {
       prefillText: analysisText
