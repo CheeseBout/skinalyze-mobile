@@ -122,6 +122,20 @@ class AppointmentService {
     }
   }
 
+  async generateManualMeetLink(
+    appointmentId: string
+  ): Promise<{ meetLink: string }> {
+    try {
+      const response = await apiService.patch<
+        ApiResponse<{ meetLink: string }>
+      >(`/appointments/${appointmentId}/generate-meet-link`);
+      return response.data;
+    } catch (error) {
+      console.error("Error generating manual meet link:", error);
+      throw error;
+    }
+  }
+
   async cancelMyAppointment(appointmentId: string): Promise<any> {
     try {
       const response = await apiService.patch(

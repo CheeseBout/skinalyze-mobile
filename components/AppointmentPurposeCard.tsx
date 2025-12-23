@@ -12,9 +12,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 
 import { AppointmentType } from "@/types/appointment.type";
-import { SkinAnalysis } from "@/types/skin-analysis.type";
 import { TreatmentRoutine } from "@/types/treatment-routine.type";
 import { router } from "expo-router";
+import { SkinAnalysisResult } from "@/services/skinAnalysisService";
 
 const fallbackLocale = "en-US";
 
@@ -31,7 +31,7 @@ type Props = {
   appointmentType: AppointmentType;
   setAppointmentType: (type: AppointmentType) => void;
 
-  analyses: SkinAnalysis[];
+  analyses: SkinAnalysisResult[];
   selectedAnalysisId: string | null;
   setSelectedAnalysisId: (id: string | null) => void;
 
@@ -89,7 +89,7 @@ export default function AppointmentPurposeCard({
     return analyses[0];
   }, [analyses, selectedAnalysisId]);
 
-  const renderAnalysisOption = ({ item }: { item: SkinAnalysis }) => {
+  const renderAnalysisOption = ({ item }: { item: SkinAnalysisResult }) => {
     const isSelected = selectedAnalysisId === item.analysisId;
     const isManual = item.source === "MANUAL";
     const headline =

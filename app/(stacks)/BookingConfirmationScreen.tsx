@@ -27,7 +27,9 @@ import appointmentService from "@/services/appointmentService";
 import customerService from "@/services/customerService";
 import customerSubscriptionService from "@/services/customerSubscriptionService";
 import dermatologistService from "@/services/dermatologistService";
-import skinAnalysisService from "@/services/skinAnalysisService";
+import skinAnalysisService, {
+  SkinAnalysisResult,
+} from "@/services/skinAnalysisService";
 import treatmentRoutineService from "@/services/treatmentRoutineService";
 import userService from "@/services/userService";
 import {
@@ -126,7 +128,7 @@ export default function BookingConfirmationScreen() {
   const [appointmentType, setAppointmentType] = useState<AppointmentType>(
     AppointmentType.NEW_PROBLEM
   );
-  const [analyses, setAnalyses] = useState<SkinAnalysis[]>([]);
+  const [analyses, setAnalyses] = useState<SkinAnalysisResult[]>([]);
   const [routines, setRoutines] = useState<TreatmentRoutine[]>([]);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null
@@ -136,11 +138,17 @@ export default function BookingConfirmationScreen() {
   );
   const [note, setNote] = useState<string>("");
   const previousAnalysisIdsRef = useRef<string[]>([]);
-  const [alertState, setAlertState] = useState({
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    onConfirm?: () => void;
+  }>({
     visible: false,
     title: "",
     message: "",
-    type: "error" as "success" | "error" | "warning" | "info",
+    type: "error",
   });
 
   const formatGender = useCallback(
@@ -165,32 +173,35 @@ export default function BookingConfirmationScreen() {
     []
   );
 
-  const updateSelectedAnalysis = useCallback((analysesData: SkinAnalysis[]) => {
-    const newIds = analysesData.map((analysis) => analysis.analysisId);
-    const previousIds = previousAnalysisIdsRef.current;
-    const addedIds = newIds.filter((id) => !previousIds.includes(id));
+  const updateSelectedAnalysis = useCallback(
+    (analysesData: SkinAnalysisResult[]) => {
+      const newIds = analysesData.map((analysis) => analysis.analysisId);
+      const previousIds = previousAnalysisIdsRef.current;
+      const addedIds = newIds.filter((id) => !previousIds.includes(id));
 
-    setSelectedAnalysisId((current) => {
-      if (previousIds.length === 0) {
+      setSelectedAnalysisId((current) => {
+        if (previousIds.length === 0) {
+          if (current && newIds.includes(current)) {
+            return current;
+          }
+          return analysesData.length > 0 ? analysesData[0].analysisId : null;
+        }
+
+        if (addedIds.length > 0) {
+          return addedIds[0];
+        }
+
         if (current && newIds.includes(current)) {
           return current;
         }
+
         return analysesData.length > 0 ? analysesData[0].analysisId : null;
-      }
+      });
 
-      if (addedIds.length > 0) {
-        return addedIds[0];
-      }
-
-      if (current && newIds.includes(current)) {
-        return current;
-      }
-
-      return analysesData.length > 0 ? analysesData[0].analysisId : null;
-    });
-
-    previousAnalysisIdsRef.current = newIds;
-  }, []);
+      previousAnalysisIdsRef.current = newIds;
+    },
+    []
+  );
 
   const fetchData = useCallback(async () => {
     if (!dermatologistId) {
@@ -314,6 +325,19 @@ export default function BookingConfirmationScreen() {
 
   const handleConfirm = async () => {
     if (!selectedOptionId || !dermatologistId) return;
+
+    const start = new Date(startTime as string);
+    if (start < new Date()) {
+      setAlertState({
+        visible: true,
+        title: t("errors.title"),
+        message: t("errors.timePassed"),
+        type: "error",
+        onConfirm: () => router.back(),
+      });
+      return;
+    }
+
     if (!selectedAnalysisId) {
       setAlertState({
         visible: true,
@@ -799,7 +823,12 @@ export default function BookingConfirmationScreen() {
         title={alertState.title}
         message={alertState.message}
         type={alertState.type}
-        onConfirm={() => setAlertState((prev) => ({ ...prev, visible: false }))}
+        onConfirm={() => {
+          setAlertState((prev) => ({ ...prev, visible: false }));
+          if (alertState.onConfirm) {
+            alertState.onConfirm();
+          }
+        }}
       />
     </View>
   );

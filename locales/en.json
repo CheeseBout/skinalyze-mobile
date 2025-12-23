@@ -353,7 +353,8 @@
       "checkInTitle": "Check-in failed",
       "checkInMessage": "We couldn't record your check-in.",
       "meetingTitle": "Error",
-      "meetingMessage": "Could not open the meeting link."
+      "meetingMessage": "Could not open the meeting link.",
+      "noLinkMessage": "No meeting link available. Please try again later or contact support."
     },
     "sections": {
       "dermatologist": {
@@ -1012,7 +1013,7 @@
     },
     "fallbacks": {
       "dermatologist": "Dermatologist",
-      "specialist": "Dermatology Specialist",
+      "specialist": "Dermatology Specialist"
     },
     "rating": {
       "withCount": "{{rating}} ★ ({{count}})",
@@ -1101,7 +1102,7 @@
       "cancelled": "Cancelled",
       "noShow": "No-show",
       "settled": "Settled",
-      "interrupted":"Interrupted",
+      "interrupted": "Interrupted",
       "disputed": "Disputed",
       "default": "Upcoming"
     }
@@ -1132,7 +1133,8 @@
       "missingRoutine": "Please select a routine for your follow-up.",
       "insufficientBalance": "Insufficient wallet balance.",
       "bookingFailed": "Booking failed",
-      "generic": "Something went wrong. Please try again."
+      "generic": "Something went wrong. Please try again.",
+      "timePassed": "Appointment time has passed. Please choose another slot."
     },
     "labels": {
       "notAvailable": "N/A",

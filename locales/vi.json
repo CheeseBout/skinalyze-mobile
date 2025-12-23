@@ -347,7 +347,8 @@
       "checkInTitle": "Check-in thất bại",
       "checkInMessage": "Không thể ghi nhận check-in.",
       "meetingTitle": "Lỗi",
-      "meetingMessage": "Không thể mở liên kết cuộc hẹn."
+      "meetingMessage": "Không thể mở liên kết cuộc hẹn.",
+      "noLinkMessage": "Không có liên kết cuộc họp. Vui lòng thử lại sau hoặc liên hệ hỗ trợ."
     },
     "sections": {
       "dermatologist": {
@@ -987,7 +988,8 @@
       "missingRoutine": "Vui lòng chọn liệu trình cần tái khám.",
       "insufficientBalance": "Số dư ví không đủ.",
       "bookingFailed": "Đặt lịch thất bại",
-      "generic": "Đã xảy ra lỗi, vui lòng thử lại."
+      "generic": "Đã xảy ra lỗi, vui lòng thử lại.",
+      "timePassed": "Thời gian hẹn đã trôi qua. Vui lòng chọn khung giờ khác."
     },
     "labels": {
       "notAvailable": "Không có",

@@ -427,16 +427,55 @@ export default function AppointmentDetailScreen() {
   };
 
   const handleJoinMeeting = async () => {
-    if (!appointment || !appointment.meetingUrl || !appointmentId) return;
+    if (!appointment || !appointmentId) return;
     if (isJoining) return; // (Avoid multiple taps)
 
     setIsJoining(true);
 
     try {
+      let meetingUrl = appointment.meetingUrl;
+
+      // If no meeting URL but it's joinable time, try to generate one
+      if (!meetingUrl) {
+        const startTime = new Date(appointment.startTime);
+        const checkInTime = new Date(
+          startTime.getTime() - CHECK_IN_WINDOW_MINUTES * 60000
+        );
+        const now = new Date();
+        const isJoinableTime = now >= checkInTime;
+
+        if (isJoinableTime) {
+          try {
+            const result = await appointmentService.generateManualMeetLink(
+              appointmentId
+            );
+            meetingUrl = result.meetLink;
+            // Update local state to reflect the new link immediately
+            setAppointment((prev) =>
+              prev ? { ...prev, meetingUrl: result.meetLink } : prev
+            );
+          } catch (error) {
+            console.error("Failed to generate meet link", error);
+            // Continue to error handling below if link generation fails
+          }
+        }
+      }
+
+      if (!meetingUrl) {
+        setFeedbackAlert({
+          visible: true,
+          title: t("appointmentDetail.errors.meetingTitle"),
+          message: t("appointmentDetail.errors.noLinkMessage"),
+          type: "error",
+          confirmText: t("appointmentDetail.actions.close"),
+        });
+        return;
+      }
+
       if (!appointment.customerJoinedAt) {
         await appointmentService.checkInCustomer(appointmentId);
       }
-      await Linking.openURL(appointment.meetingUrl);
+      await Linking.openURL(meetingUrl);
     } catch (err: any) {
       if (err.message?.includes("check-in")) {
         setFeedbackAlert({
@@ -604,8 +643,13 @@ export default function AppointmentDetailScreen() {
       appointment.createdRoutine?.routineId ||
       appointment.trackingRoutine?.routineId;
     const hasCheckedIn = Boolean(appointment.customerJoinedAt);
+
+    // Allow join if status is valid AND (has link OR is joinable time to generate link)
     const canJoinNow =
-      isJoinableStatus && hasMeetingUrl && (isJoinableTime || hasCheckedIn);
+      isJoinableStatus &&
+      (hasMeetingUrl || isJoinableTime) &&
+      (isJoinableTime || hasCheckedIn);
+
     const canCopyLink =
       appointment.appointmentStatus === AppointmentStatus.IN_PROGRESS &&
       hasCheckedIn &&
@@ -624,11 +668,13 @@ export default function AppointmentDetailScreen() {
       });
 
     const joinButtonLabel = !canJoinNow
-      ? !isJoinableStatus || !hasMeetingUrl
+      ? !isJoinableStatus
         ? t("appointmentDetail.join.unavailable")
-        : t("appointmentDetail.join.joinable", {
+        : !isJoinableTime && !hasCheckedIn
+        ? t("appointmentDetail.join.joinable", {
             minutes: CHECK_IN_WINDOW_MINUTES,
           })
+        : t("appointmentDetail.join.unavailable")
       : hasCheckedIn
       ? t("appointmentDetail.join.rejoin")
       : t("appointmentDetail.join.checkIn");

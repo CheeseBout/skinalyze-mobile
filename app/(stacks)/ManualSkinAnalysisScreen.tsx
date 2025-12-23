@@ -31,6 +31,7 @@ export default function ManualSkinAnalysisScreen() {
   const [symptoms, setSymptoms] = useState("");
   const [notes, setNotes] = useState("");
   const [imageUris, setImageUris] = useState<string[]>([]);
+  const [isPickingImages, setIsPickingImages] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
@@ -65,6 +66,7 @@ export default function ManualSkinAnalysisScreen() {
       return;
     }
 
+    setIsPickingImages(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
@@ -84,6 +86,8 @@ export default function ManualSkinAnalysisScreen() {
         message: t("alerts.pickError.message"),
         type: "error",
       });
+    } finally {
+      setIsPickingImages(false);
     }
   };
 
@@ -249,11 +253,20 @@ export default function ManualSkinAnalysisScreen() {
                     },
                   ]}
                   onPress={pickImages}
+                  disabled={isPickingImages}
                 >
-                  <Ionicons name="camera" size={32} color={primaryColor} />
-                  <Text style={[styles.addImageText, { color: primaryColor }]}>
-                    {t("photos.addButton")}
-                  </Text>
+                  {isPickingImages ? (
+                    <ActivityIndicator color={primaryColor} />
+                  ) : (
+                    <>
+                      <Ionicons name="camera" size={32} color={primaryColor} />
+                      <Text
+                        style={[styles.addImageText, { color: primaryColor }]}
+                      >
+                        {t("photos.addButton")}
+                      </Text>
+                    </>
+                  )}
                 </Pressable>
               )}
 
@@ -279,14 +292,14 @@ export default function ManualSkinAnalysisScreen() {
             style={[
               styles.submitButton,
               { backgroundColor: primaryColor, shadowColor: primaryColor },
-              isSubmitting && {
+              (isSubmitting || isPickingImages) && {
                 backgroundColor: disabledPrimary,
                 shadowColor: disabledPrimary,
               },
-              isSubmitting && styles.disabledButton,
+              (isSubmitting || isPickingImages) && styles.disabledButton,
             ]}
             onPress={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPickingImages}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#fff" />
